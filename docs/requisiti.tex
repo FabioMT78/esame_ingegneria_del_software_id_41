@@ -117,9 +117,9 @@ autorizzazione restano fuori scope.
     \item Il valore relativo al rinnovo descrive la tipologia contrattuale, ma la versione 1.0 gestisce
           esclusivamente il periodo iniziale del contratto e non esegue operazioni o avvisi relativi
           al rinnovo successivo.
-    \item Alla registrazione definitiva il sistema deve conservare una copia storica completa del
-          contratto generato, comprensiva dei dati acquisiti durante la registrazione e degli articoli
-          valorizzati. Tale copia deve rimanere invariata anche in presenza di successive modifiche
+    \item Alla registrazione definitiva il sistema deve conservare una copia storica del contenuto
+          contrattuale generato, costituita dagli articoli predefiniti valorizzati con i dati della
+          registrazione. Tale copia deve rimanere invariata anche in presenza di successive modifiche
           agli articoli predefiniti o ai dati sorgente utilizzati per generarla.
     \item Il canone è mensile e il giorno di pagamento deve essere compreso tra 1 e 28.
     \item Una mensilità può essere registrata come pagata a partire dal primo giorno
@@ -230,9 +230,9 @@ contrattuali e consentire al proprietario di modificarli. Il contratto deve esse
 registrato soltanto dopo una conferma esplicita.
 Per registrazione si intende il salvataggio permanente dei dati e non la registrazione
 ufficiale presso l'Agenzia delle Entrate. Alla registrazione definitiva il sistema deve
-conservare una copia storica completa del contratto generato, comprensiva dei dati acquisiti
-nella registrazione e degli articoli valorizzati, in modo che non venga alterata da successive
-modifiche ai modelli predefiniti o ai dati sorgente. Il sistema deve inoltre creare e memorizzare il pagamento
+conservare una copia storica del contenuto contrattuale, memorizzando gli articoli predisposti
+con i dati della registrazione in modo che non vengano alterati da successive modifiche ai
+modelli predefiniti o ai dati sorgente. Il sistema deve inoltre creare e memorizzare il pagamento
 della prima mensilità con anno e mese di competenza corrispondenti alla decorrenza, data di
 pagamento coincidente con la data di decorrenza e importo pari al canone mensile del contratto. \\
 
@@ -403,11 +403,11 @@ immobile,
 \textbf{dato} che i dati del contratto sono validi,
 \textbf{quando} il proprietario fornisce la conferma esplicita,
 \textbf{allora} il contratto deve essere registrato, deve essere memorizzata una copia storica
-completa del contratto generato, comprensiva dei dati acquisiti nella registrazione e degli articoli
-valorizzati, e il sistema deve creare e memorizzare il pagamento della prima mensilità con anno e
-mese di competenza corrispondenti alla decorrenza, data di pagamento coincidente con la data di
-decorrenza e importo pari al canone mensile del contratto. La copia storica completa non deve essere
-modificata da successive variazioni degli articoli predefiniti o dei dati sorgente.
+degli articoli contrattuali valorizzati con i dati della registrazione e il sistema deve creare
+e memorizzare il pagamento della prima mensilità con anno e mese di competenza corrispondenti
+alla decorrenza, data di pagamento coincidente con la data di decorrenza e importo pari al canone
+mensile del contratto. La copia storica degli articoli non deve essere modificata da successive
+variazioni degli articoli predefiniti o dei dati sorgente.
 
 \paragraph{AC-08 -- Annullamento}
 \textbf{Dato} che il contratto non è ancora stato confermato,
