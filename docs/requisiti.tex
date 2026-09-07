@@ -1,0 +1,427 @@
+\documentclass[12pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[italian]{babel}
+\usepackage{geometry}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{booktabs}
+\usepackage[hidelinks]{hyperref}
+
+\geometry{margin=2.5cm}
+
+\title{Gestionale Affitti\\Specifica dei requisiti}
+\author{}
+\date{}
+
+\newcommand{\req}[1]{\textbf{#1}}
+
+\begin{document}
+
+\maketitle
+\tableofcontents
+\newpage
+
+\section{Scopo}
+
+\emph{Gestionale Affitti} è un progetto individuale per la gestione essenziale di
+locazioni immobiliari.
+
+La versione 1.0 è intenzionalmente limitata a due obiettivi principali:
+\begin{itemize}
+    \item registrare un contratto di locazione relativo all'intero immobile;
+    \item registrare il pagamento mensile del canone relativo a un contratto.
+\end{itemize}
+
+L'unico attore che interagisce direttamente con il sistema nella versione 1.0 è il
+\textbf{proprietario}. L'\textbf{inquilino} è un concetto del dominio ma non è un attore
+del sistema.
+
+La specifica dettagliata dei due casi d'uso e la relativa modellazione vengono rinviate
+alla fase UML. I due casi d'uso core individuati sono:
+
+\begin{itemize}
+    \item \textbf{UC-01 -- Registrare un contratto di locazione};
+    \item \textbf{UC-02 -- Registrare il pagamento di un canone}.
+\end{itemize}
+
+\section{Scope della versione 1.0}
+
+Rientrano nello scope:
+\begin{itemize}
+    \item locazione dell'intero immobile;
+    \item registrazione dei dati di immobile, proprietario e inquilino;
+    \item contratti a canone concordato e a canone libero;
+    \item clausole contrattuali predefinite per la tipologia selezionata;
+    \item registrazione del pagamento completo del canone mensile;
+    \item controlli necessari a evitare contratti e pagamenti incoerenti.
+\end{itemize}
+
+Sono fuori scope:
+\begin{itemize}
+    \item locazione parziale dell'immobile;
+    \item rinnovo operativo dei contratti e avvisi di prossimità della scadenza;
+    \item pagamenti parziali;
+    \item esecuzione reale del pagamento e integrazione con servizi bancari;
+    \item firma e registrazione fiscale del contratto;
+    \item modifica o caricamento di clausole contrattuali da parte del proprietario;
+    \item manutenzione, annunci e prenotazione degli immobili;
+    \item autenticazione e autorizzazione degli utenti;
+    \item utilizzo pubblico o multiutente del sistema.
+\end{itemize}
+
+La versione 1.0 assume pertanto un contesto dimostrativo e mono-utente, non destinato
+all'esposizione pubblica o all'uso in produzione. L'utilizzatore opera nel ruolo di proprietario
+e il sistema non deve distinguere dati appartenenti a utenti diversi; autenticazione e
+autorizzazione restano fuori scope.
+
+\section{Regole di dominio essenziali}
+
+\begin{itemize}
+    \item Ogni immobile può avere un nome assegnato dal proprietario. Il nome è un'etichetta
+          leggibile, non deve essere univoco e non identifica l'immobile.
+    \item L'immobile è riconosciuto tramite i dati catastali; non devono essere creati duplicati
+          con gli stessi dati catastali.
+    \item proprietario e inquilino sono riconosciuti tramite codice fiscale.
+    \item Ogni contratto può avere un nome o una breve descrizione leggibile.
+    \item La versione 1.0 supporta contratti a canone concordato (3 + 2) e a canone libero (4 + 4).
+    \item Il proprietario inserisce la data iniziale \texttt{dal}; la data finale \texttt{al}
+          è determinata automaticamente in base al contratto selezionato e rappresenta l'ultimo
+          giorno compreso nel periodo iniziale.
+    \item Il sistema gestisce esclusivamente il periodo iniziale del contratto; non gestisce
+          operazioni o avvisi relativi al rinnovo successivo, che restano fuori scope nella versione 1.0.
+    \item Il canone è mensile e il giorno di pagamento deve essere compreso tra 1 e 28.
+    \item Un immobile può avere più contratti di locazione nel tempo, purché i relativi
+          periodi di decorrenza non si sovrappongano.
+    \item Non sono ammessi pagamenti parziali del canone di locazione; il relativo importo deriva dal canone mensile nel contratto.
+    \item Un pagamento può essere registrato anche dopo la relativa scadenza.
+\end{itemize}
+
+\section{User stories}
+
+\subsection{US-01 -- Registrazione del contratto}
+
+\emph{Come proprietario, voglio registrare un contratto di locazione relativo a un immobile,
+in modo da gestire il rapporto locativo con l'inquilino.}
+
+\subsection{US-02 -- Registrazione del pagamento}
+
+\emph{Come proprietario, voglio registrare il pagamento del canone mensile di un contratto,
+in modo da tenere traccia delle mensilità pagate.}
+
+\section{Requisiti funzionali}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{1.8cm}
+                  >{\raggedright\arraybackslash}p{13cm}}
+\toprule
+\textbf{ID} & \textbf{Requisito funzionale} \\
+\midrule
+\endfirsthead
+
+\toprule
+\textbf{ID} & \textbf{Requisito funzionale} \\
+\midrule
+\endhead
+
+\req{RF-01} &
+Il sistema deve consentire al proprietario di registrare un contratto mediante una
+procedura guidata in sei step: immobile -> proprietario -> inquilino -> dati contrattuali ->
+riepilogo -> conferma. I dati obbligatori di uno step devono essere validi prima di
+proseguire e la procedura deve poter essere annullata prima della conferma definitiva.
+Se alla registrazione è presente una bozza, il sistema carica i dati della stessa. \\
+
+\req{RF-02} &
+Al completamento del primo step il sistema deve creare una bozza del contratto e aggiornarla
+al completamento di ogni step validato con successo. La bozza deve essere cancellata quando
+il proprietario annulla la procedura oppure quando il contratto viene registrato definitivamente
+con successo. \\
+
+\req{RF-03} &
+Durante la registrazione del contratto il sistema deve consentire di selezionare un immobile
+già registrato tramite il nome assegnato oppure di inserirne uno nuovo. Gli immobili devono
+essere riconosciuti tramite i dati catastali, mentre proprietario e inquilino devono essere
+riconosciuti tramite codice fiscale. \\
+
+\req{RF-04} &
+Il sistema deve acquisire per il contratto un nome o una breve descrizione, la tipologia
+contrattuale, la data iniziale, il canone mensile e il giorno di pagamento. Deve calcolare
+automaticamente la data finale del periodo iniziale e associare le clausole predefinite
+alla tipologia contrattuale selezionata. \\
+
+\req{RF-05} &
+La presenza di uno o più contratti già registrati per l'immobile non deve impedire l'avvio o
+la prosecuzione della stesura di un nuovo contratto. Il sistema deve impedire la registrazione
+definitiva soltanto quando il periodo di decorrenza del nuovo contratto si sovrappone a quello
+di un altro contratto già registrato per lo stesso immobile. Lo stesso inquilino può quindi
+stipulare, in periodi non sovrapposti, più contratti successivi sul medesimo immobile. \\
+
+\req{RF-06} &
+Prima della registrazione definitiva il sistema deve mostrare un riepilogo dei dati
+contrattuali e consentire al proprietario di modificarli. Il contratto deve essere
+registrato soltanto dopo una conferma esplicita.
+Per registrazione si intende il salvataggio permanente dei dati e non la registrazione
+ufficiale presso l'Agenzia delle Entrate. \\
+
+\req{RF-07} &
+Per registrare un pagamento il sistema deve consentire al proprietario di selezionare
+l'immobile tramite il nome assegnato e mostrare, senza richiedere l'unicità del nome,
+gli inquilini associati a contratti registrati per quell'immobile. Se l'elenco contiene
+un solo inquilino, il sistema deve selezionarlo automaticamente. \\
+
+\req{RF-08} &
+Dopo l'individuazione di immobile e inquilino, il sistema deve considerare i contratti
+registrati relativi alla coppia selezionata e individuare automaticamente la mensilità non
+pagata cronologicamente più vecchia fino al mese corrente. Deve quindi caricare i dati
+essenziali del contratto a cui tale mensilità appartiene, escludendo mensilità già pagate
+e mensilità future. \\
+
+\req{RF-09} &
+L'importo del pagamento è determinato automaticamente dal canone mensile del
+contratto. La versione 1.0 deve consentire soltanto il pagamento completo e deve permettere
+la registrazione anche quando il pagamento è tardivo. \\
+
+\req{RF-10} &
+Il sistema deve offrire le azioni \emph{Pagato} e \emph{Annulla}. La registrazione del
+pagamento deve avvenire soltanto dopo una conferma esplicita; in caso di annullamento
+nessun pagamento deve essere registrato. \\
+
+\req{RF-11} &
+Nella home page il sistema deve mostrare un elenco degli immobili registrati con il nome
+assegnato e il numero di contratti registrati. Per ciascun immobile deve inoltre evidenziare
+lo stato complessivo dei pagamenti, indicando la regolarità dei pagamenti oppure il numero
+di mensilità arretrate non ancora registrate come pagate. \\
+
+\bottomrule
+\end{longtable}
+
+\section{Requisiti non funzionali}
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{1.5cm}
+                  >{\raggedright\arraybackslash}p{10cm}
+                  >{\raggedright\arraybackslash}p{2.2cm}}
+\toprule
+\textbf{ID} & \textbf{Requisito non funzionale} & \textbf{Categoria} \\
+\midrule
+\endfirsthead
+
+\toprule
+\textbf{ID} & \textbf{Requisito non funzionale} & \textbf{Categoria} \\
+\midrule
+\endhead
+
+\req{RNF-01} &
+I dati validati negli step completati della registrazione del contratto devono essere
+recuperabili dopo un'interruzione della procedura o una temporanea indisponibilità del
+servizio. Nel contesto mono-utente della versione 1.0, alla riapertura della procedura il
+sistema deve poter recuperare l'eventuale bozza non conclusa senza richiedere un meccanismo
+di identificazione tra utenti diversi. &
+Affidabilità / recuperabilità \\
+
+\req{RNF-02} &
+In condizioni nominali di utilizzo, le operazioni interattive dei due casi d'uso che
+richiedono elaborazione o comunicazione con il server devono completarsi entro
+1,5 secondi. &
+Prestazioni \\
+
+\req{RNF-03} &
+Il client deve applicare controlli di ammissibilità coerenti con il tipo di ciascun campo,
+segnalando prima dell'invio caratteri o sequenze non consentiti. Tali controlli non sostituiscono
+la validazione lato server: ogni input deve essere nuovamente validato e trattato in modo sicuro
+prima di essere visualizzato o utilizzato nelle operazioni di persistenza, con particolare
+attenzione a vulnerabilità di tipo XSS e injection. Se la validazione lato server rileva un input
+riconducibile a un possibile tentativo di attacco, la richiesta deve essere rifiutata e deve essere
+registrato un evento di sicurezza contenente i metadati tecnici disponibili della richiesta e il
+valore rilevato in forma sanitizzata. &
+Sicurezza \\
+
+\req{RNF-04} &
+Gli errori applicativi recuperabili devono essere intercettati e registrati nei log.
+Un errore relativo a una singola operazione non deve lasciare dati parziali o incoerenti,
+non deve produrre un falso esito positivo e non deve impedire le operazioni successive.
+Il messaggio mostrato all'utente non deve esporre dettagli tecnici interni. &
+Affidabilità / resilienza \\
+
+\req{RNF-05} &
+Durante le operazioni che richiedono attesa per elaborazione o comunicazione con il server,
+il sistema deve rendere percepibile lo stato di elaborazione e, al termine, comunicare
+esplicitamente l'esito positivo o negativo. &
+Usabilità \\
+
+\bottomrule
+\end{longtable}
+
+\section{Acceptance criteria}
+
+\subsection{Acceptance criteria di US-01}
+
+\paragraph{AC-01 -- Selezione o inserimento dell'immobile}
+\textbf{Dato} che il proprietario avvia la registrazione di un contratto,
+\textbf{quando} accede al primo step,
+\textbf{allora} deve poter selezionare un immobile esistente tramite il nome assegnato
+oppure inserire un nuovo immobile; un duplicato catastale deve essere rifiutato.
+
+\paragraph{AC-02 -- immobile con contratti già registrati}
+\textbf{Dato} un immobile per il quale esiste già uno o più contratti registrati,
+\textbf{quando} il proprietario lo seleziona per predisporre un nuovo contratto,
+\textbf{allora} il sistema deve consentire di proseguire con la stesura; la registrazione
+definitiva verrà impedita soltanto se, una volta noto il nuovo periodo di decorrenza,
+risulta una sovrapposizione con un contratto esistente.
+
+\paragraph{AC-03 -- Identificazione delle persone}
+\textbf{Dato} l'inserimento del codice fiscale del proprietario o dell'inquilino,
+\textbf{quando} il soggetto è già registrato,
+\textbf{allora} il sistema deve recuperarne i dati disponibili.
+
+\paragraph{AC-04 -- Validazione progressiva}
+\textbf{Dato} uno qualsiasi dei primi quattro step,
+\textbf{quando} mancano dati obbligatori o sono presenti dati non validi,
+\textbf{allora} il sistema deve segnalare gli errori e impedire il passaggio allo step
+successivo finché non vengono corretti.
+
+\paragraph{AC-05 -- Dati e durata del contratto}
+\textbf{Dato} che il proprietario ha scelto la tipologia contrattuale e la data
+\texttt{dal},
+\textbf{quando} i dati contrattuali vengono validati,
+\textbf{allora} il sistema deve calcolare automaticamente la data \texttt{al},
+associare le clausole predefinite e accettare un giorno di pagamento compreso tra 1 e 28.
+
+\paragraph{AC-06 -- Coerenza del contratto}
+\textbf{Dato} il periodo del nuovo contratto,
+\textbf{quando} tale periodo si sovrappone al periodo di un contratto già registrato per lo stesso
+immobile,
+\textbf{allora} il sistema deve impedire la registrazione definitiva del nuovo contratto.
+
+\paragraph{AC-07 -- Riepilogo e conferma}
+\textbf{Dato} che gli step precedenti sono validi,
+\textbf{quando} il proprietario raggiunge il riepilogo,
+\textbf{allora} deve poter verificare e modificare i dati; il contratto deve essere
+registrato solo dopo la conferma esplicita.
+
+\paragraph{AC-08 -- Annullamento}
+\textbf{Dato} che il contratto non è ancora stato confermato,
+\textbf{quando} il proprietario annulla la procedura,
+\textbf{allora} nessun nuovo contratto deve essere registrato e l'eventuale bozza deve essere cancellata.
+
+\paragraph{AC-15 -- Ciclo di vita della bozza}
+\textbf{Dato} che il proprietario completa con successo il primo step della procedura,
+\textbf{quando} passa a uno step successivo validato,
+\textbf{allora} il sistema deve creare o aggiornare la bozza con i dati acquisiti;
+\textbf{quando} la registrazione definitiva termina con successo, la bozza deve essere cancellata.
+
+\subsection{Acceptance criteria di US-02}
+
+\paragraph{AC-09 -- Individuazione dell'inquilino}
+\textbf{Dato} che il proprietario avvia la registrazione di un pagamento,
+\textbf{quando} seleziona un immobile,
+\textbf{allora} il sistema deve mostrare gli inquilini associati a contratti registrati
+per quell'immobile e auto-selezionare l'inquilino se è l'unico disponibile.
+
+\paragraph{AC-10 -- Caricamento dei dati contrattuali}
+\textbf{Dato} che sono stati individuati immobile, inquilino e mensilità da registrare,
+\textbf{quando} il sistema prepara il pagamento,
+\textbf{allora} deve mostrare almeno canone mensile, tipologia e periodo
+\texttt{dal}--\texttt{al} del contratto a cui la mensilità appartiene.
+
+\paragraph{AC-11 -- Prima mensilità non pagata}
+\textbf{Dato} che per la coppia immobile--inquilino esistono uno o più contratti registrati,
+\textbf{quando} esistono mensilità non ancora pagate fino al mese corrente,
+\textbf{allora} il sistema deve selezionare automaticamente la mensilità non pagata
+cronologicamente più vecchia tra i contratti considerati, senza proporre mensilità già pagate
+o future.
+
+\paragraph{AC-12 -- Importo del pagamento}
+\textbf{Dato} che è stata individuata la mensilità da registrare,
+\textbf{quando} il sistema prepara il pagamento,
+\textbf{allora} l'importo deve coincidere automaticamente con il canone mensile previsto
+dal contratto e non deve essere richiesto un importo manuale.
+
+\paragraph{AC-13 -- Pagamento tardivo}
+\textbf{Dato} che la mensilità individuata è già scaduta,
+\textbf{quando} il proprietario registra il pagamento,
+\textbf{allora} il sistema deve consentire comunque la registrazione.
+
+\paragraph{AC-14 -- Conferma o annullamento}
+\textbf{Dato} che il pagamento è pronto per la registrazione,
+\textbf{quando} il proprietario seleziona \emph{Pagato},
+\textbf{allora} il sistema deve chiedere conferma prima di registrarlo;
+\textbf{quando} seleziona \emph{Annulla}, nessun pagamento deve essere registrato.
+
+\paragraph{AC-16 -- Stato dei pagamenti in home}
+\textbf{Dato} che nella home page sono presenti immobili registrati,
+\textbf{quando} il sistema ne mostra l'elenco,
+\textbf{allora} per ciascun immobile deve mostrare il nome assegnato, il numero di contratti
+registrati e uno stato che evidenzi la regolarità dei pagamenti oppure il numero di mensilità
+arretrate non ancora registrate come pagate.
+
+\section{Criteri di verifica dei requisiti non funzionali}
+
+Questi criteri non introducono nuove user stories, ma indicano come verificare i requisiti
+trasversali della versione 1.0.
+
+\begin{description}
+    \item[CV-01 -- RNF-01] Dopo aver completato almeno uno step della registrazione del
+    contratto, un'interruzione della procedura deve consentire, nel contesto mono-utente
+    previsto dalla versione 1.0, di riaprire la procedura recuperando l'ultima bozza non
+    conclusa e i dati già acquisiti.
+
+    \item[CV-02 -- RNF-02] In condizioni nominali, ciascuna operazione interattiva di
+    UC-01 e UC-02 che richiede il server deve completarsi entro 1,5 secondi.
+
+    \item[CV-03 -- RNF-03] Un input contenente caratteri o sequenze non ammessi per il campo
+    deve essere segnalato dal client. Lo stesso input, se inviato direttamente al server aggirando
+    il controllo client, deve essere nuovamente validato e rifiutato o neutralizzato senza eseguire
+    codice indesiderato né alterare le operazioni di persistenza. Se il server lo riconduce a un
+    possibile tentativo di XSS o injection, deve produrre una voce di log con metadati tecnici della
+    richiesta e valore rilevato in forma sanitizzata.
+
+    \item[CV-04 -- RNF-04] Un errore applicativo recuperabile deve produrre una voce di
+    log, non deve lasciare dati parziali, deve restituire un messaggio utente privo di
+    dettagli tecnici e non deve impedire una successiva operazione valida.
+
+    \item[CV-05 -- RNF-05] Durante un'operazione con attesa deve essere mostrato uno stato
+    di elaborazione; al termine deve essere comunicato un esito positivo o negativo.
+\end{description}
+
+\section{Tracciabilità iniziale}
+
+La tabella mantiene soltanto il collegamento necessario alla fase successiva.
+La tracciabilità verso UML, componenti, codice e test verrà estesa progressivamente.
+
+\begin{longtable}{>{\raggedright\arraybackslash}p{2cm}
+                  >{\raggedright\arraybackslash}p{5cm}
+                  >{\raggedright\arraybackslash}p{4cm}
+                  >{\raggedright\arraybackslash}p{2.5cm}}
+\toprule
+\textbf{User story} & \textbf{Requisiti funzionali} & \textbf{Acceptance criteria} &
+\textbf{Caso d'uso} \\
+\midrule
+\endfirsthead
+
+\toprule
+\textbf{User story} & \textbf{Requisiti funzionali} & \textbf{Acceptance criteria} &
+\textbf{Caso d'uso} \\
+\midrule
+\endhead
+
+US-01 & RF-01--RF-06 & AC-01--AC-08, AC-15 & UC-01 \\
+US-02 & RF-07--RF-11 & AC-09--AC-14, AC-16 & UC-02 \\
+
+\bottomrule
+\end{longtable}
+
+\section{Questioni aperte}
+
+Prima di considerare definitivamente chiusa la specifica dei requisiti restano da chiarire:
+
+\begin{itemize}
+    \item la prima mensilità dovuta quando il contratto decorre nel corso del mese e la
+          data \texttt{dal} è successiva al giorno mensile previsto per il pagamento;
+    \item definire in modo riproducibile le condizioni nominali e l'ambiente di misura utilizzati
+          per verificare il tempo massimo di risposta previsto da RNF-02;
+    \item l'eventuale introduzione di un requisito di conformità normativa, da formulare
+          soltanto dopo aver individuato e verificato le fonti normative italiane applicabili
+          alle tipologie contrattuali e alle clausole predefinite.
+\end{itemize}
+
+\end{document}
