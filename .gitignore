@@ -1,0 +1,77 @@
+# ============================================================
+# Gestionale Affitti - .gitignore
+# ============================================================
+
+# --- Sistema operativo ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- Editor / IDE ---
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# --- File temporanei / backup ---
+*.tmp
+*.temp
+*.bak
+*.old
+*.orig
+
+# --- Log ---
+*.log
+
+# --- LaTeX: file intermedi ---
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.lot
+*.out
+*.run.xml
+*.synctex.gz
+*.toc
+*.nav
+*.snm
+*.vrb
+*.xdv
+
+# Directory di build LaTeX, se utilizzata
+build/
+out/
+
+# NOTA:
+# Non ignoriamo i PDF del progetto, perché i diagrammi UML esportati
+# e la relazione finale possono essere artefatti versionati/consegnati.
+
+# --- PlantUML / Graphviz: file temporanei ---
+*.tmp.uml
+*.tmp.puml
+
+# --- Coverage / test reports generici ---
+coverage/
+coverage.xml
+htmlcov/
+test-results/
+reports/
+
+# --- File di ambiente locali / segreti ---
+.env
+.env.*
+!.env.example
+
+# --- Cache generiche ---
+.cache/
+tmp/
+temp/
+
