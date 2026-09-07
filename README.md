@@ -20,6 +20,8 @@ Il progetto è in corso di sviluppo.
 Fasi completate:
 - definizione del progetto;
 - requisiti del progettto;
+- diagramma use case;
+- modello di dominio con diagramma;
 
 ## Quickstart
 

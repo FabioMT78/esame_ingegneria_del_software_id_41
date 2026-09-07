@@ -1,0 +1,14 @@
+@startuml
+left to right direction
+
+actor Proprietario
+
+rectangle "Gestionale Affitti" {
+    usecase "UC-01\nRegistrare un contratto\ndi locazione" as UC01
+    usecase "UC-02\nRegistrare il pagamento\ndi un canone" as UC02
+}
+
+Proprietario --> UC01
+Proprietario --> UC02
+
+@enduml
