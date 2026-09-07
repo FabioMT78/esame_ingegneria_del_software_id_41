@@ -67,6 +67,7 @@ Sono fuori scope:
     \item firma e registrazione fiscale del contratto;
     \item modifica o caricamento di clausole contrattuali da parte del proprietario;
     \item manutenzione, annunci e prenotazione degli immobili;
+    \item registrazione e gestione dei depositi cauzionali, che nella versione 1.0 si considerano già versati alla decorrenza del contratto;
     \item autenticazione e autorizzazione degli utenti;
     \item utilizzo pubblico o multiutente del sistema.
 \end{itemize}
@@ -81,9 +82,27 @@ autorizzazione restano fuori scope.
 \begin{itemize}
     \item Ogni immobile può avere un nome assegnato dal proprietario. Il nome è un'etichetta
           leggibile, non deve essere univoco e non identifica l'immobile.
-    \item L'immobile è riconosciuto tramite i dati catastali; non devono essere creati duplicati
-          con gli stessi dati catastali.
-    \item proprietario e inquilino sono riconosciuti tramite codice fiscale.
+    \item Ogni immobile è caratterizzato da un indirizzo composto da nazione,
+            provincia, comune, CAP, indirizzo, eventuale numero civico,
+            eventuale scala ed eventuale interno.
+      \item Ogni immobile è caratterizzato da dati catastali comprendenti codice
+            comunale, foglio, particella, subalterno, categoria, consistenza e rendita.
+      \item L'immobile è identificato catastalmente dalla combinazione di codice comunale,
+            foglio, particella e subalterno. Categoria, consistenza e rendita costituiscono
+            caratteristiche catastali dell'immobile ma non partecipano alla sua identificazione.
+      \item Non devono essere creati due immobili con la stessa combinazione di codice comunale,
+            foglio, particella e subalterno.
+      \item Quando l'indirizzo comprende anche l'interno, non devono essere creati due immobili
+            con lo stesso indirizzo completo.
+    \item Proprietario e inquilino sono riconosciuti tramite codice fiscale.
+            Se una persona non è ancora registrata, il sistema deve consentirne
+            la registrazione acquisendo nome, cognome, luogo di nascita,
+            data di nascita, codice fiscale e indirizzo di residenza composto da
+            provincia, comune, indirizzo e numero civico.
+      \item Per una persona che assume il ruolo di inquilino devono inoltre essere
+            presenti i dati del documento di riconoscimento: tipo di documento
+            (carta d'identità o passaporto), organo emittente, data di rilascio,
+            data di scadenza e numero del documento.
     \item Ogni contratto può avere un nome o una breve descrizione leggibile.
     \item La versione 1.0 supporta contratti a canone concordato (3 + 2) e a canone libero (4 + 4).
     \item Il proprietario inserisce la data iniziale \texttt{dal}; la data finale \texttt{al}
@@ -92,9 +111,26 @@ autorizzazione restano fuori scope.
     \item Il sistema gestisce esclusivamente il periodo iniziale del contratto; non gestisce
           operazioni o avvisi relativi al rinnovo successivo, che restano fuori scope nella versione 1.0.
     \item Il canone è mensile e il giorno di pagamento deve essere compreso tra 1 e 28.
+    \item Una mensilità può essere registrata come pagata a partire dal primo giorno
+            del relativo mese di competenza, anche prima del giorno di pagamento
+            previsto dal contratto.
+      \item La data di scadenza di una mensilità coincide con il giorno di pagamento
+            previsto dal contratto nel relativo mese di competenza. La mensilità è
+            dovuta a partire da tale data, compresa.
+      \item Un pagamento è tardivo quando viene registrato dopo la data di scadenza
+            della relativa mensilità.
+    \item Alla registrazione definitiva del contratto la prima mensilità si considera
+          già versata e il sistema deve creare e memorizzare il relativo pagamento con data
+          coincidente con la data di decorrenza del contratto. Le successive registrazioni
+          di pagamento della versione 1.0 riguardano pertanto le mensilità successive alla prima.
+    \item Ogni pagamento appartiene a un solo contratto e si riferisce a una sola mensilità.
+          Per ciascuna mensilità di un contratto può esistere al massimo un pagamento.
+    \item Gli eventuali depositi cauzionali si considerano già versati alla decorrenza
+          del contratto e non sono gestiti dal sistema nella versione 1.0.
     \item Un immobile può avere più contratti di locazione nel tempo, purché i relativi
           periodi di decorrenza non si sovrappongano.
-    \item Non sono ammessi pagamenti parziali del canone di locazione; il relativo importo deriva dal canone mensile nel contratto.
+    \item Non sono ammessi pagamenti parziali del canone di locazione; il relativo importo
+          deriva dal canone mensile previsto nel contratto.
     \item Un pagamento può essere registrato anche dopo la relativa scadenza.
 \end{itemize}
 
@@ -129,7 +165,8 @@ Il sistema deve consentire al proprietario di registrare un contratto mediante u
 procedura guidata in sei step: immobile -> proprietario -> inquilino -> dati contrattuali ->
 riepilogo -> conferma. I dati obbligatori di uno step devono essere validi prima di
 proseguire e la procedura deve poter essere annullata prima della conferma definitiva.
-Se alla registrazione è presente una bozza, il sistema carica i dati della stessa. \\
+Se all'avvio della procedura esiste una bozza non conclusa, il sistema deve caricarne
+i dati. \\
 
 \req{RF-02} &
 Al completamento del primo step il sistema deve creare una bozza del contratto e aggiornarla
@@ -139,9 +176,24 @@ con successo. \\
 
 \req{RF-03} &
 Durante la registrazione del contratto il sistema deve consentire di selezionare un immobile
-già registrato tramite il nome assegnato oppure di inserirne uno nuovo. Gli immobili devono
-essere riconosciuti tramite i dati catastali, mentre proprietario e inquilino devono essere
-riconosciuti tramite codice fiscale. \\
+già registrato, presentandolo tramite il nome assegnato, oppure di inserirne uno nuovo.
+La selezione deve riferirsi univocamente all'immobile registrato anche quando più immobili
+hanno lo stesso nome.
+Per un nuovo immobile il sistema deve acquisire l'indirizzo e i dati catastali.
+L'immobile deve essere riconosciuto catastalmente tramite la combinazione di codice comunale,
+foglio, particella e subalterno. Il sistema deve rifiutare la creazione di un immobile
+con una combinazione catastale già presente.
+Quando l'indirizzo comprende anche l'interno, il sistema deve inoltre rifiutare la creazione
+di un immobile con lo stesso indirizzo completo di un immobile già registrato.
+Proprietario e inquilino devono essere riconosciuti tramite codice fiscale.
+Se il codice fiscale corrisponde a una persona già registrata, il sistema deve
+recuperarne i dati; in caso contrario deve consentire di registrare una nuova
+persona acquisendo nome, cognome, luogo di nascita, data di nascita, codice
+fiscale, provincia, comune, indirizzo e numero civico della residenza.
+Per la persona che assume il ruolo di inquilino il sistema deve inoltre
+acquisire, se non già presenti, tipo di documento di riconoscimento
+(carta d'identità o passaporto), organo emittente, data di rilascio,
+data di scadenza e numero del documento. \\
 
 \req{RF-04} &
 Il sistema deve acquisire per il contratto un nome o una breve descrizione, la tipologia
@@ -161,20 +213,31 @@ Prima della registrazione definitiva il sistema deve mostrare un riepilogo dei d
 contrattuali e consentire al proprietario di modificarli. Il contratto deve essere
 registrato soltanto dopo una conferma esplicita.
 Per registrazione si intende il salvataggio permanente dei dati e non la registrazione
-ufficiale presso l'Agenzia delle Entrate. \\
+ufficiale presso l'Agenzia delle Entrate. Alla registrazione definitiva del contratto il
+sistema deve inoltre creare e memorizzare il pagamento della prima mensilità con data
+coincidente con la data di decorrenza del contratto. \\
 
 \req{RF-07} &
 Per registrare un pagamento il sistema deve consentire al proprietario di selezionare
-l'immobile tramite il nome assegnato e mostrare, senza richiedere l'unicità del nome,
-gli inquilini associati a contratti registrati per quell'immobile. Se l'elenco contiene
-un solo inquilino, il sistema deve selezionarlo automaticamente. \\
+un immobile presentandolo tramite il nome assegnato. La selezione deve riferirsi
+univocamente all'immobile registrato anche quando più immobili hanno lo stesso nome.
+Il sistema deve quindi mostrare gli inquilini associati a contratti registrati per
+l'immobile selezionato. Se l'elenco contiene un solo inquilino, il sistema deve
+selezionarlo automaticamente. \\
 
 \req{RF-08} &
-Dopo l'individuazione di immobile e inquilino, il sistema deve considerare i contratti
-registrati relativi alla coppia selezionata e individuare automaticamente la mensilità non
-pagata cronologicamente più vecchia fino al mese corrente. Deve quindi caricare i dati
-essenziali del contratto a cui tale mensilità appartiene, escludendo mensilità già pagate
-e mensilità future. \\
+Dopo l'individuazione di immobile e inquilino, il sistema deve considerare i
+contratti registrati relativi alla coppia selezionata e individuare
+automaticamente la mensilità non pagata cronologicamente più vecchia fino al
+mese corrente.
+La mensilità del mese corrente deve poter essere proposta anche prima del
+giorno di pagamento previsto dal contratto; le mensilità dei mesi successivi
+devono invece essere considerate future.
+Il sistema deve caricare i dati essenziali del contratto a cui la mensilità
+appartiene, escludendo mensilità già pagate e mensilità future.
+Se non esistono mensilità non pagate fino al mese corrente, il sistema deve
+comunicare che non risultano mensilità disponibili per la registrazione del
+pagamento e impedire la prosecuzione della procedura. \\
 
 \req{RF-09} &
 L'importo del pagamento è determinato automaticamente dal canone mensile del
@@ -182,15 +245,10 @@ contratto. La versione 1.0 deve consentire soltanto il pagamento completo e deve
 la registrazione anche quando il pagamento è tardivo. \\
 
 \req{RF-10} &
-Il sistema deve offrire le azioni \emph{Pagato} e \emph{Annulla}. La registrazione del
-pagamento deve avvenire soltanto dopo una conferma esplicita; in caso di annullamento
-nessun pagamento deve essere registrato. \\
-
-\req{RF-11} &
-Nella home page il sistema deve mostrare un elenco degli immobili registrati con il nome
-assegnato e il numero di contratti registrati. Per ciascun immobile deve inoltre evidenziare
-lo stato complessivo dei pagamenti, indicando la regolarità dei pagamenti oppure il numero
-di mensilità arretrate non ancora registrate come pagate. \\
+Nella procedura di registrazione di un pagamento prevista da UC-02, il sistema deve
+offrire le azioni \emph{Pagato} e \emph{Annulla}. La registrazione del pagamento deve
+avvenire soltanto dopo una conferma esplicita; in caso di annullamento nessun nuovo
+pagamento deve essere registrato. \\
 
 \bottomrule
 \end{longtable}
@@ -259,7 +317,17 @@ Usabilità \\
 \textbf{Dato} che il proprietario avvia la registrazione di un contratto,
 \textbf{quando} accede al primo step,
 \textbf{allora} deve poter selezionare un immobile esistente tramite il nome assegnato
-oppure inserire un nuovo immobile; un duplicato catastale deve essere rifiutato.
+oppure inserire un nuovo immobile; anche in presenza di immobili con lo stesso nome,
+la selezione deve riferirsi univocamente a un solo immobile registrato.
+
+\textbf{Dato} che il proprietario inserisce un nuovo immobile,
+\textbf{quando} la combinazione di codice comunale, foglio, particella e subalterno
+coincide con quella di un immobile già registrato,
+\textbf{allora} il sistema deve rifiutare l'inserimento.
+
+\textbf{Dato} che il proprietario inserisce un nuovo immobile con l'interno specificato,
+\textbf{quando} l'indirizzo completo coincide con quello di un immobile già registrato,
+\textbf{allora} il sistema deve rifiutare l'inserimento.
 
 \paragraph{AC-02 -- immobile con contratti già registrati}
 \textbf{Dato} un immobile per il quale esiste già uno o più contratti registrati,
@@ -268,10 +336,23 @@ oppure inserire un nuovo immobile; un duplicato catastale deve essere rifiutato.
 definitiva verrà impedita soltanto se, una volta noto il nuovo periodo di decorrenza,
 risulta una sovrapposizione con un contratto esistente.
 
-\paragraph{AC-03 -- Identificazione delle persone}
+\paragraph{AC-03 -- Identificazione e registrazione delle persone}
+
 \textbf{Dato} l'inserimento del codice fiscale del proprietario o dell'inquilino,
 \textbf{quando} il soggetto è già registrato,
 \textbf{allora} il sistema deve recuperarne i dati disponibili.
+
+\textbf{Dato} l'inserimento del codice fiscale del proprietario o dell'inquilino,
+\textbf{quando} il soggetto non è ancora registrato,
+\textbf{allora} il sistema deve consentire di registrarlo acquisendo nome,
+cognome, luogo di nascita, data di nascita, codice fiscale, provincia,
+comune, indirizzo e numero civico della residenza.
+
+\textbf{Dato} che la persona deve assumere il ruolo di inquilino,
+\textbf{quando} i dati del documento di riconoscimento non sono già presenti,
+\textbf{allora} il sistema deve richiedere tipo di documento
+(carta d'identità o passaporto), organo emittente, data di rilascio,
+data di scadenza e numero del documento.
 
 \paragraph{AC-04 -- Validazione progressiva}
 \textbf{Dato} uno qualsiasi dei primi quattro step,
@@ -295,15 +376,19 @@ immobile,
 \paragraph{AC-07 -- Riepilogo e conferma}
 \textbf{Dato} che gli step precedenti sono validi,
 \textbf{quando} il proprietario raggiunge il riepilogo,
-\textbf{allora} deve poter verificare e modificare i dati; il contratto deve essere
-registrato solo dopo la conferma esplicita.
+\textbf{allora} deve poter verificare e modificare i dati;
+
+\textbf{dato} che i dati del contratto sono validi,
+\textbf{quando} il proprietario fornisce la conferma esplicita,
+\textbf{allora} il contratto deve essere registrato e il sistema deve creare e memorizzare
+il pagamento della prima mensilità con data coincidente con la data di decorrenza del contratto.
 
 \paragraph{AC-08 -- Annullamento}
 \textbf{Dato} che il contratto non è ancora stato confermato,
 \textbf{quando} il proprietario annulla la procedura,
 \textbf{allora} nessun nuovo contratto deve essere registrato e l'eventuale bozza deve essere cancellata.
 
-\paragraph{AC-15 -- Ciclo di vita della bozza}
+\paragraph{AC-09 -- Ciclo di vita della bozza}
 \textbf{Dato} che il proprietario completa con successo il primo step della procedura,
 \textbf{quando} passa a uno step successivo validato,
 \textbf{allora} il sistema deve creare o aggiornare la bozza con i dati acquisiti;
@@ -311,48 +396,69 @@ registrato solo dopo la conferma esplicita.
 
 \subsection{Acceptance criteria di US-02}
 
-\paragraph{AC-09 -- Individuazione dell'inquilino}
+\paragraph{AC-10 -- Individuazione dell'inquilino}
 \textbf{Dato} che il proprietario avvia la registrazione di un pagamento,
 \textbf{quando} seleziona un immobile,
-\textbf{allora} il sistema deve mostrare gli inquilini associati a contratti registrati
-per quell'immobile e auto-selezionare l'inquilino se è l'unico disponibile.
+\textbf{allora} la selezione deve riferirsi univocamente all'immobile registrato anche
+in presenza di nomi uguali; il sistema deve mostrare gli inquilini associati a contratti
+registrati per tale immobile e auto-selezionare l'inquilino se è l'unico disponibile.
 
-\paragraph{AC-10 -- Caricamento dei dati contrattuali}
+\paragraph{AC-11 -- Caricamento dei dati contrattuali}
 \textbf{Dato} che sono stati individuati immobile, inquilino e mensilità da registrare,
 \textbf{quando} il sistema prepara il pagamento,
 \textbf{allora} deve mostrare almeno canone mensile, tipologia e periodo
 \texttt{dal}--\texttt{al} del contratto a cui la mensilità appartiene.
 
-\paragraph{AC-11 -- Prima mensilità non pagata}
+\paragraph{AC-12 -- Mensilità non pagate}
 \textbf{Dato} che per la coppia immobile--inquilino esistono uno o più contratti registrati,
 \textbf{quando} esistono mensilità non ancora pagate fino al mese corrente,
-\textbf{allora} il sistema deve selezionare automaticamente la mensilità non pagata
-cronologicamente più vecchia tra i contratti considerati, senza proporre mensilità già pagate
-o future.
+\textbf{allora} il sistema deve selezionare automaticamente la mensilità non
+pagata cronologicamente più vecchia tra i contratti considerati, senza proporre
+mensilità già pagate o future. La mensilità del mese corrente deve poter essere
+selezionata anche quando il giorno di pagamento previsto non è ancora stato
+raggiunto.
 
-\paragraph{AC-12 -- Importo del pagamento}
+\textbf{Dato} che per la coppia immobile--inquilino non esistono mensilità
+non pagate fino al mese corrente,
+\textbf{quando} il sistema verifica le mensilità disponibili,
+\textbf{allora} deve comunicare che non risultano mensilità disponibili per
+la registrazione del pagamento e non deve consentire di procedere.
+
+\paragraph{AC-13 -- Importo del pagamento}
 \textbf{Dato} che è stata individuata la mensilità da registrare,
 \textbf{quando} il sistema prepara il pagamento,
 \textbf{allora} l'importo deve coincidere automaticamente con il canone mensile previsto
 dal contratto e non deve essere richiesto un importo manuale.
 
-\paragraph{AC-13 -- Pagamento tardivo}
-\textbf{Dato} che la mensilità individuata è già scaduta,
-\textbf{quando} il proprietario registra il pagamento,
-\textbf{allora} il sistema deve consentire comunque la registrazione.
+\paragraph{AC-14 -- Pagabilità e scadenza della mensilità}
+\textbf{Dato} che la mensilità del mese corrente non è ancora stata pagata,
+\textbf{quando} la data corrente precede il giorno di pagamento previsto,
+\textbf{allora} il sistema deve consentirne comunque la registrazione e la
+mensilità non deve essere considerata ancora dovuta.
 
-\paragraph{AC-14 -- Conferma o annullamento}
+\textbf{Dato} che la mensilità del mese corrente non è ancora stata pagata,
+\textbf{quando} la data corrente coincide con il giorno di pagamento previsto,
+\textbf{allora} la mensilità deve essere considerata dovuta e il sistema deve
+consentirne la registrazione.
+
+\textbf{Dato} che la data corrente è successiva alla data di scadenza della
+mensilità,
+\textbf{quando} il proprietario registra il pagamento,
+\textbf{allora} il sistema deve consentire comunque la registrazione del
+pagamento tardivo.
+
+\paragraph{AC-15 -- Conferma o annullamento}
 \textbf{Dato} che il pagamento è pronto per la registrazione,
 \textbf{quando} il proprietario seleziona \emph{Pagato},
 \textbf{allora} il sistema deve chiedere conferma prima di registrarlo;
-\textbf{quando} seleziona \emph{Annulla}, nessun pagamento deve essere registrato.
 
-\paragraph{AC-16 -- Stato dei pagamenti in home}
-\textbf{Dato} che nella home page sono presenti immobili registrati,
-\textbf{quando} il sistema ne mostra l'elenco,
-\textbf{allora} per ciascun immobile deve mostrare il nome assegnato, il numero di contratti
-registrati e uno stato che evidenzi la regolarità dei pagamenti oppure il numero di mensilità
-arretrate non ancora registrate come pagate.
+\textbf{dato} che il sistema ha richiesto la conferma,
+\textbf{quando} il proprietario conferma,
+\textbf{allora} il pagamento deve essere registrato;
+
+\textbf{dato} che il pagamento non è ancora stato registrato,
+\textbf{quando} il proprietario seleziona \emph{Annulla},
+\textbf{allora} nessun pagamento deve essere registrato.
 
 \section{Criteri di verifica dei requisiti non funzionali}
 
@@ -404,8 +510,8 @@ La tracciabilità verso UML, componenti, codice e test verrà estesa progressiva
 \midrule
 \endhead
 
-US-01 & RF-01--RF-06 & AC-01--AC-08, AC-15 & UC-01 \\
-US-02 & RF-07--RF-11 & AC-09--AC-14, AC-16 & UC-02 \\
+US-01 & RF-01--RF-06 & AC-01--AC-09 & UC-01 \\
+US-02 & RF-07--RF-10 & AC-10--AC-15 & UC-02 \\
 
 \bottomrule
 \end{longtable}
@@ -415,8 +521,6 @@ US-02 & RF-07--RF-11 & AC-09--AC-14, AC-16 & UC-02 \\
 Prima di considerare definitivamente chiusa la specifica dei requisiti restano da chiarire:
 
 \begin{itemize}
-    \item la prima mensilità dovuta quando il contratto decorre nel corso del mese e la
-          data \texttt{dal} è successiva al giorno mensile previsto per il pagamento;
     \item definire in modo riproducibile le condizioni nominali e l'ambiente di misura utilizzati
           per verificare il tempo massimo di risposta previsto da RNF-02;
     \item l'eventuale introduzione di un requisito di conformità normativa, da formulare
