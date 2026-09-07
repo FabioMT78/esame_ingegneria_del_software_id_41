@@ -139,7 +139,7 @@ La cardinalità generale è:
 
 Vincolo aggiuntivo: quando una `Persona` assume il ruolo di `inquilino` in un `Contratto`, il `DocumentoRiconoscimento` deve essere presente. La versione 1.0 non gestisce storico o pluralità di documenti per la stessa Persona.
 
-### Tipologia contrattuale, articoli predefiniti e copia storica
+### Tipologia contrattuale, Articolo e copia storica del contratto
 **Decisione:** la `TipologiaContrattuale` descrive sia il periodo iniziale sia il rinnovo previsto dalla tipologia, ma la versione 1.0 gestisce operativamente soltanto il periodo iniziale.
 
 Attributi concettuali scelti per `TipologiaContrattuale`:
@@ -153,29 +153,31 @@ Per le tipologie supportate:
 
 La data finale derivata `/al` del `Contratto` è calcolata usando esclusivamente `durata`. Il valore `rinnovo` descrive la tipologia ma non estende il periodo gestito dalla versione 1.0 e non introduce operazioni di rinnovo.
 
-**Decisione:** sostituire il concetto generico `Clausola` con due concetti distinti, giustificati dall'esigenza di conservare lo storico del contratto:
-- `ArticoloPredefinito`, che rappresenta il modello associato alla tipologia;
-- `ArticoloContratto`, che rappresenta la copia valorizzata e storicizzata nel contratto registrato.
+**Decisione:** utilizzare un unico concetto `Articolo`. La differenza tra articolo predefinito e articolo registrato è espressa dal ruolo dell'associazione e dall'istanza concreta, non da classi distinte.
 
-Entrambi possiedono la stessa struttura informativa:
+Attributi concettuali scelti per `Articolo`:
 - `numArticolo`;
 - `titolo`;
 - `sottotitolo`;
 - `testo`.
 
-Gli `ArticoloPredefinito` possono contenere dati da valorizzare durante UC-01. Alla registrazione definitiva il sistema genera gli `ArticoloContratto` usando i dati acquisiti e li conserva come copia storica del contenuto contrattuale. La copia registrata deve rimanere indipendente da successive modifiche degli articoli predefiniti o dei dati sorgente usati per compilarla.
+Le istanze di `Articolo` associate alla `TipologiaContrattuale` rappresentano i modelli predefiniti e possono contenere dati da valorizzare durante UC-01. Alla registrazione definitiva il sistema ne crea copie distinte, valorizzate con i dati acquisiti, e le associa al `Contratto`.
 
-**Cardinalità:**
-- ogni `TipologiaContrattuale` possiede `1..*` `ArticoloPredefinito`;
-- ogni `ArticoloPredefinito` appartiene a una sola `TipologiaContrattuale`;
-- ogni `Contratto` fa riferimento a una sola `TipologiaContrattuale`;
-- una `TipologiaContrattuale` può essere utilizzata da `0..*` `Contratto`;
-- ogni `Contratto` registrato possiede `1..*` `ArticoloContratto`;
-- ogni `ArticoloContratto` appartiene a un solo `Contratto`.
+**Cardinalità e vincolo di appartenenza:**
+- ogni `TipologiaContrattuale` possiede `1..*` `Articolo` nel ruolo di articoli predefiniti;
+- ogni `Contratto` registrato possiede `1..*` `Articolo` nel ruolo di articoli registrati;
+- ogni singola istanza di `Articolo` appartiene esattamente a uno tra `TipologiaContrattuale` e `Contratto`;
+- gli articoli registrati sono copie valorizzate distinte dagli articoli predefiniti e non vengono modificati se cambiano successivamente i modelli o i dati sorgente.
 
-Non viene mantenuta un'associazione persistente tra `ArticoloContratto` e `ArticoloPredefinito`: il primo è una copia storica autonoma. La generazione della copia verrà rappresentata nel Sequence Diagram di UC-01.
+**Decisione:** modellare `ContrattoRegistrato` come copia storica completa e immutabile del contratto al momento della registrazione definitiva.
 
-La scelta di memorizzare in futuro gli articoli tramite righe relazionali, JSON/JSONB o altra struttura appartiene alla persistenza e non viene fissata nella fase di modellazione UML.
+`ContrattoRegistrato` contiene il contenuto completo del documento contrattuale generato, comprensivo dei dati inseriti durante UC-01 e degli articoli valorizzati. Ogni `Contratto` registrato possiede esattamente un `ContrattoRegistrato`, che deve rimanere indipendente da successive modifiche dei dati sorgente o degli articoli predefiniti.
+
+Il formato concreto del contenuto (`string`, Markdown, PDF, JSON/JSONB o altra rappresentazione) non viene deciso nel Domain Model. Nel Class Diagram iniziale viene usato il tipo astratto `string` per rappresentare il contenuto testuale; la scelta di persistenza e del formato definitivo è rinviata alla fase di design/infrastruttura.
+
+Non viene introdotto uno `storicoContratti` con più versioni dello stesso `Contratto`: la versione 1.0 non prevede modifiche successive alla registrazione definitiva. Lo storico dei diversi contratti relativi a un immobile è già rappresentato dall'associazione `Immobile`--`Contratto`.
+
+La creazione delle copie degli articoli e del `ContrattoRegistrato` verrà rappresentata nel Sequence Diagram di UC-01.
 
 ### Pagamento e storia dei pagamenti del Contratto
 **Decisione:** `Pagamento` resta un concetto separato dal `Contratto`, ma ne rappresenta un elemento della storia ed esiste sempre in relazione a un solo Contratto.
@@ -210,8 +212,8 @@ I concetti del Domain Model sono:
 - `DatiCatastali`;
 - `Contratto`;
 - `TipologiaContrattuale`;
-- `ArticoloPredefinito`;
-- `ArticoloContratto`;
+- `Articolo`;
+- `ContrattoRegistrato`;
 - `Pagamento`;
 - `DocumentoRiconoscimento`.
 
@@ -224,7 +226,7 @@ Per `Contratto` gli attributi essenziali sono:
 
 La data finale `/al` resta visibile perché è semanticamente rilevante per il periodo contrattuale e per il vincolo di non sovrapposizione, ma è marcata come derivata poiché viene determinata da `dal` e da `TipologiaContrattuale.durata`.
 
-Il contenuto storico del contratto è rappresentato dagli `ArticoloContratto`: non vengono creati snapshot separati di `Persona`, `Immobile` o altri concetti, perché i valori rilevanti per il documento registrato sono già incorporati nel testo storicizzato degli articoli.
+Il contenuto storico strutturato del contratto è rappresentato dale istanze di `Articolo` associate al `Contratto`, mentre `ContrattoRegistrato` conserva la copia completa del documento generato al momento della registrazione. Non vengono creati snapshot separati di `Persona`, `Immobile` o altri concetti: i valori rilevanti sono incorporati nella copia completa e negli articoli valorizzati.
 
 ## Vincoli di dominio
 - il codice fiscale identifica una Persona registrata;
@@ -234,9 +236,12 @@ Il contenuto storico del contratto è rappresentato dagli `ArticoloContratto`: n
 - il giorno di pagamento è compreso tra 1 e 28;
 - `TipologiaContrattuale.durata` e `TipologiaContrattuale.rinnovo` sono espressi in anni;
 - la data finale del periodo iniziale è determinata dalla data iniziale e da `TipologiaContrattuale.durata`; il rinnovo non viene applicato al periodo gestito nella versione 1.0;
-- ogni TipologiaContrattuale possiede almeno un ArticoloPredefinito;
-- ogni Contratto registrato conserva almeno un ArticoloContratto come copia storica valorizzata;
-- gli ArticoloContratto registrati non devono dipendere da successive modifiche degli ArticoloPredefinito o dei dati sorgente;
+- ogni TipologiaContrattuale possiede almeno un Articolo nel ruolo di articolo predefinito;
+- ogni Contratto registrato possiede almeno un Articolo nel ruolo di articolo registrato;
+- ogni istanza di Articolo appartiene esattamente a uno tra TipologiaContrattuale e Contratto;
+- le istanze di Articolo associate al Contratto sono copie valorizzate distinte dagli articoli predefiniti e non devono dipendere da successive modifiche dei modelli o dei dati sorgente;
+- ogni Contratto possiede esattamente un ContrattoRegistrato come copia storica completa;
+- il ContrattoRegistrato non deve dipendere da successive modifiche dei dati sorgente o degli articoli predefiniti;
 - i periodi di due contratti relativi allo stesso Immobile non possono sovrapporsi;
 - alla registrazione definitiva del Contratto viene registrato il pagamento della prima mensilità con anno e mese di competenza ricavati da `dal`, `dataPagamento = dal` e `importo = canoneMensile`;
 - ogni Contratto registrato possiede almeno un Pagamento;
@@ -253,7 +258,8 @@ Il contenuto storico del contratto è rappresentato dagli `ArticoloContratto`: n
 ## Esito della review del Domain Model
 La review iniziale del Domain Model aveva consolidato la baseline concettuale. Durante la costruzione del Class Diagram iniziale sono emerse ulteriori informazioni di dominio, che hanno richiesto un aggiornamento controllato della baseline:
 - `TipologiaContrattuale.durataPeriodoIniziale` è stata sostituita da `durata` e `rinnovo`, entrambi espressi in anni;
-- `Clausola` è stata sostituita da `ArticoloPredefinito` e `ArticoloContratto` per distinguere il modello contrattuale dalla copia storica valorizzata;
+- `Clausola` è stata sostituita da un unico concetto `Articolo`; il ruolo di articolo predefinito o registrato è espresso dalle associazioni e da istanze distinte;
+- è stato introdotto `ContrattoRegistrato` per conservare una copia storica completa del documento contrattuale generato;
 - `Pagamento` è stato raffinato con `annoCompetenza`, `meseCompetenza`, `dataPagamento` e `importo`;
 - l'unicità di un pagamento è riferita alla coppia anno--mese di competenza all'interno dello stesso Contratto;
 - `Contratto.al` resta rappresentato come attributo derivato `/al` e dipende dalla sola `durata` iniziale;
@@ -272,7 +278,8 @@ Sono consolidate le seguenti decisioni:
 - `Mensilità` come concetto derivato, non come entità autonoma;
 - `BozzaContratto` esclusa dal Domain Model e rinviata ai diagrammi dinamici;
 - `TipologiaContrattuale` con `durata` e `rinnovo`;
-- `ArticoloPredefinito` associato alla TipologiaContrattuale e `ArticoloContratto` associato al Contratto come copia storica;
+- un unico `Articolo`, associato alla TipologiaContrattuale come modello predefinito oppure al Contratto come copia valorizzata;
+- `ContrattoRegistrato` associato 1:1 al Contratto come copia storica completa del documento generato;
 - `Contratto` ↔ `Pagamento` con cardinalità `1` ↔ `1..*`;
 - `Pagamento` con competenza anno/mese e importo memorizzato.
 
@@ -285,7 +292,7 @@ Decisioni approvate:
 - `Pagamento.annoCompetenza` e `meseCompetenza` sono `int`;
 - `Pagamento.importo`, `Contratto.canoneMensile`, `DatiCatastali.consistenza` e `rendita` sono `decimal`;
 - le date sono rappresentate con il tipo astratto `date`;
-- gli identificatori/codici testuali e il contenuto degli articoli sono `string`.
+- gli identificatori/codici testuali, il contenuto degli articoli e `ContrattoRegistrato.contenuto` sono `string`.
 
 La scelta di memorizzare gli articoli in PostgreSQL tramite JSON/JSONB, tabelle relazionali o altra rappresentazione è rinviata alla progettazione della persistenza.
 

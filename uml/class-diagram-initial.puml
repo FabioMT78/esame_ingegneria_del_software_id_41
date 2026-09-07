@@ -62,18 +62,15 @@ class TipologiaContrattuale {
   rinnovo : int
 }
 
-class ArticoloPredefinito {
+class Articolo {
   numArticolo : string
   titolo : string
   sottotitolo : string
   testo : string
 }
 
-class ArticoloContratto {
-  numArticolo : string
-  titolo : string
-  sottotitolo : string
-  testo : string
+class ContrattoRegistrato {
+  contenuto : string
 }
 
 class Pagamento {
@@ -94,9 +91,10 @@ Persona "1" -- "0..*" Contratto : proprietario
 Persona "1" -- "0..*" Contratto : inquilino
 
 TipologiaContrattuale "1" -- "0..*" Contratto : tipologia
-TipologiaContrattuale "1" -- "1..*" ArticoloPredefinito : articoli predefiniti
+TipologiaContrattuale "0..1" -- "1..*" Articolo : articoli predefiniti
+Contratto "0..1" -- "1..*" Articolo : articoli registrati
 
-Contratto "1" -- "1..*" ArticoloContratto : articoli registrati
+Contratto "1" -- "1" ContrattoRegistrato : copia registrata
 Contratto "1" -- "1..*" Pagamento : pagamenti
 
 note right of DocumentoRiconoscimento
@@ -119,10 +117,16 @@ note bottom of TipologiaContrattuale
   { rinnovo non gestito operativamente }
 end note
 
-note bottom of ArticoloContratto
-  { copia storica valorizzata }
-  { non viene aggiornata se cambiano gli articoli predefiniti
-    o i dati sorgente }
+note bottom of Articolo
+  { ogni Articolo appartiene esattamente a uno tra
+    TipologiaContrattuale e Contratto }
+  { gli articoli registrati sono copie valorizzate
+    distinte dagli articoli predefiniti }
+end note
+
+note bottom of ContrattoRegistrato
+  { copia storica completa del contratto generato }
+  { non cambia se cambiano dati sorgente o articoli predefiniti }
 end note
 
 note bottom of Pagamento
