@@ -1,0 +1,108 @@
+@startuml
+title UC-02 — Registrare il pagamento di un canone
+
+actor Proprietario
+boundary "Interfaccia UC-02" as UI
+control "Gestione UC-02" as UC
+database "Archivio dati" as Store
+participant "Pagamento" as Payment
+
+note over UI,UC
+I partecipanti applicativi sono ruoli logici.
+Non definiscono ancora l'architettura definitiva.
+end note
+
+Proprietario -> UI : avvia registrazione pagamento
+UI -> UC : avvia()
+
+UC -> Store : carica immobili registrati()
+Store --> UC : elenco immobili
+UC --> UI : mostra immobili\n(nome + riferimento univoco)
+
+Proprietario -> UI : seleziona immobile
+UI -> UC : selezionaImmobile(riferimento)
+
+UC -> Store : carica inquilini associati\na contratti dell'immobile
+Store --> UC : elenco inquilini
+
+alt un solo inquilino
+    UC -> UC : seleziona automaticamente l'inquilino
+    UC --> UI : mostra inquilino selezionato
+else più inquilini
+    UC --> UI : mostra elenco inquilini
+    Proprietario -> UI : seleziona inquilino
+    UI -> UC : selezionaInquilino(riferimento)
+end
+
+UC -> Store : carica contratti e pagamenti\n(immobile, inquilino)
+Store --> UC : Contratti + Pagamenti
+
+UC -> UC : individua mensilità non pagata\ncronologicamente più vecchia\nfino al mese corrente
+
+note right of UC
+Sono escluse:
+- mensilità già pagate;
+- mensilità dei mesi futuri.
+
+La mensilità del mese corrente
+è pagabile dal primo giorno,
+anche prima del giorno di pagamento.
+end note
+
+alt nessuna mensilità disponibile
+    UC --> UI : comunica che non risultano\nmensilità disponibili
+    note over UC,Store
+    Nessun Pagamento viene creato
+    o salvato.
+    end note
+
+else mensilità individuata
+    UC -> UC : prepara dati del pagamento\n(anno/mese competenza,\nimporto = canoneMensile)
+
+    note right of UC
+    La data di scadenza dipende dal
+    giornoPagamento del Contratto.
+
+    Se la registrazione avviene dopo
+    la scadenza, il pagamento è tardivo
+    ma rimane consentito.
+    end note
+
+    UC --> UI : mostra dati del contratto e del pagamento\n(canoneMensile, tipologia, dal-al,\nanno/mese competenza, importo)
+
+    alt proprietario seleziona Annulla
+        Proprietario -> UI : Annulla
+        UI -> UC : annulla()
+        UC --> UI : conferma annullamento
+        note over UC,Store
+        Nessun Pagamento viene registrato.
+        end note
+
+    else proprietario seleziona Pagato
+        Proprietario -> UI : Pagato
+        UI -> UC : richiediRegistrazione()
+        UC --> UI : richiede conferma esplicita
+
+        Proprietario -> UI : conferma
+        UI -> UC : confermaPagamento()
+
+        UC -> Payment : crea(\nannoCompetenza,\nmeseCompetenza,\ndataPagamento = data corrente,\nimporto)
+        Payment --> UC : Pagamento
+
+        UC -> Store : salva(Pagamento)
+
+        alt salvataggio riuscito
+            Store --> UC : ok
+            UC --> UI : pagamento registrato
+        else errore di salvataggio
+            Store --> UC : errore
+            UC --> UI : mostra errore
+            note over UC,Store
+            Non deve essere comunicato un falso esito positivo
+            e non devono rimanere dati incoerenti.
+            end note
+        end
+    end
+end
+
+@enduml
