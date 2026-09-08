@@ -2,10 +2,8 @@
 Questo documento raccoglie le decisioni di modellazione assunte e serve a mantenere coerenti requisiti, diagrammi UML e successive decisioni di design.
 
 ## Stato della fase
-Artefatti approvati:
+Artefatti:
 - `uml/use-case.puml`
-
-Artefatti prodotti e in review:
 - `uml/domain-model.puml`
 
 Artefatti da produrre progressivamente:
@@ -86,7 +84,7 @@ La bozza rappresenta lo stato temporaneo e recuperabile della procedura guidata 
 Ogni Immobile è associato a un solo `Indirizzo` e a un solo insieme di `DatiCatastali`.
 
 #### Indirizzo
-Attributi concettuali approvati:
+Attributi concettuali scelti:
 - nazione;
 - provincia;
 - comune;
@@ -103,7 +101,7 @@ Per la `residenza` di una `Persona`, la versione 1.0 richiede almeno provincia, 
 Quando l'interno è specificato per l'ubicazione di un Immobile, l'indirizzo completo non può coincidere con quello di un altro Immobile registrato.
 
 #### DatiCatastali
-Attributi concettuali approvati:
+Attributi concettuali scelti:
 - codice comunale;
 - foglio;
 - particella;
@@ -126,7 +124,7 @@ Non possono esistere due Immobili con la stessa combinazione identificativa cata
 
 Il documento non è un semplice raggruppamento tecnico di campi: è un concetto riconoscibile del dominio e la sua presenza è soggetta a una regola specifica quando una `Persona` assume il ruolo di inquilino.
 
-Attributi concettuali approvati:
+Attributi concettuali scelti:
 - tipo di documento, limitato nella versione 1.0 a carta d'identità o passaporto;
 - organo emittente;
 - data di rilascio;
@@ -144,7 +142,7 @@ Vincolo aggiuntivo: quando una `Persona` assume il ruolo di `inquilino` in un `C
 
 La `TipologiaContrattuale` determina la durata del periodo iniziale del Contratto e l'insieme delle clausole predefinite applicabili. Nella versione 1.0 sono previste le tipologie a canone concordato (3 + 2) e a canone libero (4 + 4).
 
-Attributi concettuali candidati per `TipologiaContrattuale`:
+Attributi concettuali scelti per `TipologiaContrattuale`:
 - denominazione;
 - durata del periodo iniziale.
 
@@ -167,8 +165,8 @@ Le clausole applicabili a un `Contratto` derivano dalla `TipologiaContrattuale` 
 `Pagamento` rappresenta il fatto storico che una determinata mensilità di un Contratto è stata pagata; UC-02 rappresenta invece l'azione applicativa che registra un nuovo Pagamento.
 
 Per `Pagamento` è necessario rappresentare almeno:
-- il periodo/mese di riferimento;
-- la data di pagamento.
+- `meseCompetenza`, che identifica la mensilità a cui il pagamento si riferisce;
+- `dataPagamento`, che rappresenta la data effettiva di pagamento.
 
 L'importo non è necessario come attributo concettuale nella versione 1.0, perché deriva dal canone mensile del Contratto e non sono ammessi pagamenti parziali.
 
@@ -176,12 +174,12 @@ La cardinalità approvata è:
 - un `Contratto` possiede da **1 a molti** `Pagamento`;
 - ogni `Pagamento` appartiene a **un solo** `Contratto`;
 - ogni `Pagamento` si riferisce a una sola mensilità del Contratto;
-- per ciascuna mensilità del Contratto può esistere al massimo un `Pagamento` registrato.
+- per ciascun `meseCompetenza` del Contratto può esistere al massimo un `Pagamento` registrato.
 
 Alla registrazione definitiva del `Contratto`, UC-01 crea e memorizza già il `Pagamento` relativo alla prima mensilità, con data coincidente con la data di decorrenza del Contratto. I Pagamenti successivi sono aggiunti tramite UC-02.
 
-## Concetti già candidati al Domain Model
-Sono già emersi dai requisiti come concetti necessari o candidati:
+## Concetti del Domain Model
+I concetti  del Domain Model sono:
 - `Persona`;
 - `Immobile`;
 - `Indirizzo`;
@@ -192,14 +190,16 @@ Sono già emersi dai requisiti come concetti necessari o candidati:
 - `Pagamento`;
 - `DocumentoRiconoscimento`.
 
-Per `Contratto` sono candidati come attributi essenziali:
+Per `Contratto` gli attributi essenziali sono:
 - nome o breve descrizione;
 - data iniziale `dal`;
-- data finale `al`;
+- data finale derivata `/al`;
 - canone mensile;
 - giorno di pagamento.
 
-## Vincoli di dominio già approvati
+La data finale `/al` resta visibile perché è semanticamente rilevante per il periodo contrattuale e per il vincolo di non sovrapposizione, ma è marcata come derivata poiché viene determinata da `dal` e dalla `TipologiaContrattuale`.
+
+## Vincoli di dominio
 - il codice fiscale identifica una Persona registrata;
 - ogni Persona è associata a un Indirizzo di residenza; più Persone possono condividere lo stesso Indirizzo;
 - una Persona può avere al massimo un DocumentoRiconoscimento nella versione 1.0;
@@ -209,7 +209,7 @@ Per `Contratto` sono candidati come attributi essenziali:
 - i periodi di due contratti relativi allo stesso Immobile non possono sovrapporsi;
 - alla registrazione definitiva del Contratto viene registrato il pagamento della prima mensilità con data coincidente con la data di decorrenza;
 - ogni Contratto registrato possiede almeno un Pagamento;
-- per ciascuna mensilità del Contratto può esistere al massimo un Pagamento registrato;
+- per ciascun `meseCompetenza` del Contratto può esistere al massimo un Pagamento registrato;
 - una mensilità è pagabile dal primo giorno del relativo mese di competenza;
 - una mensilità diventa dovuta dal giorno di pagamento previsto dal Contratto, compreso;
 - un Pagamento registrato dopo la scadenza della relativa mensilità è tardivo;
@@ -217,8 +217,18 @@ Per `Contratto` sono candidati come attributi essenziali:
 - una mensilità già pagata non può essere proposta nuovamente;
 - le mensilità appartenenti a mesi successivi a quello corrente non possono essere proposte per la registrazione del pagamento.
 
+## Esito della review del Domain Model
+La review complessiva del diagramma ha confermato la coerenza del modello con i requisiti e con le decisioni documentate. Prima dell'approvazione definitiva sono state recepite le seguenti rifiniture:
+- `Contratto.al` è rappresentato come attributo derivato `/al`;
+- `Pagamento.periodoRiferimento` è stato rinominato `meseCompetenza`;
+- il vincolo sul primo pagamento è espresso staticamente come `dataPagamento = Contratto.dal` per la prima mensilità, lasciando ai diagrammi dinamici la descrizione della sua creazione durante UC-01;
+- `DocumentoRiconoscimento` esplicita il vincolo della versione 1.0 sui tipi ammessi: carta d'identità o passaporto;
+- `TipologiaContrattuale` esplicita le due tipologie supportate nella versione 1.0: canone concordato 3+2 e canone libero 4+4.
+
+Il Domain Model è quindi **assuunto** come baseline concettuale per i successivi artefatti UML.
+
 ## Stato del Domain Model
-Le decisioni concettuali necessarie per costruire il Domain Model sono ora consolidate.
+Il Domain Model è scelto. Le decisioni concettuali necessarie per la baseline della fase 02 sono consolidate.
 
 Sono approvate:
 - `Persona` con i ruoli associativi `proprietario` e `inquilino`;

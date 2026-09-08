@@ -51,7 +51,7 @@ class DatiCatastali {
 class Contratto {
   nomeDescrizione
   dal
-  al
+  /al
   canoneMensile
   giornoPagamento
 }
@@ -91,6 +91,10 @@ note right of Persona
     DocumentoRiconoscimento presente }
 end note
 
+note right of DocumentoRiconoscimento
+  { tipo = carta d'identità oppure passaporto }
+end note
+
 note bottom of DatiCatastali
   { codiceComunale + foglio + particella +
     subalterno identificano univocamente l'Immobile }
@@ -104,16 +108,21 @@ end note
 
 note right of Contratto
   { giornoPagamento in 1..28 }
-  { al determinato da dal e TipologiaContrattuale }
+  { /al determinato da dal e TipologiaContrattuale }
   { periodi relativi allo stesso Immobile
     non sovrapposti }
+end note
+
+note bottom of TipologiaContrattuale
+  { v1.0: canone concordato 3+2
+    oppure canone libero 4+4 }
 end note
 
 note bottom of Pagamento
   { al massimo un Pagamento per meseCompetenza
     dello stesso Contratto }
-  { alla registrazione del Contratto esiste già
-    il Pagamento della prima mensilità }
+  { il Pagamento della prima mensilità ha
+    dataPagamento = Contratto.dal }
 end note
 
 @enduml
