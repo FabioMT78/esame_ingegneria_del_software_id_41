@@ -201,13 +201,16 @@ Quando l'indirizzo comprende anche l'interno, il sistema deve inoltre rifiutare 
 di un immobile con lo stesso indirizzo completo di un immobile già registrato.
 Proprietario e inquilino devono essere riconosciuti tramite codice fiscale.
 Se il codice fiscale corrisponde a una persona già registrata, il sistema deve
-recuperarne i dati; in caso contrario deve consentire di registrare una nuova
-persona acquisendo nome, cognome, luogo di nascita, data di nascita, codice
+recuperarne i dati; in caso contrario deve consentire di acquisire i dati di una nuova
+persona: nome, cognome, luogo di nascita, data di nascita, codice
 fiscale, provincia, comune, indirizzo e numero civico della residenza.
 Per la persona che assume il ruolo di inquilino il sistema deve inoltre
 acquisire, se non già presenti, tipo di documento di riconoscimento
 (carta d'identità o passaporto), organo emittente, data di rilascio,
-data di scadenza e numero del documento. \\
+data di scadenza e numero del documento.
+Gli eventuali nuovi immobili, nuove persone e nuovi dati di riconoscimento acquisiti durante
+la procedura devono rimanere parte della bozza e devono essere salvati permanentemente
+soltanto alla conferma definitiva del contratto. \\
 
 \req{RF-04} &
 Il sistema deve acquisire per il contratto un nome o una breve descrizione, la tipologia
@@ -230,7 +233,9 @@ contrattuali e consentire al proprietario di modificarli. Il contratto deve esse
 registrato soltanto dopo una conferma esplicita.
 Per registrazione si intende il salvataggio permanente dei dati e non la registrazione
 ufficiale presso l'Agenzia delle Entrate. Alla registrazione definitiva il sistema deve
-conservare una copia storica completa del contratto generato, comprensiva dei dati acquisiti
+salvare permanentemente anche gli eventuali nuovi immobili, nuove persone e nuovi dati
+di riconoscimento acquisiti nella procedura, insieme agli altri dati necessari alla registrazione
+del contratto. Il sistema deve inoltre conservare una copia storica completa del contratto generato, comprensiva dei dati acquisiti
 nella registrazione e degli articoli valorizzati, in modo che non venga alterata da successive
 modifiche ai modelli predefiniti o ai dati sorgente. Il sistema deve inoltre creare e memorizzare il pagamento
 della prima mensilità con anno e mese di competenza corrispondenti alla decorrenza, data di
@@ -402,17 +407,21 @@ immobile,
 
 \textbf{dato} che i dati del contratto sono validi,
 \textbf{quando} il proprietario fornisce la conferma esplicita,
-\textbf{allora} il contratto deve essere registrato, deve essere memorizzata una copia storica
-completa del contratto generato, comprensiva dei dati acquisiti nella registrazione e degli articoli
-valorizzati, e il sistema deve creare e memorizzare il pagamento della prima mensilità con anno e
-mese di competenza corrispondenti alla decorrenza, data di pagamento coincidente con la data di
-decorrenza e importo pari al canone mensile del contratto. La copia storica completa non deve essere
-modificata da successive variazioni degli articoli predefiniti o dei dati sorgente.
+\textbf{allora} il contratto deve essere registrato e devono essere salvati permanentemente
+gli eventuali nuovi immobili, nuove persone e nuovi dati di riconoscimento acquisiti durante
+la procedura; deve inoltre essere memorizzata una copia storica completa del contratto generato,
+comprensiva dei dati acquisiti nella registrazione e degli articoli valorizzati, e il sistema deve
+creare e memorizzare il pagamento della prima mensilità con anno e mese di competenza
+corrispondenti alla decorrenza, data di pagamento coincidente con la data di decorrenza e importo
+pari al canone mensile del contratto. La copia storica completa non deve essere modificata da
+successive variazioni degli articoli predefiniti o dei dati sorgente.
 
 \paragraph{AC-08 -- Annullamento}
 \textbf{Dato} che il contratto non è ancora stato confermato,
 \textbf{quando} il proprietario annulla la procedura,
-\textbf{allora} nessun nuovo contratto deve essere registrato e l'eventuale bozza deve essere cancellata.
+\textbf{allora} nessun nuovo contratto deve essere registrato, nessun nuovo immobile,
+nuova persona o nuovo dato di riconoscimento acquisito esclusivamente nella procedura deve
+essere salvato permanentemente e l'eventuale bozza deve essere cancellata.
 
 \paragraph{AC-09 -- Ciclo di vita della bozza}
 \textbf{Dato} che il proprietario completa con successo il primo step della procedura,

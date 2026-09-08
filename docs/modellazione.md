@@ -5,12 +5,12 @@ Questo documento raccoglie le decisioni di modellazione assunte e serve a manten
 Artefatti approvati:
 - `uml/use-case.puml`
 - `uml/domain-model.puml`
-
-Artefatti prodotti e in review:
 - `uml/class-diagram-initial.puml`
 
-Artefatti da produrre progressivamente:
+Artefatti prodotti e in review:
 - `uml/sequence-uc01.puml`
+
+Artefatti da produrre progressivamente:
 - `uml/sequence-uc02.puml`
 - `uml/activity-uc01.puml`
 
@@ -77,6 +77,8 @@ Un eventuale oggetto software dedicato alla mensilità potrà essere valutato ne
 La bozza rappresenta lo stato temporaneo e recuperabile della procedura guidata di UC-01. Verrà quindi resa esplicita nei diagrammi dinamici, in particolare:
 - `uml/sequence-uc01.puml`;
 - `uml/activity-uc01.puml`.
+
+**Decisione:** gli eventuali nuovi `Immobile`, `Persona` e dati di `DocumentoRiconoscimento` acquisiti durante UC-01 non vengono salvati permanentemente al completamento dei singoli step. Fino alla conferma definitiva rimangono dati della bozza. La persistenza definitiva avviene insieme alla registrazione del `Contratto`; in caso di annullamento, tali nuovi dati non devono rimanere registrati.
 
 ### Immobile, Indirizzo e DatiCatastali
 **Decisione:** modellare `Immobile`, `Indirizzo` e `DatiCatastali` come concetti distinti. `Indirizzo` è un concetto condiviso: viene usato sia per rappresentare l'ubicazione di un `Immobile` sia, tramite l'associazione nominata `residenza`, l'indirizzo di residenza di una `Persona`.
@@ -296,8 +298,30 @@ Decisioni approvate:
 
 La scelta di memorizzare gli articoli in PostgreSQL tramite JSON/JSONB, tabelle relazionali o altra rappresentazione è rinviata alla progettazione della persistenza.
 
+## Sequence Diagram UC-01
+Il Sequence Diagram di UC-01 usa ruoli logici e non introduce ancora l'architettura definitiva.
+
+Partecipanti:
+- `Proprietario`: attore esterno;
+- `Interfaccia UC-01`: punto di interazione con il proprietario;
+- `Gestione UC-01`: ruolo logico che orchestra il caso d'uso;
+- `Bozza UC-01`: stato temporaneo recuperabile della procedura, non entità del Domain Model;
+- `Archivio dati`: ruolo astratto per letture e scritture persistenti, senza fissare repository, database o tecnologia;
+- `Contratto`, `ContrattoRegistrato` e `Pagamento`: concetti già consolidati nella modellazione.
+
+Decisioni dinamiche rappresentate:
+- una bozza esistente viene recuperata all'avvio;
+- ogni step valido aggiorna la bozza;
+- nuovi immobili, persone e dati di riconoscimento restano nella bozza fino alla conferma finale;
+- il controllo di sovrapposizione avviene prima della registrazione definitiva;
+- alla conferma valida vengono costruiti il `Contratto`, gli articoli registrati, il `ContrattoRegistrato` e il primo `Pagamento`;
+- il salvataggio definitivo è rappresentato come un'unica operazione logica coerente;
+- la bozza viene eliminata soltanto dopo il completamento con successo della registrazione definitiva;
+- in caso di sovrapposizione o errore di salvataggio la bozza resta disponibile;
+- l'annullamento prima della conferma elimina la bozza e non persiste i nuovi dati acquisiti.
+
 ## Tracciabilità UML corrente
 | User Story | Requisiti | Acceptance Criteria | Caso d'uso | Artefatti UML correnti |
 |---|---|---|---|---|
-| US-01 | RF-01–RF-06 | AC-01–AC-09 | UC-01 | `uml/use-case.puml`, `uml/domain-model.puml`, `uml/class-diagram-initial.puml` |
+| US-01 | RF-01–RF-06 | AC-01–AC-09 | UC-01 | `uml/use-case.puml`, `uml/domain-model.puml`, `uml/class-diagram-initial.puml`, `uml/sequence-uc01.puml` |
 | US-02 | RF-07–RF-10 | AC-10–AC-15 | UC-02 | `uml/use-case.puml`, `uml/domain-model.puml`, `uml/class-diagram-initial.puml` |
