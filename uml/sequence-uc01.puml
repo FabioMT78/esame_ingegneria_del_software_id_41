@@ -28,21 +28,62 @@ else nessuna bozza
 end
 
 group Step 1 — Immobile
-    Proprietario -> UI : seleziona immobile\noppure inserisce nuovo immobile
-    UI -> UC : validaStepImmobile(dati)
-    UC -> Store : verifica immobile e duplicati
+    Proprietario -> UI : seleziona immobile esistente\noppure inserisce nuovo immobile
 
-    alt dati non validi o duplicato
-        Store --> UC : conflitto / dati non validi
-        UC --> UI : mostra errore
-    else step valido
-        Store --> UC : verifica superata
-        UC -> Draft : crea/aggiorna(dati immobile)
-        note right of Draft
-        Un eventuale nuovo Immobile
-        non viene ancora salvato permanentemente.
-        end note
-        UC --> UI : mostra step proprietario
+    alt seleziona immobile esistente
+        UI -> UC : selezionaImmobile(riferimento)
+        UC -> Store : recupera immobile(riferimento)
+
+        alt immobile trovato
+            Store --> UC : Immobile
+            UC -> Draft : crea/aggiorna(immobile)
+            UC --> UI : mostra step proprietario
+        else immobile non trovato
+            Store --> UC : assente
+            UC --> UI : mostra errore
+        end
+
+    else inserisce nuovo immobile
+        UI -> UC : validaStepImmobile(dati)
+        UC -> UC : valida dati immobile
+
+        alt dati non validi
+            UC --> UI : mostra errori di validazione
+        else dati validi
+            UC -> Store : cerca duplicato catastale(\ncodiceComunale, foglio,\nparticella, subalterno)
+
+            alt duplicato catastale
+                Store --> UC : immobile esistente
+                UC --> UI : segnala duplicato catastale
+            else nessun duplicato catastale
+                Store --> UC : nessun duplicato
+
+                alt interno specificato
+                    UC -> Store : cerca duplicato indirizzo completo
+
+                    alt duplicato indirizzo
+                        Store --> UC : immobile esistente
+                        UC --> UI : segnala duplicato indirizzo
+                    else nessun duplicato indirizzo
+                        Store --> UC : nessun duplicato
+                        UC -> Draft : crea/aggiorna(dati immobile)
+                        note right of Draft
+                        Il nuovo Immobile resta nella bozza
+                        e non viene ancora salvato permanentemente.
+                        end note
+                        UC --> UI : mostra step proprietario
+                    end
+
+                else interno non specificato
+                    UC -> Draft : crea/aggiorna(dati immobile)
+                    note right of Draft
+                    Il nuovo Immobile resta nella bozza
+                    e non viene ancora salvato permanentemente.
+                    end note
+                    UC --> UI : mostra step proprietario
+                end
+            end
+        end
     end
 end
 
@@ -74,7 +115,7 @@ loop per ruolo [proprietario, inquilino]
 end
 
 group Step 4 — Dati contrattuali
-    Proprietario -> UI : inserisce tipologia, dal,\ncanoneMensile, giornoPagamento
+    Proprietario -> UI : seleziona tipologia ed inserisce dal,\ncanoneMensile, giornoPagamento
     UI -> UC : validaDatiContrattuali(dati)
     UC -> Store : carica tipologia e articoli predefiniti
     Store --> UC : TipologiaContrattuale + Articoli
