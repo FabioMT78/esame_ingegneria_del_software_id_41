@@ -1,0 +1,323 @@
+@startuml
+title UC-01 — Registrare un contratto di locazione
+
+' Activity Diagram della procedura guidata di registrazione del contratto.
+' Riferimenti principali: RF-01..RF-06, AC-01..AC-09.
+
+|Sistema|
+start
+:Avvia procedura di registrazione;
+:Verifica presenza di una bozza non conclusa;
+
+if (Bozza presente?) then (sì)
+  :Carica i dati della bozza;
+  note right
+    Gli step già validati risultano precompilati.
+    La procedura riprende dal primo step
+    non ancora completato.
+  end note
+else (no)
+  :Avvia una nuova procedura;
+endif
+
+note right
+  La procedura può essere annullata
+  in qualunque momento prima della
+  conferma definitiva.
+  L'annullamento elimina l'eventuale
+  bozza e non persiste i nuovi dati
+  acquisiti esclusivamente nella procedura.
+end note
+
+' =========================================================
+' STEP 1 — IMMOBILE
+' =========================================================
+
+repeat
+  |Proprietario|
+  :Step 1 — Seleziona un immobile esistente\no inserisce un nuovo immobile;
+
+  |Sistema|
+  if (Immobile selezionato?) then (sì)
+    :Recupera l'immobile selezionato;
+
+    if (Immobile trovato?) then (sì)
+      :Accetta l'immobile selezionato;
+    else (no)
+      :Segnala immobile non disponibile;
+    endif
+
+  else (no)
+    :Valida i dati del nuovo immobile;
+
+    if (Dati validi?) then (sì)
+      :Verifica duplicazione catastale;
+
+      if (Combinazione catastale già presente?) then (sì)
+        :Segnala duplicato catastale;
+      else (no)
+
+        if (Interno specificato?) then (sì)
+          :Verifica duplicazione dell'indirizzo completo;
+
+          if (Indirizzo completo già presente?) then (sì)
+            :Segnala duplicato di indirizzo;
+          else (no)
+            :Accetta il nuovo immobile nella procedura;
+          endif
+
+        else (no)
+          :Accetta il nuovo immobile nella procedura;
+        endif
+      endif
+
+    else (no)
+      :Segnala gli errori di validazione;
+    endif
+  endif
+
+repeat while (Step 1 valido?) is (no) not (sì)
+
+:Crea o aggiorna la bozza\ncon i dati dell'immobile;
+note right
+  Un eventuale nuovo Immobile
+  resta nella bozza e non viene
+  ancora salvato permanentemente.
+end note
+
+if (Proprietario annulla?) then (sì)
+  :Elimina l'eventuale bozza;
+  :Non salva permanentemente i nuovi dati acquisiti;
+  stop
+else (no)
+endif
+
+' =========================================================
+' STEP 2 — PROPRIETARIO
+' =========================================================
+
+repeat
+  |Proprietario|
+  :Step 2 — Inserisce il codice fiscale\ndel proprietario;
+
+  |Sistema|
+  :Cerca la Persona tramite codice fiscale;
+
+  if (Persona già registrata?) then (sì)
+    :Recupera i dati della Persona;
+    :Accetta la Persona nel ruolo di proprietario;
+  else (no)
+    :Richiede dati anagrafici e residenza;
+
+    |Proprietario|
+    :Inserisce i dati della nuova Persona;
+
+    |Sistema|
+    :Valida i dati della Persona;
+
+    if (Dati validi?) then (sì)
+      :Accetta la nuova Persona\nnel ruolo di proprietario;
+    else (no)
+      :Segnala gli errori di validazione;
+    endif
+  endif
+
+repeat while (Step 2 valido?) is (no) not (sì)
+
+:Aggiorna la bozza\ncon i dati del proprietario;
+note right
+  Un'eventuale nuova Persona
+  resta nella bozza fino alla
+  conferma definitiva.
+end note
+
+if (Proprietario annulla?) then (sì)
+  :Elimina la bozza;
+  :Non salva permanentemente i nuovi dati acquisiti;
+  stop
+else (no)
+endif
+
+' =========================================================
+' STEP 3 — INQUILINO
+' =========================================================
+
+repeat
+  |Proprietario|
+  :Step 3 — Inserisce il codice fiscale\ndell'inquilino;
+
+  |Sistema|
+  :Cerca la Persona tramite codice fiscale;
+
+  if (Persona già registrata?) then (sì)
+    :Recupera i dati della Persona;
+  else (no)
+    :Richiede dati anagrafici e residenza;
+
+    |Proprietario|
+    :Inserisce i dati della nuova Persona;
+
+    |Sistema|
+    :Valida i dati della Persona;
+  endif
+
+  if (Dati della Persona validi?) then (sì)
+
+    if (Documento di riconoscimento presente?) then (sì)
+      :Accetta la Persona nel ruolo di inquilino;
+    else (no)
+      :Richiede i dati del documento di riconoscimento;
+
+      |Proprietario|
+      :Inserisce i dati del documento;
+
+      |Sistema|
+      :Valida il documento;
+
+      if (Documento valido?) then (sì)
+        :Accetta la Persona nel ruolo di inquilino;
+      else (no)
+        :Segnala gli errori del documento;
+      endif
+    endif
+
+  else (no)
+    :Segnala gli errori dei dati della Persona;
+  endif
+
+repeat while (Step 3 valido?) is (no) not (sì)
+
+:Aggiorna la bozza\ncon i dati dell'inquilino;
+note right
+  Eventuali nuova Persona e nuovo
+  DocumentoRiconoscimento restano
+  nella bozza fino alla conferma.
+end note
+
+if (Proprietario annulla?) then (sì)
+  :Elimina la bozza;
+  :Non salva permanentemente i nuovi dati acquisiti;
+  stop
+else (no)
+endif
+
+' =========================================================
+' STEP 4 — DATI CONTRATTUALI
+' =========================================================
+
+repeat
+  |Proprietario|
+  :Step 4 — Seleziona la tipologia e inserisce\nnome/descrizione, data dal, canone mensile\ne giorno di pagamento;
+
+  |Sistema|
+  :Valida i dati contrattuali;
+
+  if (Dati validi?) then (sì)
+    :Carica tipologia e articoli predefiniti;
+    :Calcola la data al usando la durata iniziale;
+    :Predispone copie valorizzate degli articoli;
+    note right
+      Il valore di rinnovo descrive la tipologia,
+      ma non viene applicato al periodo gestito
+      nella versione 1.0.
+    end note
+  else (no)
+    :Segnala gli errori di validazione;
+  endif
+
+repeat while (Step 4 valido?) is (no) not (sì)
+
+:Aggiorna la bozza\ncon dati contrattuali e articoli;
+
+if (Proprietario annulla?) then (sì)
+  :Elimina la bozza;
+  :Non salva permanentemente i nuovi dati acquisiti;
+  stop
+else (no)
+endif
+
+' =========================================================
+' STEP 5 — RIEPILOGO
+' STEP 6 — CONFERMA
+' =========================================================
+
+repeat
+  |Sistema|
+  :Step 5 — Mostra il riepilogo del contratto;
+
+  |Proprietario|
+  :Verifica i dati;
+
+  while (Vuole modificare i dati?) is (sì)
+
+    repeat
+      :Seleziona uno degli step 1-4\ne modifica i dati;
+
+      |Sistema|
+      :Rivalida i dati modificati;
+
+      if (Modifica valida?) then (sì)
+        :Ricalcola gli eventuali dati derivati;
+        :Aggiorna la bozza;
+      else (no)
+        :Segnala gli errori di validazione;
+        |Proprietario|
+        :Corregge i dati;
+      endif
+
+    repeat while (Modifica valida?) is (no) not (sì)
+
+    |Sistema|
+    :Mostra il riepilogo aggiornato;
+
+    |Proprietario|
+    :Verifica i dati aggiornati;
+
+  endwhile (no)
+
+  if (Proprietario annulla?) then (sì)
+    |Sistema|
+    :Elimina la bozza;
+    :Non salva permanentemente i nuovi dati acquisiti;
+    stop
+  else (no)
+  endif
+
+  |Proprietario|
+  :Step 6 — Conferma esplicitamente\nla registrazione;
+
+  |Sistema|
+  :Verifica la sovrapposizione del periodo\ncon i contratti dello stesso immobile;
+
+  if (Periodo sovrapposto?) then (sì)
+    :Impedisce la registrazione definitiva;
+    :Mostra l'errore di sovrapposizione;
+    :Mantiene disponibile la bozza;
+  else (no)
+    :Periodo disponibile;
+  endif
+
+repeat while (Periodo sovrapposto?) is (sì) not (no)
+
+' =========================================================
+' REGISTRAZIONE DEFINITIVA
+' =========================================================
+
+:Crea il Contratto e associa\ngli articoli valorizzati;
+:Crea il ContrattoRegistrato\ncome copia storica completa;
+:Crea il Pagamento della prima mensilità\n(competenza da dal, dataPagamento = dal,\nimporto = canoneMensile);
+
+:Salva in modo coerente la registrazione definitiva,\ncompresi eventuali nuovi Immobili, Persone\ne DocumentiRiconoscimento;
+
+if (Salvataggio riuscito?) then (sì)
+  :Elimina la bozza;
+  :Comunica registrazione completata;
+  stop
+else (no)
+  :Non lascia dati definitivi salvati parzialmente;
+  :Mantiene disponibile la bozza;
+  :Comunica l'errore di registrazione;
+  stop
+endif
+
+@enduml

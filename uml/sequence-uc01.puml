@@ -115,7 +115,7 @@ loop per ruolo [proprietario, inquilino]
 end
 
 group Step 4 — Dati contrattuali
-    Proprietario -> UI : seleziona tipologia ed inserisce dal,\ncanoneMensile, giornoPagamento
+    Proprietario -> UI : seleziona tipologia ed inserisce nome/descrizione, dal,\ncanoneMensile, giornoPagamento
     UI -> UC : validaDatiContrattuali(dati)
     UC -> Store : carica tipologia e articoli predefiniti
     Store --> UC : TipologiaContrattuale + Articoli
