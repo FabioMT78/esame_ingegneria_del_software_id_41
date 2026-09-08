@@ -1,0 +1,152 @@
+@startuml
+title UC-01 — Registrare un contratto di locazione
+
+actor Proprietario
+boundary "Interfaccia UC-01" as UI
+control "Gestione UC-01" as UC
+participant "Bozza UC-01" as Draft
+database "Archivio dati" as Store
+participant "Contratto" as Contract
+participant "ContrattoRegistrato" as Registered
+participant "Pagamento" as Payment
+
+note over UI,UC
+I partecipanti applicativi sono ruoli logici.
+Non definiscono ancora l'architettura definitiva.
+end note
+
+Proprietario -> UI : avvia registrazione contratto
+UI -> UC : avvia()
+UC -> Draft : recupera()
+
+alt bozza esistente
+    Draft --> UC : dati della bozza
+    UC --> UI : mostra procedura con dati recuperati
+else nessuna bozza
+    Draft --> UC : nessuna bozza
+    UC --> UI : mostra step immobile
+end
+
+group Step 1 — Immobile
+    Proprietario -> UI : seleziona immobile\noppure inserisce nuovo immobile
+    UI -> UC : validaStepImmobile(dati)
+    UC -> Store : verifica immobile e duplicati
+
+    alt dati non validi o duplicato
+        Store --> UC : conflitto / dati non validi
+        UC --> UI : mostra errore
+    else step valido
+        Store --> UC : verifica superata
+        UC -> Draft : crea/aggiorna(dati immobile)
+        note right of Draft
+        Un eventuale nuovo Immobile
+        non viene ancora salvato permanentemente.
+        end note
+        UC --> UI : mostra step proprietario
+    end
+end
+
+loop per ruolo [proprietario, inquilino]
+    Proprietario -> UI : inserisce codice fiscale
+    UI -> UC : identificaPersona(codiceFiscale, ruolo)
+    UC -> Store : cerca Persona(codiceFiscale)
+
+    alt Persona già registrata
+        Store --> UC : Persona
+    else Persona non registrata
+        Store --> UC : assente
+        UC --> UI : richiede dati anagrafici e residenza
+        Proprietario -> UI : inserisce dati Persona
+        UI -> UC : valida dati Persona
+        note right of UC
+        La nuova Persona resta nella bozza
+        fino alla conferma definitiva.
+        end note
+    end
+
+    opt ruolo = inquilino e documento assente
+        UC --> UI : richiede documento di riconoscimento
+        Proprietario -> UI : inserisce dati documento
+        UI -> UC : valida dati documento
+    end
+
+    UC -> Draft : aggiorna(dati Persona e ruolo)
+end
+
+group Step 4 — Dati contrattuali
+    Proprietario -> UI : inserisce tipologia, dal,\ncanoneMensile, giornoPagamento
+    UI -> UC : validaDatiContrattuali(dati)
+    UC -> Store : carica tipologia e articoli predefiniti
+    Store --> UC : TipologiaContrattuale + Articoli
+    UC -> UC : calcola /al usando durata
+    UC -> UC : prepara copie valorizzate degli Articoli
+    UC -> Draft : aggiorna(dati contratto e articoli)
+    UC --> UI : mostra riepilogo
+end
+
+opt modifica dal riepilogo
+    Proprietario -> UI : modifica dati
+    UI -> UC : rivalida modifiche
+    UC -> Draft : aggiorna(dati modificati)
+    UC --> UI : mostra riepilogo aggiornato
+end
+
+note over Proprietario,Draft
+L'annullamento è possibile in qualunque momento
+prima della conferma definitiva.
+In caso di annullamento la bozza viene eliminata
+e i nuovi dati acquisiti non vengono persistiti.
+end note
+
+alt proprietario annulla
+    Proprietario -> UI : annulla
+    UI -> UC : annulla()
+    UC -> Draft : elimina()
+    UC --> UI : conferma annullamento
+else proprietario conferma
+    Proprietario -> UI : conferma
+    UI -> UC : confermaRegistrazione()
+    UC -> Store : verifica sovrapposizione periodo
+
+    alt periodo sovrapposto
+        Store --> UC : sovrapposizione presente
+        UC --> UI : mostra errore di sovrapposizione
+        note right of Draft
+        La bozza resta disponibile.
+        end note
+    else periodo disponibile
+        Store --> UC : nessuna sovrapposizione
+
+        UC -> Contract : costruisci(dati validati,\narticoli registrati)
+        Contract --> UC : Contratto
+
+        UC -> Registered : genera copia storica completa(Contratto)
+        Registered --> UC : ContrattoRegistrato
+
+        UC -> Payment : crea prima mensilità(\nanno/mese da dal,\ndataPagamento = dal,\nimporto = canoneMensile)
+        Payment --> UC : Pagamento
+
+        note over UC,Store
+        Solo in questo momento vengono persistiti
+        anche gli eventuali nuovi Immobili, Persone
+        e dati di riconoscimento acquisiti nella bozza.
+        end note
+
+        UC -> Store : salvaRegistrazioneDefinitiva(\nnuovi dati anagrafici,\nContratto, Articoli,\nContrattoRegistrato, Pagamento)
+
+        alt salvataggio riuscito
+            Store --> UC : ok
+            UC -> Draft : elimina()
+            UC --> UI : registrazione completata
+        else errore di salvataggio
+            Store --> UC : errore
+            UC --> UI : mostra errore
+            note over Draft,Store
+            Nessun dato definitivo deve rimanere
+            salvato parzialmente; la bozza resta disponibile.
+            end note
+        end
+    end
+end
+
+@enduml
