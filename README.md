@@ -18,10 +18,20 @@ La specifica completa dello scope, delle user stories, dei requisiti funzionali 
 Il progetto è in corso di sviluppo.
 
 Fasi completate:
-- definizione del progetto;
-- requisiti del progettto;
-- diagramma use case;
-- modello di dominio con diagramma;
+- definizione del progetto e dello scope;
+- requisiti, user stories e acceptance criteria;
+- **Fase 02 — Modellazione UML**, comprendente:
+  - Use Case Diagram;
+  - Domain Model;
+  - Class Diagram iniziale;
+  - Sequence Diagram di UC-01;
+  - Activity Diagram di UC-01;
+  - Sequence Diagram di UC-02.
+
+La baseline UML approvata è documentata in [`docs/modellazione.md`](docs/modellazione.md).
+
+Fase successiva:
+- architettura e design: responsabilità dei componenti, layering, interfacce, persistenza e organizzazione dei package.
 
 ## Quickstart
 
@@ -74,10 +84,19 @@ Il workflow Git concreto verrà documentato quando verrà definito nella relativ
 La documentazione viene mantenuta nello stesso repository del codice e versionata insieme al progetto.
 
 - requisiti: [`docs/requisiti.tex`](docs/requisiti.tex);
-- diagrammi UML: `uml/`;
+- decisioni e stato della modellazione: [`docs/modellazione.md`](docs/modellazione.md);
+- diagrammi UML PlantUML:
+  - `uml/use-case.puml`;
+  - `uml/domain-model.puml`;
+  - `uml/class-diagram-initial.puml`;
+  - `uml/sequence-uc01.puml`;
+  - `uml/activity-uc01.puml`;
+  - `uml/sequence-uc02.puml`;
 - relazione: `docs/` (da aggiungere nelle fasi successive);
 - decisioni architetturali / ADR: da aggiungere quando emergeranno decisioni non banali;
 - changelog: da aggiungere prima della prima release.
+
+Le sorgenti PlantUML approvate verranno esportate in PDF e inserite nella relazione LaTeX nella fase di documentazione finale.
 
 ## Release
 

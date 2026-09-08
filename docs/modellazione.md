@@ -2,17 +2,17 @@
 Questo documento raccoglie le decisioni di modellazione assunte e serve a mantenere coerenti requisiti, diagrammi UML e successive decisioni di design.
 
 ## Stato della fase
+La **Fase 02 — Modellazione UML** è completata.
+
 Artefatti approvati:
 - `uml/use-case.puml`
 - `uml/domain-model.puml`
 - `uml/class-diagram-initial.puml`
-
-Artefatti prodotti e in review:
 - `uml/sequence-uc01.puml`
-
-Artefatti da produrre progressivamente:
-- `uml/sequence-uc02.puml`
 - `uml/activity-uc01.puml`
+- `uml/sequence-uc02.puml`
+
+Non viene prodotto un Activity Diagram per UC-02: il relativo Sequence Diagram descrive già in modo sufficiente il flusso, le alternative e gli errori significativi; un ulteriore diagramma aggiungerebbe soprattutto duplicazione senza chiarire nuove decisioni di processo.
 
 ## Use Case Diagram
 La versione 1.0 ha un solo attore diretto:
@@ -320,8 +320,74 @@ Decisioni dinamiche rappresentate:
 - in caso di sovrapposizione o errore di salvataggio la bozza resta disponibile;
 - l'annullamento prima della conferma elimina la bozza e non persiste i nuovi dati acquisiti.
 
+## Activity Diagram UC-01
+L'Activity Diagram di UC-01 completa il Sequence Diagram rappresentando il flusso end-to-end della procedura guidata.
+
+Decisioni dinamiche rappresentate:
+- recupero dell'eventuale bozza e ripresa della procedura;
+- avanzamento attraverso i sei step previsti;
+- validazione e correzione dei dati prima dell'avanzamento;
+- distinzione tra selezione di un Immobile esistente e acquisizione di un nuovo Immobile;
+- acquisizione di Persona e DocumentoRiconoscimento quando necessari;
+- aggiornamento della bozza dopo gli step validi;
+- possibilità di annullamento prima della conferma definitiva;
+- nessuna persistenza definitiva dei nuovi dati acquisiti in caso di annullamento;
+- ritorno alla modifica in caso di sovrapposizione del periodo contrattuale;
+- registrazione definitiva coerente di Contratto, articoli valorizzati, ContrattoRegistrato, primo Pagamento ed eventuali nuovi dati acquisiti.
+
+L'Activity Diagram non introduce componenti architetturali: usa i ruoli `Proprietario` e `Sistema` per descrivere il processo.
+
+## Sequence Diagram UC-02
+Il Sequence Diagram di UC-02 usa ruoli logici e non introduce ancora l'architettura definitiva.
+
+Partecipanti:
+- `Proprietario`: attore esterno;
+- `Interfaccia UC-02`: punto di interazione con il proprietario;
+- `Gestione UC-02`: ruolo logico che orchestra il caso d'uso;
+- `Archivio dati`: ruolo astratto per il recupero e il salvataggio dei dati persistenti;
+- `Pagamento`: concetto di dominio creato al completamento positivo del caso d'uso.
+
+Decisioni dinamiche rappresentate:
+- selezione dell'Immobile e individuazione dell'Inquilino associato;
+- recupero di Contratti e Pagamenti esistenti;
+- individuazione, nella logica del caso d'uso, della mensilità non pagata cronologicamente più vecchia fino al mese corrente;
+- esclusione delle mensilità già pagate e di quelle appartenenti a mesi futuri;
+- possibilità di pagare la mensilità corrente dal primo giorno del mese, anche prima del giorno di pagamento;
+- il pagamento tardivo resta consentito;
+- se non esiste alcuna mensilità disponibile, nessun Pagamento viene creato;
+- l'importo del nuovo Pagamento è determinato dal `canoneMensile` del Contratto;
+- l'annullamento non produce alcuna registrazione;
+- la registrazione avviene soltanto dopo conferma esplicita;
+- un errore di salvataggio non deve produrre un falso esito positivo o dati incoerenti.
+
+`Mensilità` non compare come partecipante autonomo perché nella baseline approvata è un concetto derivato, non un'entità del Domain Model.
+
 ## Tracciabilità UML corrente
 | User Story | Requisiti | Acceptance Criteria | Caso d'uso | Artefatti UML correnti |
 |---|---|---|---|---|
-| US-01 | RF-01–RF-06 | AC-01–AC-09 | UC-01 | `uml/use-case.puml`, `uml/domain-model.puml`, `uml/class-diagram-initial.puml`, `uml/sequence-uc01.puml` |
-| US-02 | RF-07–RF-10 | AC-10–AC-15 | UC-02 | `uml/use-case.puml`, `uml/domain-model.puml`, `uml/class-diagram-initial.puml` |
+| US-01 | RF-01–RF-06 | AC-01–AC-09 | UC-01 | `uml/use-case.puml`, `uml/domain-model.puml`, `uml/class-diagram-initial.puml`, `uml/sequence-uc01.puml`, `uml/activity-uc01.puml` |
+| US-02 | RF-07–RF-10 | AC-10–AC-15 | UC-02 | `uml/use-case.puml`, `uml/domain-model.puml`, `uml/class-diagram-initial.puml`, `uml/sequence-uc02.puml` |
+
+
+## Esito finale della fase 02
+La modellazione UML della versione 1.0 è approvata come baseline per la fase successiva.
+
+La catena attualmente coperta è:
+- requisiti e acceptance criteria;
+- casi d'uso;
+- modello concettuale del dominio;
+- Class Diagram iniziale;
+- comportamento dinamico di UC-01;
+- comportamento dinamico di UC-02.
+
+La fase successiva potrà introdurre le decisioni architetturali e di design che sono state volutamente rinviate, tra cui:
+- layering e responsabilità dei componenti;
+- organizzazione dei package;
+- interfacce applicative e repository;
+- scelte di persistenza;
+- rappresentazione concreta della bozza;
+- rappresentazione concreta di `ContrattoRegistrato`;
+- eventuali oggetti software di supporto, come una rappresentazione non persistente della mensilità derivata;
+- stack tecnologico.
+
+Le sorgenti PlantUML approvate dovranno essere esportate in PDF e inserite nella relazione LaTeX quando verrà predisposta la documentazione finale.
