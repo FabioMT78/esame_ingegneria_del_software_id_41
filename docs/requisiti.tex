@@ -53,7 +53,7 @@ Rientrano nello scope:
     \item locazione dell'intero immobile;
     \item registrazione dei dati di immobile, proprietario e inquilino;
     \item contratti a canone concordato e a canone libero;
-    \item clausole contrattuali predefinite per la tipologia selezionata;
+    \item articoli contrattuali predefiniti per la tipologia selezionata;
     \item registrazione del pagamento completo del canone mensile;
     \item controlli necessari a evitare contratti e pagamenti incoerenti.
 \end{itemize}
@@ -65,7 +65,7 @@ Sono fuori scope:
     \item pagamenti parziali;
     \item esecuzione reale del pagamento e integrazione con servizi bancari;
     \item firma e registrazione fiscale del contratto;
-    \item modifica o caricamento di clausole contrattuali da parte del proprietario;
+    \item modifica o caricamento di articoli contrattuali predefiniti da parte del proprietario;
     \item manutenzione, annunci e prenotazione degli immobili;
     \item registrazione e gestione dei depositi cauzionali, che nella versione 1.0 si considerano già versati alla decorrenza del contratto;
     \item autenticazione e autorizzazione degli utenti;
@@ -105,11 +105,22 @@ autorizzazione restano fuori scope.
             data di scadenza e numero del documento.
     \item Ogni contratto può avere un nome o una breve descrizione leggibile.
     \item La versione 1.0 supporta contratti a canone concordato (3 + 2) e a canone libero (4 + 4).
+          Per ciascuna tipologia contrattuale sono definiti, in anni, la durata del periodo iniziale
+          e la durata del rinnovo: rispettivamente 3 e 2 anni per il canone concordato, 4 e 4 anni
+          per il canone libero.
+    \item Ogni tipologia contrattuale definisce uno o più articoli predefiniti. Ogni articolo è
+          caratterizzato da numero, titolo, sottotitolo e testo e può contenere dati da valorizzare
+          con le informazioni acquisite durante la registrazione del contratto.
     \item Il proprietario inserisce la data iniziale \texttt{dal}; la data finale \texttt{al}
-          è determinata automaticamente in base al contratto selezionato e rappresenta l'ultimo
-          giorno compreso nel periodo iniziale.
-    \item Il sistema gestisce esclusivamente il periodo iniziale del contratto; non gestisce
-          operazioni o avvisi relativi al rinnovo successivo, che restano fuori scope nella versione 1.0.
+          è determinata automaticamente in base alla durata del periodo iniziale della tipologia
+          selezionata e rappresenta l'ultimo giorno compreso nel periodo iniziale.
+    \item Il valore relativo al rinnovo descrive la tipologia contrattuale, ma la versione 1.0 gestisce
+          esclusivamente il periodo iniziale del contratto e non esegue operazioni o avvisi relativi
+          al rinnovo successivo.
+    \item Alla registrazione definitiva il sistema deve conservare una copia storica del contenuto
+          contrattuale generato, costituita dagli articoli predefiniti valorizzati con i dati della
+          registrazione. Tale copia deve rimanere invariata anche in presenza di successive modifiche
+          agli articoli predefiniti o ai dati sorgente utilizzati per generarla.
     \item Il canone è mensile e il giorno di pagamento deve essere compreso tra 1 e 28.
     \item Una mensilità può essere registrata come pagata a partire dal primo giorno
             del relativo mese di competenza, anche prima del giorno di pagamento
@@ -120,17 +131,20 @@ autorizzazione restano fuori scope.
       \item Un pagamento è tardivo quando viene registrato dopo la data di scadenza
             della relativa mensilità.
     \item Alla registrazione definitiva del contratto la prima mensilità si considera
-          già versata e il sistema deve creare e memorizzare il relativo pagamento con data
-          coincidente con la data di decorrenza del contratto. Le successive registrazioni
+          già versata e il sistema deve creare e memorizzare il relativo pagamento con anno e mese
+          di competenza corrispondenti alla decorrenza, data di pagamento coincidente con la data
+          \texttt{dal} e importo pari al canone mensile del contratto. Le successive registrazioni
           di pagamento della versione 1.0 riguardano pertanto le mensilità successive alla prima.
-    \item Ogni pagamento appartiene a un solo contratto e si riferisce a una sola mensilità.
-          Per ciascuna mensilità di un contratto può esistere al massimo un pagamento.
+    \item Ogni pagamento appartiene a un solo contratto ed è caratterizzato da anno di competenza,
+          mese di competenza, data di pagamento e importo. Il mese di competenza è compreso tra 1 e 12.
+          Per la stessa coppia anno--mese di competenza di un contratto può esistere al massimo un pagamento.
     \item Gli eventuali depositi cauzionali si considerano già versati alla decorrenza
           del contratto e non sono gestiti dal sistema nella versione 1.0.
     \item Un immobile può avere più contratti di locazione nel tempo, purché i relativi
           periodi di decorrenza non si sovrappongano.
-    \item Non sono ammessi pagamenti parziali del canone di locazione; il relativo importo
-          deriva dal canone mensile previsto nel contratto.
+    \item Non sono ammessi pagamenti parziali del canone di locazione; al momento della
+          registrazione l'importo del pagamento è determinato dal canone mensile previsto nel
+          contratto e viene memorizzato nel pagamento come dato storico.
     \item Un pagamento può essere registrato anche dopo la relativa scadenza.
 \end{itemize}
 
@@ -197,9 +211,11 @@ data di scadenza e numero del documento. \\
 
 \req{RF-04} &
 Il sistema deve acquisire per il contratto un nome o una breve descrizione, la tipologia
-contrattuale, la data iniziale, il canone mensile e il giorno di pagamento. Deve calcolare
-automaticamente la data finale del periodo iniziale e associare le clausole predefinite
-alla tipologia contrattuale selezionata. \\
+contrattuale, la data iniziale, il canone mensile e il giorno di pagamento. La tipologia
+contrattuale deve definire la durata del periodo iniziale, la durata del rinnovo e gli articoli
+predefiniti applicabili. Il sistema deve calcolare automaticamente la data finale del periodo
+iniziale utilizzando la durata della tipologia selezionata e predisporre gli articoli predefiniti
+valorizzando gli eventuali dati richiesti con le informazioni acquisite durante la registrazione. \\
 
 \req{RF-05} &
 La presenza di uno o più contratti già registrati per l'immobile non deve impedire l'avvio o
@@ -213,9 +229,12 @@ Prima della registrazione definitiva il sistema deve mostrare un riepilogo dei d
 contrattuali e consentire al proprietario di modificarli. Il contratto deve essere
 registrato soltanto dopo una conferma esplicita.
 Per registrazione si intende il salvataggio permanente dei dati e non la registrazione
-ufficiale presso l'Agenzia delle Entrate. Alla registrazione definitiva del contratto il
-sistema deve inoltre creare e memorizzare il pagamento della prima mensilità con data
-coincidente con la data di decorrenza del contratto. \\
+ufficiale presso l'Agenzia delle Entrate. Alla registrazione definitiva il sistema deve
+conservare una copia storica del contenuto contrattuale, memorizzando gli articoli predisposti
+con i dati della registrazione in modo che non vengano alterati da successive modifiche ai
+modelli predefiniti o ai dati sorgente. Il sistema deve inoltre creare e memorizzare il pagamento
+della prima mensilità con anno e mese di competenza corrispondenti alla decorrenza, data di
+pagamento coincidente con la data di decorrenza e importo pari al canone mensile del contratto. \\
 
 \req{RF-07} &
 Per registrare un pagamento il sistema deve consentire al proprietario di selezionare
@@ -240,9 +259,10 @@ comunicare che non risultano mensilità disponibili per la registrazione del
 pagamento e impedire la prosecuzione della procedura. \\
 
 \req{RF-09} &
-L'importo del pagamento è determinato automaticamente dal canone mensile del
-contratto. La versione 1.0 deve consentire soltanto il pagamento completo e deve permettere
-la registrazione anche quando il pagamento è tardivo. \\
+L'importo del pagamento deve essere determinato automaticamente dal canone mensile del
+contratto e memorizzato insieme ad anno di competenza, mese di competenza e data di pagamento.
+La versione 1.0 deve consentire soltanto il pagamento completo e deve permettere la registrazione
+anche quando il pagamento è tardivo. \\
 
 \req{RF-10} &
 Nella procedura di registrazione di un pagamento prevista da UC-02, il sistema deve
@@ -360,12 +380,14 @@ data di scadenza e numero del documento.
 \textbf{allora} il sistema deve segnalare gli errori e impedire il passaggio allo step
 successivo finché non vengono corretti.
 
-\paragraph{AC-05 -- Dati e durata del contratto}
+\paragraph{AC-05 -- Dati, durata e articoli del contratto}
 \textbf{Dato} che il proprietario ha scelto la tipologia contrattuale e la data
 \texttt{dal},
 \textbf{quando} i dati contrattuali vengono validati,
-\textbf{allora} il sistema deve calcolare automaticamente la data \texttt{al},
-associare le clausole predefinite e accettare un giorno di pagamento compreso tra 1 e 28.
+\textbf{allora} il sistema deve calcolare automaticamente la data \texttt{al} usando
+la durata del periodo iniziale della tipologia, mantenere disponibile il valore di rinnovo
+senza applicarlo al periodo gestito nella versione 1.0, predisporre gli articoli predefiniti
+valorizzando gli eventuali dati richiesti e accettare un giorno di pagamento compreso tra 1 e 28.
 
 \paragraph{AC-06 -- Coerenza del contratto}
 \textbf{Dato} il periodo del nuovo contratto,
@@ -380,8 +402,12 @@ immobile,
 
 \textbf{dato} che i dati del contratto sono validi,
 \textbf{quando} il proprietario fornisce la conferma esplicita,
-\textbf{allora} il contratto deve essere registrato e il sistema deve creare e memorizzare
-il pagamento della prima mensilità con data coincidente con la data di decorrenza del contratto.
+\textbf{allora} il contratto deve essere registrato, deve essere memorizzata una copia storica
+degli articoli contrattuali valorizzati con i dati della registrazione e il sistema deve creare
+e memorizzare il pagamento della prima mensilità con anno e mese di competenza corrispondenti
+alla decorrenza, data di pagamento coincidente con la data di decorrenza e importo pari al canone
+mensile del contratto. La copia storica degli articoli non deve essere modificata da successive
+variazioni degli articoli predefiniti o dei dati sorgente.
 
 \paragraph{AC-08 -- Annullamento}
 \textbf{Dato} che il contratto non è ancora stato confermato,
@@ -424,11 +450,11 @@ non pagate fino al mese corrente,
 \textbf{allora} deve comunicare che non risultano mensilità disponibili per
 la registrazione del pagamento e non deve consentire di procedere.
 
-\paragraph{AC-13 -- Importo del pagamento}
+\paragraph{AC-13 -- Dati del pagamento}
 \textbf{Dato} che è stata individuata la mensilità da registrare,
 \textbf{quando} il sistema prepara il pagamento,
-\textbf{allora} l'importo deve coincidere automaticamente con il canone mensile previsto
-dal contratto e non deve essere richiesto un importo manuale.
+\textbf{allora} deve determinare anno e mese di competenza e l'importo deve coincidere
+automaticamente con il canone mensile previsto dal contratto, senza richiedere un importo manuale.
 
 \paragraph{AC-14 -- Pagabilità e scadenza della mensilità}
 \textbf{Dato} che la mensilità del mese corrente non è ancora stata pagata,
@@ -454,7 +480,8 @@ pagamento tardivo.
 
 \textbf{dato} che il sistema ha richiesto la conferma,
 \textbf{quando} il proprietario conferma,
-\textbf{allora} il pagamento deve essere registrato;
+\textbf{allora} il pagamento deve essere registrato memorizzando anno di competenza,
+mese di competenza, data di pagamento e importo;
 
 \textbf{dato} che il pagamento non è ancora stato registrato,
 \textbf{quando} il proprietario seleziona \emph{Annulla},
@@ -525,7 +552,7 @@ Prima di considerare definitivamente chiusa la specifica dei requisiti restano d
           per verificare il tempo massimo di risposta previsto da RNF-02;
     \item l'eventuale introduzione di un requisito di conformità normativa, da formulare
           soltanto dopo aver individuato e verificato le fonti normative italiane applicabili
-          alle tipologie contrattuali e alle clausole predefinite.
+          alle tipologie contrattuali e agli articoli predefiniti.
 \end{itemize}
 
 \end{document}

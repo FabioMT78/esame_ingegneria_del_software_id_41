@@ -2,12 +2,14 @@
 Questo documento raccoglie le decisioni di modellazione assunte e serve a mantenere coerenti requisiti, diagrammi UML e successive decisioni di design.
 
 ## Stato della fase
-Artefatti:
+Artefatti approvati:
 - `uml/use-case.puml`
 - `uml/domain-model.puml`
 
-Artefatti da produrre progressivamente:
+Artefatti prodotti e in review:
 - `uml/class-diagram-initial.puml`
+
+Artefatti da produrre progressivamente:
 - `uml/sequence-uc01.puml`
 - `uml/sequence-uc02.puml`
 - `uml/activity-uc01.puml`
@@ -137,56 +139,79 @@ La cardinalità generale è:
 
 Vincolo aggiuntivo: quando una `Persona` assume il ruolo di `inquilino` in un `Contratto`, il `DocumentoRiconoscimento` deve essere presente. La versione 1.0 non gestisce storico o pluralità di documenti per la stessa Persona.
 
-### Tipologia contrattuale e clausole
-**Decisione:** modellare `TipologiaContrattuale` e `Clausola` come concetti autonomi del Domain Model.
-
-La `TipologiaContrattuale` determina la durata del periodo iniziale del Contratto e l'insieme delle clausole predefinite applicabili. Nella versione 1.0 sono previste le tipologie a canone concordato (3 + 2) e a canone libero (4 + 4).
+### Tipologia contrattuale, articoli predefiniti e copia storica
+**Decisione:** la `TipologiaContrattuale` descrive sia il periodo iniziale sia il rinnovo previsto dalla tipologia, ma la versione 1.0 gestisce operativamente soltanto il periodo iniziale.
 
 Attributi concettuali scelti per `TipologiaContrattuale`:
-- denominazione;
-- durata del periodo iniziale.
+- `denominazione`;
+- `durata`, espressa in anni e riferita al periodo iniziale;
+- `rinnovo`, espresso in anni.
 
-Attributo concettuale essenziale per `Clausola`:
-- testo.
+Per le tipologie supportate:
+- canone concordato 3+2: `durata = 3`, `rinnovo = 2`;
+- canone libero 4+4: `durata = 4`, `rinnovo = 4`.
+
+La data finale derivata `/al` del `Contratto` è calcolata usando esclusivamente `durata`. Il valore `rinnovo` descrive la tipologia ma non estende il periodo gestito dalla versione 1.0 e non introduce operazioni di rinnovo.
+
+**Decisione:** sostituire il concetto generico `Clausola` con due concetti distinti, giustificati dall'esigenza di conservare lo storico del contratto:
+- `ArticoloPredefinito`, che rappresenta il modello associato alla tipologia;
+- `ArticoloContratto`, che rappresenta la copia valorizzata e storicizzata nel contratto registrato.
+
+Entrambi possiedono la stessa struttura informativa:
+- `numArticolo`;
+- `titolo`;
+- `sottotitolo`;
+- `testo`.
+
+Gli `ArticoloPredefinito` possono contenere dati da valorizzare durante UC-01. Alla registrazione definitiva il sistema genera gli `ArticoloContratto` usando i dati acquisiti e li conserva come copia storica del contenuto contrattuale. La copia registrata deve rimanere indipendente da successive modifiche degli articoli predefiniti o dei dati sorgente usati per compilarla.
 
 **Cardinalità:**
-- ogni `TipologiaContrattuale` possiede `1..*` `Clausola` predefinite;
-- ogni `Clausola` appartiene a una sola `TipologiaContrattuale`;
+- ogni `TipologiaContrattuale` possiede `1..*` `ArticoloPredefinito`;
+- ogni `ArticoloPredefinito` appartiene a una sola `TipologiaContrattuale`;
 - ogni `Contratto` fa riferimento a una sola `TipologiaContrattuale`;
-- una `TipologiaContrattuale` può essere utilizzata da `0..*` `Contratto`.
+- una `TipologiaContrattuale` può essere utilizzata da `0..*` `Contratto`;
+- ogni `Contratto` registrato possiede `1..*` `ArticoloContratto`;
+- ogni `ArticoloContratto` appartiene a un solo `Contratto`.
 
-Non viene introdotta una relazione molti-a-molti tra tipologie e clausole: nella versione 1.0 non è richiesta la condivisione della stessa Clausola tra più tipologie. Se in futuro emergesse questa esigenza, il modello potrebbe essere rivisto.
+Non viene mantenuta un'associazione persistente tra `ArticoloContratto` e `ArticoloPredefinito`: il primo è una copia storica autonoma. La generazione della copia verrà rappresentata nel Sequence Diagram di UC-01.
 
-Le clausole applicabili a un `Contratto` derivano dalla `TipologiaContrattuale` selezionata; non viene quindi introdotta nel Domain Model una seconda associazione diretta `Contratto`--`Clausola`.
+La scelta di memorizzare in futuro gli articoli tramite righe relazionali, JSON/JSONB o altra struttura appartiene alla persistenza e non viene fissata nella fase di modellazione UML.
 
 ### Pagamento e storia dei pagamenti del Contratto
-**Decisione:** `Pagamento` è un concetto del dominio distinto dal caso d'uso **UC-02 — Registrare il pagamento di un canone**.
+**Decisione:** `Pagamento` resta un concetto separato dal `Contratto`, ma ne rappresenta un elemento della storia ed esiste sempre in relazione a un solo Contratto.
 
-`Pagamento` rappresenta il fatto storico che una determinata mensilità di un Contratto è stata pagata; UC-02 rappresenta invece l'azione applicativa che registra un nuovo Pagamento.
+UC-02 -- Registrare il pagamento di un canone è l'azione applicativa; `Pagamento` è invece il fatto storico registrato.
 
-Per `Pagamento` è necessario rappresentare almeno:
-- `meseCompetenza`, che identifica la mensilità a cui il pagamento si riferisce;
-- `dataPagamento`, che rappresenta la data effettiva di pagamento.
+Attributi concettuali scelti per `Pagamento`:
+- `annoCompetenza`;
+- `meseCompetenza`, espresso come numero da 1 a 12;
+- `dataPagamento`;
+- `importo`.
 
-L'importo non è necessario come attributo concettuale nella versione 1.0, perché deriva dal canone mensile del Contratto e non sono ammessi pagamenti parziali.
+L'importo viene determinato automaticamente dal `canoneMensile` del Contratto al momento della registrazione e viene memorizzato nel `Pagamento` per preservare il dato storico. I pagamenti parziali restano fuori scope.
 
 La cardinalità approvata è:
 - un `Contratto` possiede da **1 a molti** `Pagamento`;
 - ogni `Pagamento` appartiene a **un solo** `Contratto`;
-- ogni `Pagamento` si riferisce a una sola mensilità del Contratto;
-- per ciascun `meseCompetenza` del Contratto può esistere al massimo un `Pagamento` registrato.
+- per la stessa coppia `annoCompetenza + meseCompetenza` dello stesso Contratto può esistere al massimo un `Pagamento`.
 
-Alla registrazione definitiva del `Contratto`, UC-01 crea e memorizza già il `Pagamento` relativo alla prima mensilità, con data coincidente con la data di decorrenza del Contratto. I Pagamenti successivi sono aggiunti tramite UC-02.
+Alla registrazione definitiva del `Contratto`, UC-01 crea e memorizza il `Pagamento` della prima mensilità con:
+- `annoCompetenza` e `meseCompetenza` ricavati dalla data `dal`;
+- `dataPagamento = Contratto.dal`;
+- `importo = Contratto.canoneMensile`.
+
+I Pagamenti successivi vengono aggiunti tramite UC-02.
 
 ## Concetti del Domain Model
-I concetti  del Domain Model sono:
+I concetti del Domain Model sono:
 - `Persona`;
 - `Immobile`;
 - `Indirizzo`;
 - `DatiCatastali`;
 - `Contratto`;
 - `TipologiaContrattuale`;
-- `Clausola`;
+- `ArticoloPredefinito`;
+- `ArticoloContratto`;
 - `Pagamento`;
 - `DocumentoRiconoscimento`.
 
@@ -197,7 +222,9 @@ Per `Contratto` gli attributi essenziali sono:
 - canone mensile;
 - giorno di pagamento.
 
-La data finale `/al` resta visibile perché è semanticamente rilevante per il periodo contrattuale e per il vincolo di non sovrapposizione, ma è marcata come derivata poiché viene determinata da `dal` e dalla `TipologiaContrattuale`.
+La data finale `/al` resta visibile perché è semanticamente rilevante per il periodo contrattuale e per il vincolo di non sovrapposizione, ma è marcata come derivata poiché viene determinata da `dal` e da `TipologiaContrattuale.durata`.
+
+Il contenuto storico del contratto è rappresentato dagli `ArticoloContratto`: non vengono creati snapshot separati di `Persona`, `Immobile` o altri concetti, perché i valori rilevanti per il documento registrato sono già incorporati nel testo storicizzato degli articoli.
 
 ## Vincoli di dominio
 - il codice fiscale identifica una Persona registrata;
@@ -205,11 +232,17 @@ La data finale `/al` resta visibile perché è semanticamente rilevante per il p
 - una Persona può avere al massimo un DocumentoRiconoscimento nella versione 1.0;
 - per una Persona che assume il ruolo di inquilino devono essere disponibili i dati del documento di riconoscimento previsti dai requisiti;
 - il giorno di pagamento è compreso tra 1 e 28;
-- la data finale del periodo iniziale è determinata dalla data iniziale e dalla tipologia contrattuale;
+- `TipologiaContrattuale.durata` e `TipologiaContrattuale.rinnovo` sono espressi in anni;
+- la data finale del periodo iniziale è determinata dalla data iniziale e da `TipologiaContrattuale.durata`; il rinnovo non viene applicato al periodo gestito nella versione 1.0;
+- ogni TipologiaContrattuale possiede almeno un ArticoloPredefinito;
+- ogni Contratto registrato conserva almeno un ArticoloContratto come copia storica valorizzata;
+- gli ArticoloContratto registrati non devono dipendere da successive modifiche degli ArticoloPredefinito o dei dati sorgente;
 - i periodi di due contratti relativi allo stesso Immobile non possono sovrapporsi;
-- alla registrazione definitiva del Contratto viene registrato il pagamento della prima mensilità con data coincidente con la data di decorrenza;
+- alla registrazione definitiva del Contratto viene registrato il pagamento della prima mensilità con anno e mese di competenza ricavati da `dal`, `dataPagamento = dal` e `importo = canoneMensile`;
 - ogni Contratto registrato possiede almeno un Pagamento;
-- per ciascun `meseCompetenza` del Contratto può esistere al massimo un Pagamento registrato;
+- `meseCompetenza` è compreso tra 1 e 12;
+- per la stessa coppia `annoCompetenza + meseCompetenza` dello stesso Contratto può esistere al massimo un Pagamento;
+- l'importo del Pagamento viene determinato dal canone mensile del Contratto al momento della registrazione e memorizzato come dato storico;
 - una mensilità è pagabile dal primo giorno del relativo mese di competenza;
 - una mensilità diventa dovuta dal giorno di pagamento previsto dal Contratto, compreso;
 - un Pagamento registrato dopo la scadenza della relativa mensilità è tardivo;
@@ -218,30 +251,46 @@ La data finale `/al` resta visibile perché è semanticamente rilevante per il p
 - le mensilità appartenenti a mesi successivi a quello corrente non possono essere proposte per la registrazione del pagamento.
 
 ## Esito della review del Domain Model
-La review complessiva del diagramma ha confermato la coerenza del modello con i requisiti e con le decisioni documentate. Prima dell'approvazione definitiva sono state recepite le seguenti rifiniture:
-- `Contratto.al` è rappresentato come attributo derivato `/al`;
-- `Pagamento.periodoRiferimento` è stato rinominato `meseCompetenza`;
-- il vincolo sul primo pagamento è espresso staticamente come `dataPagamento = Contratto.dal` per la prima mensilità, lasciando ai diagrammi dinamici la descrizione della sua creazione durante UC-01;
-- `DocumentoRiconoscimento` esplicita il vincolo della versione 1.0 sui tipi ammessi: carta d'identità o passaporto;
-- `TipologiaContrattuale` esplicita le due tipologie supportate nella versione 1.0: canone concordato 3+2 e canone libero 4+4.
+La review iniziale del Domain Model aveva consolidato la baseline concettuale. Durante la costruzione del Class Diagram iniziale sono emerse ulteriori informazioni di dominio, che hanno richiesto un aggiornamento controllato della baseline:
+- `TipologiaContrattuale.durataPeriodoIniziale` è stata sostituita da `durata` e `rinnovo`, entrambi espressi in anni;
+- `Clausola` è stata sostituita da `ArticoloPredefinito` e `ArticoloContratto` per distinguere il modello contrattuale dalla copia storica valorizzata;
+- `Pagamento` è stato raffinato con `annoCompetenza`, `meseCompetenza`, `dataPagamento` e `importo`;
+- l'unicità di un pagamento è riferita alla coppia anno--mese di competenza all'interno dello stesso Contratto;
+- `Contratto.al` resta rappresentato come attributo derivato `/al` e dipende dalla sola `durata` iniziale;
+- `DocumentoRiconoscimento` mantiene il vincolo della versione 1.0 sui tipi ammessi: carta d'identità o passaporto.
 
-Il Domain Model è quindi **assuunto** come baseline concettuale per i successivi artefatti UML.
+Le modifiche sono state propagate a requisiti, Domain Model e Class Diagram iniziale. Il Domain Model aggiornato è assunto come nuova baseline concettuale.
 
 ## Stato del Domain Model
-Il Domain Model è scelto. Le decisioni concettuali necessarie per la baseline della fase 02 sono consolidate.
+Il Domain Model aggiornato è approvato come baseline della fase 02.
 
-Sono approvate:
+Sono consolidate le seguenti decisioni:
 - `Persona` con i ruoli associativi `proprietario` e `inquilino`;
 - `Indirizzo` condiviso tra ubicazione dell'`Immobile` e residenza della `Persona`;
 - `DocumentoRiconoscimento` come concetto autonomo, opzionale in generale ma obbligatorio per il ruolo di inquilino;
 - `DatiCatastali` come concetto autonomo e identificazione catastale basata su codice comunale, foglio, particella e subalterno;
 - `Mensilità` come concetto derivato, non come entità autonoma;
 - `BozzaContratto` esclusa dal Domain Model e rinviata ai diagrammi dinamici;
+- `TipologiaContrattuale` con `durata` e `rinnovo`;
+- `ArticoloPredefinito` associato alla TipologiaContrattuale e `ArticoloContratto` associato al Contratto come copia storica;
 - `Contratto` ↔ `Pagamento` con cardinalità `1` ↔ `1..*`;
-- `TipologiaContrattuale` ↔ `Clausola` con cardinalità `1` ↔ `1..*`, senza condivisione di una stessa Clausola tra più tipologie.
+- `Pagamento` con competenza anno/mese e importo memorizzato.
+
+## Decisioni di tipizzazione per il Class Diagram iniziale
+Il Class Diagram iniziale aggiunge tipi software essenziali senza introdurre architettura, persistenza o framework.
+
+Decisioni approvate:
+- `DatiCatastali.foglio`, `particella` e `subalterno` sono `int`, perché nel dominio assunto contengono esclusivamente valori numerici;
+- `codiceComunale` resta `string`;
+- `Pagamento.annoCompetenza` e `meseCompetenza` sono `int`;
+- `Pagamento.importo`, `Contratto.canoneMensile`, `DatiCatastali.consistenza` e `rendita` sono `decimal`;
+- le date sono rappresentate con il tipo astratto `date`;
+- gli identificatori/codici testuali e il contenuto degli articoli sono `string`.
+
+La scelta di memorizzare gli articoli in PostgreSQL tramite JSON/JSONB, tabelle relazionali o altra rappresentazione è rinviata alla progettazione della persistenza.
 
 ## Tracciabilità UML corrente
-| User Story | Requisiti | Acceptance Criteria | Caso d'uso | Artefatto UML |
+| User Story | Requisiti | Acceptance Criteria | Caso d'uso | Artefatti UML correnti |
 |---|---|---|---|---|
-| US-01 | RF-01–RF-06 | AC-01–AC-09 | UC-01 | `uml/use-case.puml` |
-| US-02 | RF-07–RF-10 | AC-10–AC-15 | UC-02 | `uml/use-case.puml` |
+| US-01 | RF-01–RF-06 | AC-01–AC-09 | UC-01 | `uml/use-case.puml`, `uml/domain-model.puml`, `uml/class-diagram-initial.puml` |
+| US-02 | RF-07–RF-10 | AC-10–AC-15 | UC-02 | `uml/use-case.puml`, `uml/domain-model.puml`, `uml/class-diagram-initial.puml` |
