@@ -104,39 +104,58 @@ end
 
 loop per ruolo [proprietario, inquilino]
     Proprietario -> UI : inserisce codice fiscale
-    UI -> UC : identificaPersona(codiceFiscale, ruolo)
-    UC -> Store : cerca Persona(codiceFiscale)
+    UI -> UC : cercaPersona(codiceFiscale)
+    UC -> Store : cerca Persona per codice fiscale
 
     alt Persona già registrata
         Store --> UC : Persona
+        UC --> UI : mostra dati precompilati del ruolo
+        Proprietario -> UI : verifica / modifica dati anagrafici e residenza
+        opt ruolo = inquilino
+            Proprietario -> UI : verifica / modifica documento disponibile
+        end
     else Persona non registrata
         Store --> UC : assente
         UC --> UI : richiede dati anagrafici e residenza
         Proprietario -> UI : inserisce dati Persona
-        UI -> UC : valida dati Persona
-        note right of UC
-        La nuova Persona resta nella bozza
-        fino alla conferma definitiva.
+    end
+
+    UI -> UC : impostaPersonaNelRuolo(dati Persona, ruolo)
+    UC -> UC : valida dati Persona
+    note right of UC
+    Per una Persona già registrata il codice fiscale
+    resta invariato; gli altri dati possono essere corretti.
+    end note
+
+    alt dati Persona non validi
+        UC --> UI : mostra errori di validazione
+    else dati Persona validi
+        opt ruolo = inquilino e documento assente o da correggere
+            UC --> UI : richiede / consente modifica documento
+            Proprietario -> UI : inserisce / modifica dati documento
+            UI -> UC : valida documento
+        end
+
+        UC -> Draft : aggiorna(working copy Persona e ruolo)
+        note right of Draft
+        Nuovi dati e modifiche a dati esistenti restano
+        nella bozza fino alla conferma definitiva.
         end note
     end
-
-    opt ruolo = inquilino e documento assente
-        UC --> UI : richiede documento di riconoscimento
-        Proprietario -> UI : inserisce dati documento
-        UI -> UC : valida dati documento
-    end
-
-    UC -> Draft : aggiorna(dati Persona e ruolo)
 end
 
 group Step 4 — Dati contrattuali
     Proprietario -> UI : seleziona tipologia ed inserisce nome/descrizione, dal,\ncanoneMensile, giornoPagamento
-    UI -> UC : validaDatiContrattuali(dati)
+    UI -> UC : impostaDatiContrattuali(dati)
     UC -> Store : carica tipologia e articoli predefiniti
-    Store --> UC : TipologiaContrattuale + Articoli
+    Store --> UC : TipologiaContrattuale + Articoli predefiniti
     UC -> UC : calcola /al usando durata
-    UC -> UC : prepara copie valorizzate degli Articoli
-    UC -> Draft : aggiorna(dati contratto e articoli)
+    note right of UC
+    Gli articoli predefiniti sono resi disponibili,
+    ma le copie valorizzate vengono create soltanto
+    alla conferma usando i dati finali validati.
+    end note
+    UC -> Draft : aggiorna(dati contrattuali e tipologia)
     UC --> UI : mostra riepilogo
 end
 
@@ -151,7 +170,7 @@ note over Proprietario,Draft
 L'annullamento è possibile in qualunque momento
 prima della conferma definitiva.
 In caso di annullamento la bozza viene eliminata
-e i nuovi dati acquisiti non vengono persistiti.
+e i dati acquisiti o modificati non vengono persistiti.
 end note
 
 alt proprietario annulla
@@ -173,8 +192,10 @@ else proprietario conferma
     else periodo disponibile
         Store --> UC : nessuna sovrapposizione
 
-        UC -> Contract : costruisci(dati validati,\narticoli registrati)
+        UC -> Contract : costruisci(dati finali validati)
         Contract --> UC : Contratto
+        UC -> UC : valorizza copie degli Articoli predefiniti\nusando il Contratto definitivo
+        UC -> Contract : associa articoli valorizzati
 
         UC -> Registered : genera copia storica completa(Contratto)
         Registered --> UC : ContrattoRegistrato
@@ -190,12 +211,13 @@ else proprietario conferma
         Payment --> UC : Pagamento
 
         note over UC,Store
-        Solo in questo momento vengono persistiti
-        anche gli eventuali nuovi Immobili, Persone
-        e dati di riconoscimento acquisiti nella bozza.
+        Solo in questo momento diventano persistenti
+        gli eventuali nuovi oggetti e le modifiche validate
+        a Persone già registrate, comprese residenza e
+        dati di riconoscimento quando pertinenti.
         end note
 
-        UC -> Store : salvaRegistrazioneDefinitiva(\nnuovi dati anagrafici,\nContratto, Articoli,\nContrattoRegistrato, Pagamento)
+        UC -> Store : salvaRegistrazioneDefinitiva(\ndati nuovi o modificati,\nContratto, Articoli,\nContrattoRegistrato, Pagamento)
 
         alt salvataggio definitivo riuscito
             Store --> UC : commit completato

@@ -24,7 +24,7 @@ Sono già consolidate:
 
 Restano ancora da consolidare:
 
-- il Class Diagram di design definitivo;
+- la review conclusiva del Class Diagram di design;
 - l'eventuale adozione di design pattern;
 - la persistenza concreta;
 - il formato concreto della bozza e di `ContrattoRegistrato`;
@@ -187,6 +187,12 @@ Coordina:
 
 Non contiene query, serializzazione, rendering del documento o formule economiche duplicate.
 
+Durante gli step dedicati alle persone, una Persona già registrata viene caricata come working copy
+nella bozza e presentata al proprietario per verifica ed eventuale modifica. Nell'ambito di UC-01
+`id` e `codiceFiscale` restano invariati; dati anagrafici, residenza e, per l'inquilino, documento di
+riconoscimento possono essere corretti. Un Immobile già registrato viene invece soltanto selezionato
+e non viene modificato nel contesto di UC-01.
+
 ### `RegistraPagamentoService`
 
 **Responsabilità principale:** orchestrare UC-02.
@@ -233,10 +239,15 @@ L'estrazione futura di un oggetto software dedicato alla mensilità resta possib
 
 Responsabilità:
 
-- ricevere articoli predefiniti e dati definitivi del contratto;
+- ricevere gli articoli predefiniti e il `Contratto` definitivo;
 - produrre copie distinte valorizzate;
 - non dipendere dal database;
 - non decidere quando registrare il contratto.
+
+La valorizzazione non viene effettuata durante lo step dei dati contrattuali e non viene salvata
+nella bozza. Avviene soltanto alla conferma definitiva, dopo la costruzione del `Contratto`, in modo
+da usare sempre i dati finali validati ed evitare copie obsolete dopo eventuali modifiche dal riepilogo.
+La firma di design approvata è `valorizza(List<Articolo>, Contratto) : List<Articolo>`.
 
 ### `GeneratoreContrattoRegistrato`
 
@@ -254,13 +265,19 @@ L'application layer non conosce il formato concreto né la tecnologia utilizzata
 
 ### Problema
 
-La procedura di registrazione deve sopravvivere a interruzioni e deve contenere anche nuovi Immobili, Persone e dati di riconoscimento non ancora persistiti definitivamente.
+La procedura di registrazione deve sopravvivere a interruzioni e deve contenere anche nuovi Immobili, nuove Persone, modifiche a Persone già registrate e dati di riconoscimento non ancora persistiti definitivamente.
 
 ### Scelta
 
 `BozzaContratto` è un **application model dedicato**, non un'entità del Domain Model e non una versione incompleta di `Contratto`.
 
 Rappresenta lo stato validato finora della procedura, incluso lo step raggiunto e i dati acquisiti nei passaggi completati.
+La bozza opera come working copy: può contenere oggetti di dominio nuovi, ancora privi di identificatore
+tecnico, oppure copie di oggetti già persistiti con il relativo `id`. Non vengono usati flag `...Nuovo`:
+la distinzione tecnica tra creazione e aggiornamento è demandata alla persistenza definitiva.
+
+La bozza conserva Immobile, proprietario, inquilino, tipologia e dati contrattuali acquisiti; non conserva
+copie valorizzate degli articoli, che vengono prodotte soltanto alla conferma sui dati finali validati.
 
 `RegistraContrattoService` crea, aggiorna, recupera ed elimina logicamente la bozza attraverso `BozzaContrattoRepository`.
 
@@ -328,15 +345,20 @@ Le letture di UC-01 restano esposte tramite `ContrattoRepository`. La scrittura 
 
 Usata da `RegistraContrattoService` per la sola scrittura definitiva di UC-01.
 
-Espone concettualmente un'operazione `registraDefinitivamente(...)` che comprende, quando necessari:
+Espone l'operazione `registraDefinitivamente(registrazione : RegistrazioneContratto)`, dove
+`RegistrazioneContratto` è un application model che raccoglie il risultato definitivo coeso di UC-01.
+La registrazione comprende, quando necessari:
 
 - nuovo `Immobile`;
-- nuove `Persona`;
-- eventuale `DocumentoRiconoscimento`;
+- nuove `Persona` oppure modifiche validate a `Persona` già persistite;
+- nuove associazioni di residenza e dati di `DocumentoRiconoscimento` acquisiti o aggiornati;
 - `Contratto`;
-- `Articolo` valorizzati;
+- `Articolo` valorizzati e associati al Contratto;
 - `ContrattoRegistrato`;
 - primo `Pagamento`.
+
+L'application layer non decide se la sincronizzazione concreta richieda creazioni o aggiornamenti:
+la distinzione appartiene all'implementazione infrastrutturale.
 
 L'operazione è atomica rispetto a questi dati definitivi: successo implica persistenza completa, mentre un errore deve produrre rollback senza lasciare uno stato parziale. Il meccanismo tecnico di transazione appartiene all'`infrastructure` e non è conosciuto dall'application layer.
 
@@ -378,7 +400,7 @@ Alla conferma di UC-01 devono diventare persistenti in modo coerente più oggett
 
 ### Scelta
 
-`RegistraContrattoService` prepara il risultato definitivo e invoca `RegistrazioneContrattoPort`. L'implementazione infrastrutturale esegue in un'unica transazione la persistenza degli eventuali nuovi dati acquisiti, del `Contratto`, degli articoli valorizzati, di `ContrattoRegistrato` e del primo `Pagamento`.
+`RegistraContrattoService` prepara il risultato definitivo e invoca `RegistrazioneContrattoPort`. L'implementazione infrastrutturale esegue in un'unica transazione la persistenza degli eventuali nuovi dati e delle modifiche validate a dati esistenti, del `Contratto`, degli articoli valorizzati, di `ContrattoRegistrato` e del primo `Pagamento`.
 
 La transazione termina prima del cleanup della bozza:
 
@@ -405,6 +427,50 @@ Non viene introdotto un identificatore tecnico della bozza per rendere idempoten
 ### Trade-off
 
 La soluzione mantiene esplicito il confine atomico dello stato definitivo e riduce l'accoppiamento dell'application ai dettagli transazionali. Il costo è la possibilità temporanea di una bozza residua dopo un errore di cleanup; tale stato viene gestito al successivo avvio mediante il confronto progressivo approvato.
+
+## Class design approvato
+
+### Identificatori tecnici
+
+Il Class Diagram di design introduce `id : identifier` per tutte le classi di dominio persistibili.
+`identifier` resta un tipo astratto fino alla scelta dello stack. L'identificatore è assente prima della
+prima persistenza e stabile dopo il salvataggio. Le chiavi e i vincoli naturali del dominio restano
+invariati: codice fiscale per la Persona, identificazione catastale per l'Immobile e unicità della
+competenza anno/mese all'interno del Contratto. Non viene introdotto un `idBozza`.
+
+### Application model
+
+Oltre a `BozzaContratto`, il design introduce `RegistrazioneContratto`, input coeso dell'operazione atomica
+di UC-01, e `PagamentoDaRegistrare`, preview applicativa della competenza individuata in UC-02 prima della
+conferma. `PagamentoDaRegistrare` non reintroduce l'entità `Mensilita`: `Pagamento` nasce soltanto dopo conferma.
+
+### API e porte essenziali
+
+`RegistraContrattoService` espone avvio, elenco di Immobili e tipologie, selezione/inserimento dell'Immobile,
+ricerca e impostazione delle Persone, acquisizione dei dati contrattuali, conferma e annullamento. La ricerca
+di una Persona esistente non completa automaticamente lo step: i dati vengono mostrati, verificati e modificati
+se necessario prima di aggiornare la bozza.
+
+`RegistraPagamentoService` espone elenco Immobili, elenco inquilini per Immobile, preparazione della preview
+per la coppia Immobile--Inquilino e conferma del pagamento. Alla conferma ricarica e ricalcola lato server i dati
+autorevoli.
+
+Le porte approvate sono `BozzaContrattoRepository`, `ImmobileRepository`, `PersonaRepository`,
+`TipologiaContrattualeRepository`, `ContrattoRepository`, `PagamentoRepository`, `RegistrazioneContrattoPort`
+e `GeneratoreContrattoRegistrato`. Le loro firme essenziali sono rappresentate nel Class Diagram di design.
+
+### Comportamenti di dominio essenziali
+
+`Contratto` espone `siSovrapponeA`, `calcolaImportoCompetenza`, `calcolaScadenzaCompetenza` e `associaArticoli`.
+`Persona` espone operazioni coese per aggiornare i dati anagrafici, cambiare residenza e impostare il documento
+di riconoscimento; in UC-01 `id` e `codiceFiscale` restano invariati. Il cambio di residenza modifica
+l'associazione della Persona verso un Indirizzo, evitando di modificare in-place un Indirizzo condiviso.
+
+`ValorizzaArticoliService` usa la firma `valorizza(List<Articolo>, Contratto) : List<Articolo>`.
+`GeneratoreContrattoRegistrato` usa `genera(Contratto) : contenuto`, con `contenuto` ancora astratto.
+`ContrattoRegistrato` resta immutabile e `Pagamento` non memorizza la tardività, che è derivabile.
+
+La prima baseline completa è rappresentata in `uml/class-diagram-design.puml`.
 
 ## DIP e testabilità
 
@@ -450,6 +516,8 @@ application/
   RegistraPagamentoService
   model/
     BozzaContratto
+    RegistrazioneContratto
+    PagamentoDaRegistrare
   ports/
     BozzaContrattoRepository
     ImmobileRepository
@@ -503,8 +571,6 @@ La struttura è indicativa e descrive responsabilità, non package o namespace d
 
 Prima di considerare completa la fase di design devono essere ancora definiti:
 
-- le firme pubbliche essenziali delle classi e delle porte;
-- `uml/class-diagram-design.puml`;
 - la review esplicita di SRP, DIP e OCP sul design completo;
 - la decisione motivata sull'uso o non uso di Strategy, Factory Method, Adapter e Observer;
 - il formato persistente della bozza;

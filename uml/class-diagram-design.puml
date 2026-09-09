@@ -1,0 +1,273 @@
+@startuml
+
+title Gestionale Affitti — Class Diagram di design
+
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+hide empty members
+
+package "application" {
+  class RegistraContrattoService <<service>> {
+    + avvia() : BozzaContratto [0..1]
+    + elencaImmobili() : List<Immobile>
+    + elencaTipologie() : List<TipologiaContrattuale>
+    + selezionaImmobile(immobileId : identifier) : BozzaContratto
+    + inserisciNuovoImmobile(immobile : Immobile) : BozzaContratto
+    + cercaPersona(codiceFiscale : string) : Persona [0..1]
+    + impostaProprietario(persona : Persona) : BozzaContratto
+    + impostaInquilino(persona : Persona) : BozzaContratto
+    + impostaDatiContrattuali(nomeDescrizione : string, tipologiaId : identifier, dal : date, canoneMensile : decimal, giornoPagamento : int) : BozzaContratto
+    + conferma() : void
+    + annulla() : void
+  }
+
+  class RegistraPagamentoService <<service>> {
+    + elencaImmobili() : List<Immobile>
+    + elencaInquilini(immobileId : identifier) : List<Persona>
+    + preparaPagamento(immobileId : identifier, inquilinoId : identifier, dataCorrente : date) : PagamentoDaRegistrare [0..1]
+    + confermaPagamento(contrattoId : identifier, annoCompetenza : int, meseCompetenza : int, dataCorrente : date) : Pagamento
+  }
+
+  package "model" {
+    class BozzaContratto <<application model>> {
+      - stepCompletato : int
+      - nomeDescrizione : string [0..1]
+      - dal : date [0..1]
+      - canoneMensile : decimal [0..1]
+      - giornoPagamento : int [0..1]
+    }
+
+    class RegistrazioneContratto <<application model>>
+
+    class PagamentoDaRegistrare <<application model>> {
+      - contrattoId : identifier
+      - annoCompetenza : int
+      - meseCompetenza : int
+      - scadenza : date
+      - importo : decimal
+      - tardivo : boolean
+    }
+  }
+
+  package "ports" {
+    interface BozzaContrattoRepository {
+      + recupera() : BozzaContratto [0..1]
+      + salva(bozza : BozzaContratto) : void
+      + elimina() : void
+    }
+
+    interface ImmobileRepository {
+      + trovaTutti() : List<Immobile>
+      + trovaPerId(id : identifier) : Immobile [0..1]
+      + trovaPerDatiCatastali(dati : DatiCatastali) : Immobile [0..1]
+      + esisteConIndirizzo(indirizzo : Indirizzo) : boolean
+    }
+
+    interface PersonaRepository {
+      + trovaPerCodiceFiscale(codiceFiscale : string) : Persona [0..1]
+    }
+
+    interface TipologiaContrattualeRepository {
+      + trovaTutte() : List<TipologiaContrattuale>
+      + trovaPerIdConArticoli(id : identifier) : TipologiaContrattuale [0..1]
+    }
+
+    interface ContrattoRepository {
+      + trovaPerId(id : identifier) : Contratto [0..1]
+      + trovaPerImmobile(immobileId : identifier) : List<Contratto>
+    }
+
+    interface PagamentoRepository {
+      + trovaPerContratto(contrattoId : identifier) : List<Pagamento>
+      + salva(pagamento : Pagamento) : void
+    }
+
+    interface RegistrazioneContrattoPort {
+      + registraDefinitivamente(registrazione : RegistrazioneContratto) : void
+    }
+
+    interface GeneratoreContrattoRegistrato {
+      + genera(contratto : Contratto) : contenuto
+    }
+  }
+}
+
+package "domain" {
+  class Persona {
+    - id : identifier [0..1]
+    - nome : string
+    - cognome : string
+    - luogoNascita : string
+    - dataNascita : date
+    - codiceFiscale : string
+    + aggiornaDatiAnagrafici(nome : string, cognome : string, luogoNascita : string, dataNascita : date) : void
+    + cambiaResidenza(residenza : Indirizzo) : void
+    + impostaDocumentoRiconoscimento(documento : DocumentoRiconoscimento) : void
+  }
+
+  class Indirizzo {
+    - id : identifier [0..1]
+    - nazione : string
+    - provincia : string
+    - comune : string
+    - cap : string
+    - indirizzo : string
+    - civico : string
+    - scala : string
+    - interno : string
+  }
+
+  class DocumentoRiconoscimento {
+    - id : identifier [0..1]
+    - tipo : string
+    - organoEmittente : string
+    - dataRilascio : date
+    - dataScadenza : date
+    - numero : string
+  }
+
+  class Immobile {
+    - id : identifier [0..1]
+    - nome : string
+  }
+
+  class DatiCatastali {
+    - id : identifier [0..1]
+    - codiceComunale : string
+    - foglio : int
+    - particella : int
+    - subalterno : int
+    - categoria : string
+    - consistenza : decimal
+    - rendita : decimal
+  }
+
+  class TipologiaContrattuale {
+    - id : identifier [0..1]
+    - denominazione : string
+    - durata : int
+    - rinnovo : int
+  }
+
+  class Articolo {
+    - id : identifier [0..1]
+    - numArticolo : string
+    - titolo : string
+    - sottotitolo : string
+    - testo : string
+  }
+
+  class Contratto {
+    - id : identifier [0..1]
+    - nomeDescrizione : string
+    - dal : date
+    - /al : date
+    - canoneMensile : decimal
+    - giornoPagamento : int
+    + siSovrapponeA(altro : Contratto) : boolean
+    + calcolaImportoCompetenza(anno : int, mese : int) : decimal
+    + calcolaScadenzaCompetenza(anno : int, mese : int) : date
+    + associaArticoli(articoli : List<Articolo>) : void
+  }
+
+  class ContrattoRegistrato {
+    - id : identifier [0..1]
+    - contenuto : contenuto
+  }
+
+  class Pagamento {
+    - id : identifier [0..1]
+    - annoCompetenza : int
+    - meseCompetenza : int
+    - dataPagamento : date
+    - importo : decimal
+  }
+
+  package "services" {
+    class ValorizzaArticoliService <<domain service>> {
+      + valorizza(articoliPredefiniti : List<Articolo>, contratto : Contratto) : List<Articolo>
+    }
+  }
+}
+
+Persona "0..*" -- "1" Indirizzo : residenza
+Persona "1" -- "0..1" DocumentoRiconoscimento : documento
+Immobile "0..*" -- "1" Indirizzo : ubicazione
+Immobile "1" -- "1" DatiCatastali : dati catastali
+Immobile "1" -- "0..*" Contratto : oggetto della locazione
+Persona "1" -- "0..*" Contratto : proprietario
+Persona "1" -- "0..*" Contratto : inquilino
+TipologiaContrattuale "1" -- "0..*" Contratto : tipologia
+TipologiaContrattuale "0..1" -- "1..*" Articolo : articoli predefiniti
+Contratto "0..1" -- "1..*" Articolo : articoli registrati
+Contratto "1" -- "1" ContrattoRegistrato : copia registrata
+Contratto "1" -- "1..*" Pagamento : pagamenti
+
+BozzaContratto "1" --> "0..1" Immobile : immobile
+BozzaContratto "1" --> "0..1" Persona : proprietario
+BozzaContratto "1" --> "0..1" Persona : inquilino
+BozzaContratto "1" --> "0..1" TipologiaContrattuale : tipologia
+
+RegistrazioneContratto "1" --> "1" Immobile : immobile
+RegistrazioneContratto "1" --> "1" Persona : proprietario
+RegistrazioneContratto "1" --> "1" Persona : inquilino
+RegistrazioneContratto "1" --> "1" Contratto : contratto
+RegistrazioneContratto "1" --> "1" ContrattoRegistrato : copia storica
+RegistrazioneContratto "1" --> "1" Pagamento : primo pagamento
+
+RegistraContrattoService ..> BozzaContrattoRepository
+RegistraContrattoService ..> ImmobileRepository
+RegistraContrattoService ..> PersonaRepository
+RegistraContrattoService ..> TipologiaContrattualeRepository
+RegistraContrattoService ..> ContrattoRepository
+RegistraContrattoService ..> RegistrazioneContrattoPort
+RegistraContrattoService ..> GeneratoreContrattoRegistrato
+RegistraContrattoService ..> ValorizzaArticoliService
+RegistraContrattoService ..> RegistrazioneContratto
+
+RegistraPagamentoService ..> ImmobileRepository
+RegistraPagamentoService ..> ContrattoRepository
+RegistraPagamentoService ..> PagamentoRepository
+RegistraPagamentoService ..> PagamentoDaRegistrare
+
+RegistrazioneContrattoPort ..> RegistrazioneContratto
+GeneratoreContrattoRegistrato ..> Contratto
+ValorizzaArticoliService ..> Articolo
+ValorizzaArticoliService ..> Contratto
+
+note right of Persona
+  In UC-01 id e codiceFiscale non vengono modificati.
+  I dati recuperati sono una working copy verificabile
+  e modificabile prima della conferma definitiva.
+end note
+
+note bottom of BozzaContratto
+  Application model temporaneo, senza idBozza.
+  Conserva lo stato validato della procedura.
+  Non contiene copie valorizzate degli Articoli.
+end note
+
+note bottom of RegistrazioneContratto
+  Input coeso della scrittura atomica di UC-01.
+  La porta infrastrutturale decide creazioni e aggiornamenti.
+end note
+
+note bottom of Contratto
+  { giornoPagamento in 1..28 }
+  { /al derivato da dal e tipologia.durata }
+  { dal e al inclusivi }
+end note
+
+note bottom of Pagamento
+  { meseCompetenza in 1..12 }
+  { univoco per Contratto + annoCompetenza + meseCompetenza }
+end note
+
+note bottom of ContrattoRegistrato
+  Snapshot completo e immutabile della registrazione.
+end note
+
+note "identifier è un tipo astratto del design.\nL'id è assente prima della prima persistenza e stabile dopo il salvataggio.\ncontenuto è un tipo astratto da concretizzare con lo stack.\nLe implementazioni concrete delle porte appartengono a infrastructure e non sono mostrate." as NDesign
+
+@enduml

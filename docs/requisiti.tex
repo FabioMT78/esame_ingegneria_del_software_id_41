@@ -188,7 +188,7 @@ riepilogo -> conferma. I dati obbligatori di uno step devono essere validi prima
 proseguire e la procedura deve poter essere annullata prima della conferma definitiva.
 Se all'avvio della procedura esiste una bozza, il sistema deve confrontarla progressivamente
 con i contratti già registrati usando, quando disponibili, l'identificazione catastale dell'immobile,
-il codice fiscale dell'inquilino e il periodo 	exttt{dal}--	exttt{al}. Se tutti questi dati sono
+il codice fiscale dell'inquilino e il periodo \texttt{dal}--\texttt{al}. Se tutti questi dati sono
 presenti nella bozza e coincidono con quelli di un contratto già registrato, la bozza deve essere
 considerata residua, eliminata senza richiedere conferma al proprietario e deve essere avviata una
 nuova procedura; negli altri casi il sistema deve caricare i dati della bozza. \\
@@ -213,26 +213,31 @@ foglio, particella e subalterno. Il sistema deve rifiutare la creazione di un im
 con una combinazione catastale già presente.
 Quando l'indirizzo comprende anche l'interno, il sistema deve inoltre rifiutare la creazione
 di un immobile con lo stesso indirizzo completo di un immobile già registrato.
+Un immobile già registrato viene soltanto selezionato e non può essere modificato nell'ambito di UC-01.
 Proprietario e inquilino devono essere riconosciuti tramite codice fiscale.
-Se il codice fiscale corrisponde a una persona già registrata, il sistema deve
-recuperarne i dati; in caso contrario deve consentire di acquisire i dati di una nuova
-persona: nome, cognome, luogo di nascita, data di nascita, codice
-fiscale, provincia, comune, indirizzo e numero civico della residenza.
-Per la persona che assume il ruolo di inquilino il sistema deve inoltre
-acquisire, se non già presenti, tipo di documento di riconoscimento
-(carta d'identità o passaporto), organo emittente, data di rilascio,
-data di scadenza e numero del documento.
-Gli eventuali nuovi immobili, nuove persone e nuovi dati di riconoscimento acquisiti durante
-la procedura devono rimanere parte della bozza e devono essere salvati permanentemente
-soltanto alla conferma definitiva del contratto. \\
+Se il codice fiscale corrisponde a una persona già registrata, il sistema deve recuperarne e
+mostrare i dati affinché il proprietario possa verificarli ed eventualmente modificarli prima
+di completare lo step. Nell'ambito di UC-01 il codice fiscale della persona già registrata non
+è modificabile. In caso contrario il sistema deve consentire di acquisire i dati di una nuova
+persona: nome, cognome, luogo di nascita, data di nascita, codice fiscale, provincia, comune,
+indirizzo e numero civico della residenza.
+Per la persona che assume il ruolo di inquilino il sistema deve inoltre acquisire o consentire
+di aggiornare, quando necessario, tipo di documento di riconoscimento (carta d'identità o
+passaporto), organo emittente, data di rilascio, data di scadenza e numero del documento.
+Le eventuali nuove persone e le modifiche apportate a persone già registrate devono rimanere
+nella bozza fino alla conferma definitiva. Gli eventuali nuovi immobili, le nuove persone, le
+modifiche validate alle persone esistenti e i dati di riconoscimento acquisiti o aggiornati
+durante la procedura devono essere salvati permanentemente soltanto alla conferma definitiva
+del contratto. \\
 
 \req{RF-04} &
 Il sistema deve acquisire per il contratto un nome o una breve descrizione, la tipologia
 contrattuale, la data iniziale, il canone mensile e il giorno di pagamento. La tipologia
 contrattuale deve definire la durata del periodo iniziale, la durata del rinnovo e gli articoli
 predefiniti applicabili. Il sistema deve calcolare automaticamente la data finale del periodo
-iniziale utilizzando la durata della tipologia selezionata e predisporre gli articoli predefiniti
-valorizzando gli eventuali dati richiesti con le informazioni acquisite durante la registrazione. \\
+iniziale utilizzando la durata della tipologia selezionata e rendere disponibili gli articoli
+predefiniti della tipologia. Le copie valorizzate degli articoli devono essere prodotte soltanto
+alla conferma definitiva, utilizzando i dati finali validati della registrazione. \\
 
 \req{RF-05} &
 La presenza di uno o più contratti già registrati per l'immobile non deve impedire l'avvio o
@@ -246,12 +251,14 @@ Prima della registrazione definitiva il sistema deve mostrare un riepilogo dei d
 contrattuali e consentire al proprietario di modificarli. Il contratto deve essere
 registrato soltanto dopo una conferma esplicita.
 Per registrazione si intende il salvataggio permanente dei dati e non la registrazione
-ufficiale presso l'Agenzia delle Entrate. Alla registrazione definitiva il sistema deve
-salvare permanentemente anche gli eventuali nuovi immobili, nuove persone e nuovi dati
-di riconoscimento acquisiti nella procedura, insieme agli altri dati necessari alla registrazione
-del contratto. Il sistema deve inoltre conservare una copia storica completa del contratto generato, comprensiva dei dati acquisiti
-nella registrazione e degli articoli valorizzati, in modo che non venga alterata da successive
-modifiche ai modelli predefiniti o ai dati sorgente. Il sistema deve inoltre creare e memorizzare il pagamento
+ufficiale presso l'Agenzia delle Entrate. Alla registrazione definitiva il sistema deve salvare permanentemente anche gli eventuali nuovi
+immobili, le nuove persone e le modifiche validate apportate a persone già registrate, comprese
+residenza e dati del documento di riconoscimento quando pertinenti, insieme agli altri dati
+necessari alla registrazione del contratto. Nello stesso momento il sistema deve creare copie
+valorizzate degli articoli predefiniti usando i dati finali validati e associarle al contratto.
+Il sistema deve inoltre conservare una copia storica completa del contratto generato, comprensiva
+dei dati acquisiti nella registrazione e degli articoli valorizzati, in modo che non venga alterata
+da successive modifiche ai modelli predefiniti o ai dati sorgente. Il sistema deve inoltre creare e memorizzare il pagamento
 della prima mensilità con anno e mese di competenza corrispondenti alla decorrenza e data di
 pagamento coincidente con la data di decorrenza. L'importo deve essere determinato automaticamente
 applicando, quando la decorrenza non coincide con il primo giorno del mese, il pro-rata sui giorni
@@ -389,7 +396,9 @@ risulta una sovrapposizione con un contratto esistente.
 
 \textbf{Dato} l'inserimento del codice fiscale del proprietario o dell'inquilino,
 \textbf{quando} il soggetto è già registrato,
-\textbf{allora} il sistema deve recuperarne i dati disponibili.
+\textbf{allora} il sistema deve recuperarne e mostrare i dati disponibili, consentendo al
+proprietario di verificarli e modificarli prima di completare lo step, mantenendo invariato
+il codice fiscale della persona.
 
 \textbf{Dato} l'inserimento del codice fiscale del proprietario o dell'inquilino,
 \textbf{quando} il soggetto non è ancora registrato,
@@ -398,10 +407,11 @@ cognome, luogo di nascita, data di nascita, codice fiscale, provincia,
 comune, indirizzo e numero civico della residenza.
 
 \textbf{Dato} che la persona deve assumere il ruolo di inquilino,
-\textbf{quando} i dati del documento di riconoscimento non sono già presenti,
-\textbf{allora} il sistema deve richiedere tipo di documento
+\textbf{quando} i dati del documento di riconoscimento non sono presenti o devono essere corretti,
+\textbf{allora} il sistema deve richiedere o consentire di aggiornare tipo di documento
 (carta d'identità o passaporto), organo emittente, data di rilascio,
-data di scadenza e numero del documento.
+data di scadenza e numero del documento; le modifiche devono restare nella bozza fino alla
+conferma definitiva.
 
 \paragraph{AC-04 -- Validazione progressiva}
 \textbf{Dato} uno qualsiasi dei primi quattro step,
@@ -415,8 +425,10 @@ successivo finché non vengono corretti.
 \textbf{quando} i dati contrattuali vengono validati,
 \textbf{allora} il sistema deve calcolare automaticamente la data \texttt{al} usando
 la durata del periodo iniziale della tipologia, mantenere disponibile il valore di rinnovo
-senza applicarlo al periodo gestito nella versione 1.0, predisporre gli articoli predefiniti
-valorizzando gli eventuali dati richiesti e accettare un giorno di pagamento compreso tra 1 e 28.
+senza applicarlo al periodo gestito nella versione 1.0, rendere disponibili gli articoli
+predefiniti della tipologia e accettare un giorno di pagamento compreso tra 1 e 28; la
+valorizzazione delle copie registrate deve avvenire soltanto alla conferma definitiva usando
+i dati finali validati.
 
 \paragraph{AC-06 -- Coerenza del contratto}
 \textbf{Dato} il periodo del nuovo contratto,
@@ -432,9 +444,11 @@ immobile,
 \textbf{dato} che i dati del contratto sono validi,
 \textbf{quando} il proprietario fornisce la conferma esplicita,
 \textbf{allora} il contratto deve essere registrato e devono essere salvati permanentemente
-gli eventuali nuovi immobili, nuove persone e nuovi dati di riconoscimento acquisiti durante
-la procedura; deve inoltre essere memorizzata una copia storica completa del contratto generato,
-comprensiva dei dati acquisiti nella registrazione e degli articoli valorizzati, e il sistema deve
+gli eventuali nuovi immobili, le nuove persone e le modifiche validate apportate a persone già
+registrate, comprese residenza e dati del documento di riconoscimento quando pertinenti; il sistema
+deve inoltre creare e associare al contratto le copie valorizzate degli articoli predefiniti usando
+i dati finali validati e memorizzare una copia storica completa del contratto generato,
+comprensiva dei dati acquisiti nella registrazione e degli articoli valorizzati, e deve
 creare e memorizzare il pagamento della prima mensilità con anno e mese di competenza
 corrispondenti alla decorrenza e data di pagamento coincidente con la data di decorrenza. Se la
 decorrenza non coincide con il primo giorno del mese, l'importo deve essere calcolato in pro-rata
@@ -447,12 +461,13 @@ successive variazioni degli articoli predefiniti o dei dati sorgente.
 \textbf{quando} il proprietario annulla la procedura,
 \textbf{allora} nessun nuovo contratto deve essere registrato, nessun nuovo immobile,
 nuova persona o nuovo dato di riconoscimento acquisito esclusivamente nella procedura deve
-essere salvato permanentemente e l'eventuale bozza deve essere cancellata.
+essere salvato permanentemente, nessuna modifica apportata a una persona già registrata deve
+diventare definitiva e l'eventuale bozza deve essere cancellata.
 
 \paragraph{AC-09 -- Ciclo di vita della bozza}
 \textbf{Dato} che il proprietario completa con successo il primo step della procedura,
 \textbf{quando} passa a uno step successivo validato,
-\textbf{allora} il sistema deve creare o aggiornare la bozza con i dati acquisiti;
+\textbf{allora} il sistema deve creare o aggiornare la bozza con i dati acquisiti o modificati;
 \textbf{quando} la registrazione definitiva termina con successo, la bozza deve essere cancellata.
 
 \subsection{Acceptance criteria di US-02}
@@ -537,7 +552,7 @@ trasversali della versione 1.0.
     previsto dalla versione 1.0, di riaprire la procedura recuperando l'ultima bozza non
     conclusa e i dati già acquisiti. Se la bozza residua corrisponde invece a un contratto
     già registrato per identificazione catastale dell'immobile, codice fiscale dell'inquilino
-    e periodo 	exttt{dal}--	exttt{al}, deve essere eliminata automaticamente e non proposta
+    e periodo \texttt{dal}--\texttt{al}, deve essere eliminata automaticamente e non proposta
     come procedura da riprendere.
 
     \item[CV-02 -- RNF-02] In condizioni nominali, ciascuna operazione interattiva di

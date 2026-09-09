@@ -85,6 +85,8 @@ La bozza rappresenta lo stato temporaneo e recuperabile della procedura guidata 
 
 **Decisione:** gli eventuali nuovi `Immobile`, `Persona` e dati di `DocumentoRiconoscimento` acquisiti durante UC-01 non vengono salvati permanentemente al completamento dei singoli step. Fino alla conferma definitiva rimangono dati della bozza. La persistenza definitiva avviene insieme alla registrazione del `Contratto`; in caso di annullamento, tali nuovi dati non devono rimanere registrati.
 
+**Raffinamento di design:** una `Persona` già registrata viene caricata nella bozza come working copy e i suoi dati vengono mostrati per verifica ed eventuale modifica; nell'ambito di UC-01 `id` e codice fiscale restano invariati. Le modifiche a dati anagrafici, residenza e, per l'inquilino, documento di riconoscimento diventano permanenti soltanto alla conferma definitiva. Un `Immobile` già registrato viene invece soltanto selezionato e non modificato in UC-01. Non vengono introdotti flag `...Nuovo` nella bozza.
+
 **Decisione di design sul recupero di una bozza residua:** alla successiva apertura di UC-01, se esiste una bozza, il sistema confronta progressivamente con i contratti già registrati l'identificazione catastale dell'Immobile, il codice fiscale dell'Inquilino e il periodo `dal`--`al`, quando tali dati sono presenti nella bozza. Solo se tutti e tre gli elementi sono disponibili e coincidono con un contratto registrato, la bozza è considerata residua di una registrazione già completata e viene eliminata automaticamente senza interazione con l'utente. Se i dati non sono tutti disponibili o uno dei confronti non coincide, la bozza viene normalmente proposta per la ripresa.
 
 ### Immobile, Indirizzo e DatiCatastali
@@ -170,7 +172,7 @@ Attributi concettuali scelti per `Articolo`:
 - `sottotitolo`;
 - `testo`.
 
-Le istanze di `Articolo` associate alla `TipologiaContrattuale` rappresentano i modelli predefiniti e possono contenere dati da valorizzare durante UC-01. Alla registrazione definitiva il sistema ne crea copie distinte, valorizzate con i dati acquisiti, e le associa al `Contratto`.
+Le istanze di `Articolo` associate alla `TipologiaContrattuale` rappresentano i modelli predefiniti e possono contenere dati da valorizzare durante UC-01. Alla registrazione definitiva, dopo la costruzione del `Contratto` con i dati finali validati, il sistema ne crea copie distinte, le valorizza e le associa al `Contratto`. Le copie valorizzate non vengono conservate nella bozza, così eventuali modifiche effettuate dal riepilogo non possono renderle obsolete.
 
 **Cardinalità e vincolo di appartenenza:**
 - ogni `TipologiaContrattuale` possiede `1..*` `Articolo` nel ruolo di articoli predefiniti;
@@ -323,14 +325,14 @@ Decisioni dinamiche rappresentate:
 - all'avvio, una bozza esistente viene prima confrontata progressivamente con i contratti registrati tramite dati catastali dell'Immobile, codice fiscale dell'Inquilino e periodo `dal`--`al`;
 - una bozza che coincide su tutti e tre gli elementi con un contratto già registrato viene considerata residua, eliminata silenziosamente e non proposta per la ripresa; negli altri casi viene recuperata;
 - ogni step valido aggiorna la bozza;
-- nuovi immobili, persone e dati di riconoscimento restano nella bozza fino alla conferma finale;
+- nuovi immobili e persone, insieme alle modifiche validate a persone già registrate e ai dati di riconoscimento, restano nella bozza fino alla conferma finale;
 - il controllo di sovrapposizione avviene prima della registrazione definitiva;
-- alla conferma valida vengono costruiti il `Contratto`, gli articoli registrati, il `ContrattoRegistrato` e il primo `Pagamento`;
+- alla conferma valida viene costruito il `Contratto`; soltanto a quel punto gli articoli predefiniti vengono copiati e valorizzati sui dati finali, poi vengono costruiti `ContrattoRegistrato` e il primo `Pagamento`;
 - il salvataggio dei dati definitivi è rappresentato come un'unica operazione logica coerente e atomica;
 - dopo il completamento con successo della registrazione definitiva viene tentata l'eliminazione della bozza, ma tale cleanup non appartiene alla transazione dei dati definitivi;
 - un errore nella cancellazione della bozza non invalida il contratto già registrato; la bozza residua viene riconosciuta ed eliminata automaticamente alla successiva apertura se coincide con un contratto registrato secondo il confronto definito;
 - in caso di sovrapposizione o errore del salvataggio definitivo la bozza resta disponibile;
-- l'annullamento prima della conferma elimina la bozza e non persiste i nuovi dati acquisiti.
+- l'annullamento prima della conferma elimina la bozza e non persiste né i nuovi dati acquisiti né le modifiche apportate a dati esistenti.
 
 ## Activity Diagram UC-01
 L'Activity Diagram di UC-01 completa il Sequence Diagram rappresentando il flusso end-to-end della procedura guidata.
@@ -343,9 +345,9 @@ Decisioni dinamiche rappresentate:
 - acquisizione di Persona e DocumentoRiconoscimento quando necessari;
 - aggiornamento della bozza dopo gli step validi;
 - possibilità di annullamento prima della conferma definitiva;
-- nessuna persistenza definitiva dei nuovi dati acquisiti in caso di annullamento;
+- nessuna persistenza definitiva dei nuovi dati o delle modifiche a dati esistenti in caso di annullamento;
 - ritorno alla modifica in caso di sovrapposizione del periodo contrattuale;
-- registrazione definitiva coerente e atomica di Contratto, articoli valorizzati, ContrattoRegistrato, primo Pagamento ed eventuali nuovi dati acquisiti;
+- registrazione definitiva coerente e atomica di Contratto, articoli valorizzati alla conferma, ContrattoRegistrato, primo Pagamento, eventuali nuovi dati e modifiche validate a Persone già registrate;
 - cleanup della bozza successivo alla registrazione definitiva: un eventuale errore di cancellazione non annulla il risultato già persistito.
 
 L'Activity Diagram non introduce componenti architetturali: usa i ruoli `Proprietario` e `Sistema` per descrivere il processo.
@@ -375,11 +377,22 @@ Decisioni dinamiche rappresentate:
 
 `Mensilità` non compare come partecipante autonomo perché nella baseline approvata è un concetto derivato, non un'entità del Domain Model.
 
+## Class Diagram di design
+
+La Fase 03 introduce `uml/class-diagram-design.puml`, distinto dal Class Diagram iniziale della Fase 02.
+Il diagramma rappresenta Service applicativi, application model, porte, oggetti di dominio e comportamenti
+pubblici essenziali. Le classi di dominio persistibili ricevono nel design un `id : identifier` tecnico,
+opzionale prima della prima persistenza; ciò non modifica il Domain Model concettuale né le chiavi naturali.
+`BozzaContratto` non riceve un identificatore dedicato.
+
+Gli application model introdotti sono `BozzaContratto`, `RegistrazioneContratto` e `PagamentoDaRegistrare`.
+Le implementazioni concrete delle porte non sono ancora rappresentate perché persistenza e stack restano aperti.
+
 ## Tracciabilità UML corrente
 | User Story | Requisiti | Acceptance Criteria | Caso d'uso | Artefatti UML correnti |
 |---|---|---|---|---|
-| US-01 | RF-01–RF-06 | AC-01–AC-09 | UC-01 | `uml/use-case.puml`, `uml/domain-model.puml`, `uml/class-diagram-initial.puml`, `uml/sequence-uc01.puml`, `uml/activity-uc01.puml` |
-| US-02 | RF-07–RF-10 | AC-10–AC-15 | UC-02 | `uml/use-case.puml`, `uml/domain-model.puml`, `uml/class-diagram-initial.puml`, `uml/sequence-uc02.puml` |
+| US-01 | RF-01–RF-06 | AC-01–AC-09 | UC-01 | `uml/use-case.puml`, `uml/domain-model.puml`, `uml/class-diagram-initial.puml`, `uml/sequence-uc01.puml`, `uml/activity-uc01.puml`, `uml/class-diagram-design.puml` |
+| US-02 | RF-07–RF-10 | AC-10–AC-15 | UC-02 | `uml/use-case.puml`, `uml/domain-model.puml`, `uml/class-diagram-initial.puml`, `uml/sequence-uc02.puml`, `uml/class-diagram-design.puml` |
 
 
 ## Esito finale della fase 02
@@ -393,6 +406,6 @@ La catena attualmente coperta è:
 - comportamento dinamico di UC-01;
 - comportamento dinamico di UC-02.
 
-La **Fase 03 — Architettura, class design e SOLID** è in corso. Le decisioni architetturali già approvate sono documentate in `docs/architettura.md`; restano ancora da consolidare il confine transazionale di UC-01, il Class Diagram di design definitivo, l'analisi dei pattern, la persistenza concreta e lo stack tecnologico.
+La **Fase 03 — Architettura, class design e SOLID** è in corso. Le decisioni architetturali, il confine transazionale di UC-01 e la prima baseline completa del Class Diagram di design sono documentati in `docs/architettura.md` e `uml/class-diagram-design.puml`. Restano ancora da completare la review esplicita di SOLID/qualità, la decisione motivata sui pattern, la persistenza concreta e lo stack tecnologico.
 
 Le sorgenti PlantUML approvate dovranno essere esportate in PDF e inserite nella relazione LaTeX quando verrà predisposta la documentazione finale.

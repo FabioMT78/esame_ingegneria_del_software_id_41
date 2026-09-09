@@ -40,8 +40,8 @@ note right
   in qualunque momento prima della
   conferma definitiva.
   L'annullamento elimina l'eventuale
-  bozza e non persiste i nuovi dati
-  acquisiti esclusivamente nella procedura.
+  bozza e non persiste i dati acquisiti o
+  modificati esclusivamente nella procedura.
 end note
 
 ' =========================================================
@@ -102,7 +102,7 @@ end note
 
 if (Proprietario annulla?) then (sì)
   :Elimina l'eventuale bozza;
-  :Non salva permanentemente i nuovi dati acquisiti;
+  :Non salva permanentemente i dati acquisiti o modificati;
   stop
 else (no)
 endif
@@ -120,35 +120,42 @@ repeat
 
   if (Persona già registrata?) then (sì)
     :Recupera i dati della Persona;
-    :Accetta la Persona nel ruolo di proprietario;
+    :Mostra i dati precompilati;
+
+    |Proprietario|
+    :Verifica ed eventualmente modifica\ndati anagrafici e residenza;
   else (no)
+    |Sistema|
     :Richiede dati anagrafici e residenza;
 
     |Proprietario|
     :Inserisce i dati della nuova Persona;
+  endif
 
-    |Sistema|
-    :Valida i dati della Persona;
+  |Sistema|
+  :Valida i dati della Persona;
+  note right
+    Per una Persona esistente il codice fiscale
+    resta invariato; gli altri dati possono essere corretti.
+  end note
 
-    if (Dati validi?) then (sì)
-      :Accetta la nuova Persona\nnel ruolo di proprietario;
-    else (no)
-      :Segnala gli errori di validazione;
-    endif
+  if (Dati validi?) then (sì)
+    :Accetta la Persona nel ruolo di proprietario;
+  else (no)
+    :Segnala gli errori di validazione;
   endif
 
 repeat while (Step 2 valido?) is (no) not (sì)
 
-:Aggiorna la bozza\ncon i dati del proprietario;
+:Aggiorna la bozza con la working copy\ndel proprietario;
 note right
-  Un'eventuale nuova Persona
-  resta nella bozza fino alla
-  conferma definitiva.
+  Una nuova Persona o le modifiche a una Persona
+  esistente restano nella bozza fino alla conferma.
 end note
 
 if (Proprietario annulla?) then (sì)
   :Elimina la bozza;
-  :Non salva permanentemente i nuovi dati acquisiti;
+  :Non salva permanentemente i dati acquisiti o modificati;
   stop
 else (no)
 endif
@@ -165,53 +172,52 @@ repeat
   :Cerca la Persona tramite codice fiscale;
 
   if (Persona già registrata?) then (sì)
-    :Recupera i dati della Persona;
+    :Recupera dati, residenza e documento disponibili;
+    :Mostra i dati precompilati;
+
+    |Proprietario|
+    :Verifica ed eventualmente modifica\ndati anagrafici, residenza e documento;
   else (no)
+    |Sistema|
     :Richiede dati anagrafici e residenza;
 
     |Proprietario|
     :Inserisce i dati della nuova Persona;
-
-    |Sistema|
-    :Valida i dati della Persona;
   endif
 
-  if (Dati della Persona validi?) then (sì)
+  |Sistema|
+  :Valida i dati della Persona;
 
-    if (Documento di riconoscimento presente?) then (sì)
+  if (Dati della Persona validi?) then (sì)
+    if (Documento di riconoscimento presente e valido?) then (sì)
       :Accetta la Persona nel ruolo di inquilino;
     else (no)
-      :Richiede i dati del documento di riconoscimento;
-
+      :Richiede o consente di correggere il documento;
       |Proprietario|
-      :Inserisce i dati del documento;
-
+      :Inserisce o modifica i dati del documento;
       |Sistema|
       :Valida il documento;
-
       if (Documento valido?) then (sì)
         :Accetta la Persona nel ruolo di inquilino;
       else (no)
         :Segnala gli errori del documento;
       endif
     endif
-
   else (no)
     :Segnala gli errori dei dati della Persona;
   endif
 
 repeat while (Step 3 valido?) is (no) not (sì)
 
-:Aggiorna la bozza\ncon i dati dell'inquilino;
+:Aggiorna la bozza con la working copy\ndell'inquilino e del documento;
 note right
-  Eventuali nuova Persona e nuovo
-  DocumentoRiconoscimento restano
-  nella bozza fino alla conferma.
+  Nuovi dati e modifiche a dati esistenti restano
+  nella bozza fino alla conferma definitiva.
 end note
 
 if (Proprietario annulla?) then (sì)
   :Elimina la bozza;
-  :Non salva permanentemente i nuovi dati acquisiti;
+  :Non salva permanentemente i dati acquisiti o modificati;
   stop
 else (no)
 endif
@@ -230,11 +236,13 @@ repeat
   if (Dati validi?) then (sì)
     :Carica tipologia e articoli predefiniti;
     :Calcola la data al usando la durata iniziale;
-    :Predispone copie valorizzate degli articoli;
+    :Rende disponibili gli articoli predefiniti;
     note right
       Il valore di rinnovo descrive la tipologia,
       ma non viene applicato al periodo gestito
-      nella versione 1.0.
+      nella versione 1.0. Le copie valorizzate
+      degli articoli saranno create alla conferma
+      usando i dati finali validati.
     end note
   else (no)
     :Segnala gli errori di validazione;
@@ -242,11 +250,11 @@ repeat
 
 repeat while (Step 4 valido?) is (no) not (sì)
 
-:Aggiorna la bozza\ncon dati contrattuali e articoli;
+:Aggiorna la bozza\ncon dati contrattuali e tipologia;
 
 if (Proprietario annulla?) then (sì)
   :Elimina la bozza;
-  :Non salva permanentemente i nuovi dati acquisiti;
+  :Non salva permanentemente i dati acquisiti o modificati;
   stop
 else (no)
 endif
@@ -293,7 +301,7 @@ repeat
   if (Proprietario annulla?) then (sì)
     |Sistema|
     :Elimina la bozza;
-    :Non salva permanentemente i nuovi dati acquisiti;
+    :Non salva permanentemente i dati acquisiti o modificati;
     stop
   else (no)
   endif
@@ -318,11 +326,13 @@ repeat while (Periodo sovrapposto?) is (sì) not (no)
 ' REGISTRAZIONE DEFINITIVA
 ' =========================================================
 
-:Crea il Contratto e associa\ngli articoli valorizzati;
+:Crea il Contratto dai dati finali validati;
+:Valorizza copie degli articoli predefiniti;
+:Associa gli articoli valorizzati al Contratto;
 :Crea il ContrattoRegistrato\ncome copia storica completa;
 :Crea il Pagamento della prima mensilità\n(competenza da dal, dataPagamento = dal,\nimporto calcolato per la competenza iniziale);
 
-:Salva in modo coerente la registrazione definitiva,\ncompresi eventuali nuovi Immobili, Persone\ne DocumentiRiconoscimento;
+:Salva in modo coerente la registrazione definitiva,\ncompresi eventuali nuovi oggetti e modifiche validate\na Persone, residenze e DocumentiRiconoscimento;
 
 if (Salvataggio definitivo riuscito?) then (sì)
   :Commit dei dati definitivi;
