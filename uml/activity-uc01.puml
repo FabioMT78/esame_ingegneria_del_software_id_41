@@ -10,12 +10,27 @@ start
 :Verifica presenza di una bozza non conclusa;
 
 if (Bozza presente?) then (sì)
-  :Carica i dati della bozza;
+  :Confronta progressivamente la bozza
+con i contratti già registrati;
   note right
-    Gli step già validati risultano precompilati.
-    La procedura riprende dal primo step
-    non ancora completato.
+    Il confronto usa, quando presenti:
+    dati catastali dell'Immobile,
+    codice fiscale dell'Inquilino,
+    periodo dal/al.
   end note
+
+  if (Tutti i dati presenti e coincidenti
+con un contratto registrato?) then (sì)
+    :Elimina silenziosamente la bozza residua;
+    :Avvia una nuova procedura;
+  else (no)
+    :Carica i dati della bozza;
+    note right
+      Gli step già validati risultano precompilati.
+      La procedura riprende dal primo step
+      non ancora completato.
+    end note
+  endif
 else (no)
   :Avvia una nuova procedura;
 endif
@@ -305,15 +320,30 @@ repeat while (Periodo sovrapposto?) is (sì) not (no)
 
 :Crea il Contratto e associa\ngli articoli valorizzati;
 :Crea il ContrattoRegistrato\ncome copia storica completa;
-:Crea il Pagamento della prima mensilità\n(competenza da dal, dataPagamento = dal,\nimporto = canoneMensile);
+:Crea il Pagamento della prima mensilità\n(competenza da dal, dataPagamento = dal,\nimporto calcolato per la competenza iniziale);
 
 :Salva in modo coerente la registrazione definitiva,\ncompresi eventuali nuovi Immobili, Persone\ne DocumentiRiconoscimento;
 
-if (Salvataggio riuscito?) then (sì)
-  :Elimina la bozza;
-  :Comunica registrazione completata;
-  stop
+if (Salvataggio definitivo riuscito?) then (sì)
+  :Commit dei dati definitivi;
+  :Tenta di eliminare la bozza;
+
+  if (Eliminazione bozza riuscita?) then (sì)
+    :Comunica registrazione completata;
+    stop
+  else (no)
+    :Registra l'errore di cleanup;
+    note right
+      Il contratto resta validamente registrato.
+      La bozza residua verrà riconosciuta
+      alla successiva apertura tramite
+      il confronto progressivo.
+    end note
+    :Comunica registrazione completata;
+    stop
+  endif
 else (no)
+  :Rollback della registrazione definitiva;
   :Non lascia dati definitivi salvati parzialmente;
   :Mantiene disponibile la bozza;
   :Comunica l'errore di registrazione;

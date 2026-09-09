@@ -21,7 +21,22 @@ UC -> Draft : recupera()
 
 alt bozza esistente
     Draft --> UC : dati della bozza
-    UC --> UI : mostra procedura con dati recuperati
+    UC -> Store : confronta progressivamente con contratti registrati
+(dati catastali, CF inquilino, dal/al disponibili)
+    alt tutti i dati presenti e coincidenti
+con un contratto già registrato
+        Store --> UC : corrispondenza completa
+        UC -> Draft : elimina()
+        note right of Draft
+        La bozza è considerata residua di una
+        registrazione già completata e viene
+        eliminata silenziosamente.
+        end note
+        UC --> UI : mostra step immobile
+    else confronto incompleto o non coincidente
+        Store --> UC : nessuna corrispondenza completa
+        UC --> UI : mostra procedura con dati recuperati
+    end
 else nessuna bozza
     Draft --> UC : nessuna bozza
     UC --> UI : mostra step immobile
@@ -182,12 +197,24 @@ else proprietario conferma
 
         UC -> Store : salvaRegistrazioneDefinitiva(\nnuovi dati anagrafici,\nContratto, Articoli,\nContrattoRegistrato, Pagamento)
 
-        alt salvataggio riuscito
-            Store --> UC : ok
+        alt salvataggio definitivo riuscito
+            Store --> UC : commit completato
             UC -> Draft : elimina()
-            UC --> UI : registrazione completata
-        else errore di salvataggio
-            Store --> UC : errore
+            alt eliminazione bozza riuscita
+                Draft --> UC : ok
+                UC --> UI : registrazione completata
+            else errore di cleanup della bozza
+                Draft --> UC : errore
+                note over UC,Draft
+                Il contratto resta validamente registrato.
+                La bozza residua sarà riconosciuta alla
+                successiva apertura tramite il confronto
+                progressivo con i dati persistiti.
+                end note
+                UC --> UI : registrazione completata
+            end
+        else errore di salvataggio definitivo
+            Store --> UC : rollback / errore
             UC --> UI : mostra errore
             note over Draft,Store
             Nessun dato definitivo deve rimanere

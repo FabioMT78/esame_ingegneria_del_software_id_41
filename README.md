@@ -31,9 +31,9 @@ Fasi completate:
 La baseline UML approvata è documentata in [`docs/modellazione.md`](docs/modellazione.md).
 
 Fase in corso:
-- **Fase 03 — Architettura, class design e SOLID**. Sono già state consolidate l'architettura client-server con backend monolitico layered, la separazione `interface` / `application` / `domain` / `infrastructure`, le responsabilità applicative dei due casi d'uso, la gestione della bozza, il DIP sulle dipendenze infrastrutturali e la granularità iniziale delle porte di persistenza.
+- **Fase 03 — Architettura, class design e SOLID**. Sono già state consolidate l'architettura client-server con backend monolitico layered, la separazione `interface` / `application` / `domain` / `infrastructure`, le responsabilità applicative dei due casi d'uso, la gestione della bozza, il DIP sulle dipendenze infrastrutturali, la granularità iniziale delle porte di persistenza e il confine transazionale della registrazione definitiva di UC-01.
 
-Le decisioni approvate della fase corrente sono documentate in [`docs/architettura.md`](docs/architettura.md). Restano da definire il confine transazionale di UC-01, il Class Diagram di design definitivo, l'analisi dei pattern, la persistenza concreta e lo stack tecnologico.
+Le decisioni approvate della fase corrente sono documentate in [`docs/architettura.md`](docs/architettura.md). Restano da definire il Class Diagram di design definitivo, l'analisi dei pattern, la persistenza concreta e lo stack tecnologico.
 
 ## Quickstart
 

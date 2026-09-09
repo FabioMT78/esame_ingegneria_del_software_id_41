@@ -18,12 +18,12 @@ Sono già consolidate:
 - i componenti applicativi principali dei due casi d'uso;
 - la rappresentazione applicativa e il ciclo di vita della bozza di UC-01;
 - una prima granularità delle porte di persistenza;
+- il confine transazionale della registrazione definitiva di UC-01 e la separazione dal cleanup della bozza;
 - la distribuzione delle regole relative a periodo contrattuale, competenze mensili e importi pro-rata;
 - la separazione tra valorizzazione degli articoli e generazione della copia storica del contratto.
 
 Restano ancora da consolidare:
 
-- il confine transazionale della registrazione definitiva di UC-01;
 - il Class Diagram di design definitivo;
 - l'eventuale adozione di design pattern;
 - la persistenza concreta;
@@ -268,10 +268,13 @@ Rappresenta lo stato validato finora della procedura, incluso lo step raggiunto 
 
 - dopo il primo step valido la bozza viene creata;
 - dopo ogni step valido viene aggiornata;
-- alla riapertura di UC-01 viene recuperata l'eventuale bozza corrente;
+- alla riapertura di UC-01 l'eventuale bozza viene prima confrontata progressivamente con i contratti già registrati;
+- il confronto usa, quando disponibili, identificazione catastale dell'Immobile, codice fiscale dell'Inquilino e periodo `dal`--`al`;
+- solo se tutti e tre gli elementi sono disponibili e coincidono con un contratto registrato, la bozza è considerata residua, viene eliminata silenziosamente e viene avviata una nuova procedura;
+- se il confronto non è completo o non coincide, la bozza viene recuperata normalmente;
 - l'annullamento elimina la bozza;
 - un errore nella registrazione definitiva non elimina la bozza;
-- la bozza viene eliminata soltanto dopo il successo della registrazione definitiva.
+- dopo il commit riuscito viene tentata l'eliminazione della bozza, ma un eventuale errore di cleanup non invalida il contratto già registrato.
 
 ### Persistenza
 
@@ -319,7 +322,25 @@ Usato da entrambi i casi d'uso per recuperare i contratti necessari.
 
 In UC-01 fornisce i contratti relativi all'immobile; la regola di sovrapposizione resta nel dominio. Non viene attribuita al repository la decisione sul significato della sovrapposizione.
 
-Le operazioni di scrittura definitiva di UC-01 non sono ancora fissate perché dipendono dalla decisione sul confine transazionale.
+Le letture di UC-01 restano esposte tramite `ContrattoRepository`. La scrittura definitiva composita non viene distribuita tra i singoli repository: è affidata a una porta applicativa dedicata, `RegistrazioneContrattoPort`, che rappresenta l'operazione atomica di registrazione del risultato di UC-01.
+
+### `RegistrazioneContrattoPort`
+
+Usata da `RegistraContrattoService` per la sola scrittura definitiva di UC-01.
+
+Espone concettualmente un'operazione `registraDefinitivamente(...)` che comprende, quando necessari:
+
+- nuovo `Immobile`;
+- nuove `Persona`;
+- eventuale `DocumentoRiconoscimento`;
+- `Contratto`;
+- `Articolo` valorizzati;
+- `ContrattoRegistrato`;
+- primo `Pagamento`.
+
+L'operazione è atomica rispetto a questi dati definitivi: successo implica persistenza completa, mentre un errore deve produrre rollback senza lasciare uno stato parziale. Il meccanismo tecnico di transazione appartiene all'`infrastructure` e non è conosciuto dall'application layer.
+
+La cancellazione della bozza non appartiene a questa transazione. Viene richiesta da `RegistraContrattoService` soltanto dopo il commit; un eventuale errore di cleanup viene trattato come errore recuperabile e non invalida la registrazione riuscita.
 
 ### `PagamentoRepository`
 
@@ -348,6 +369,42 @@ L'infrastruttura potrà adottare una rappresentazione normalizzata dedicata, ad 
 Una futura versione potrebbe distinguere, ad esempio, residenza e domicilio o gestire più indirizzi e relativo storico. Tale evoluzione potrà richiedere nuove associazioni nel dominio e, soltanto se emergeranno casi d'uso autonomi sugli indirizzi, una specifica porta di persistenza.
 
 La versione 1.0 privilegia quindi interfacce applicative proporzionate ai casi d'uso correnti senza vincolare prematuramente lo schema fisico del database.
+
+## Confine transazionale di UC-01
+
+### Problema
+
+Alla conferma di UC-01 devono diventare persistenti in modo coerente più oggetti collegati. RNF-04 vieta stati definitivi parziali, ma la cancellazione della bozza successiva al successo non deve poter annullare il lavoro già completato.
+
+### Scelta
+
+`RegistraContrattoService` prepara il risultato definitivo e invoca `RegistrazioneContrattoPort`. L'implementazione infrastrutturale esegue in un'unica transazione la persistenza degli eventuali nuovi dati acquisiti, del `Contratto`, degli articoli valorizzati, di `ContrattoRegistrato` e del primo `Pagamento`.
+
+La transazione termina prima del cleanup della bozza:
+
+```text
+RegistraContrattoService
+        ↓
+RegistrazioneContrattoPort.registraDefinitivamente(...)
+        ↓
+commit / rollback dei dati definitivi
+        ↓ solo dopo il commit
+BozzaContrattoRepository.elimina()
+```
+
+Se la registrazione definitiva fallisce, nessun dato definitivo deve rimanere persistito e la bozza resta disponibile. Se invece il commit riesce ma la cancellazione della bozza fallisce, il contratto rimane valido e l'errore di cleanup viene registrato senza restituire un falso fallimento della registrazione.
+
+Alla successiva apertura di UC-01, la presenza di una bozza attiva un controllo progressivo sui contratti già registrati: identificazione catastale dell'Immobile, codice fiscale dell'Inquilino e periodo `dal`--`al`. Solo quando tutti e tre gli elementi sono presenti nella bozza e coincidono con uno stesso contratto registrato, la bozza viene considerata residua e rimossa silenziosamente; altrimenti viene proposta per la ripresa.
+
+### Alternative considerate
+
+Una generica astrazione di transazione / Unit of Work è stata scartata perché, nello scope corrente, introdurrebbe flessibilità non necessaria. È stata scartata anche l'inclusione dell'eliminazione della bozza nella stessa transazione dei dati definitivi: un errore di cleanup non deve precludere una registrazione del contratto già completata correttamente.
+
+Non viene introdotto un identificatore tecnico della bozza per rendere idempotente la conferma. Un secondo tentativo di registrazione viene comunque sottoposto al controllo di sovrapposizione del periodo prima della scrittura definitiva.
+
+### Trade-off
+
+La soluzione mantiene esplicito il confine atomico dello stato definitivo e riduce l'accoppiamento dell'application ai dettagli transazionali. Il costo è la possibilità temporanea di una bozza residua dopo un errore di cleanup; tale stato viene gestito al successivo avvio mediante il confronto progressivo approvato.
 
 ## DIP e testabilità
 
@@ -400,6 +457,7 @@ application/
     TipologiaContrattualeRepository
     ContrattoRepository
     PagamentoRepository
+    RegistrazioneContrattoPort
     GeneratoreContrattoRegistrato
 
 domain/
@@ -428,11 +486,11 @@ La struttura è indicativa e descrive responsabilità, non package o namespace d
 
 | Requisiti / AC | Caso d'uso | Responsabilità principali |
 |---|---|---|
-| RF-01, RF-02, AC-04, AC-08, AC-09, RNF-01 | UC-01 | `RegistraContrattoService`, `BozzaContratto`, `BozzaContrattoRepository` |
+| RF-01, RF-02, AC-04, AC-08, AC-09, RNF-01 | UC-01 | `RegistraContrattoService`, `BozzaContratto`, `BozzaContrattoRepository`, controllo della bozza residua |
 | RF-03, AC-01, AC-02, AC-03 | UC-01 | `RegistraContrattoService`, `ImmobileRepository`, `PersonaRepository`, domain object coinvolti |
 | RF-04, AC-05 | UC-01 | `RegistraContrattoService`, `TipologiaContrattualeRepository`, `Contratto`, `ValorizzaArticoliService` |
 | RF-05, AC-06 | UC-01 | `RegistraContrattoService`, `ContrattoRepository`, regola di dominio sulla sovrapposizione |
-| RF-06, AC-07, RNF-04 | UC-01 | `RegistraContrattoService`, `GeneratoreContrattoRegistrato`, `ContrattoRegistrato`, porte di persistenza; confine transazionale ancora da definire |
+| RF-06, AC-07, AC-09, RNF-04 | UC-01 | `RegistraContrattoService`, `GeneratoreContrattoRegistrato`, `ContrattoRegistrato`, `RegistrazioneContrattoPort`, `BozzaContrattoRepository` |
 | RF-07, AC-10, AC-11 | UC-02 | `RegistraPagamentoService`, `ImmobileRepository`, `ContrattoRepository` |
 | RF-08, AC-12, AC-14 | UC-02 | `RegistraPagamentoService`, `ContrattoRepository`, `PagamentoRepository`, `Contratto` |
 | RF-09, AC-13 | UC-02 | `RegistraPagamentoService`, `Contratto`, `PagamentoRepository` |
@@ -445,7 +503,6 @@ La struttura è indicativa e descrive responsabilità, non package o namespace d
 
 Prima di considerare completa la fase di design devono essere ancora definiti:
 
-- il confine transazionale della registrazione definitiva di UC-01 e le relative operazioni di scrittura;
 - le firme pubbliche essenziali delle classi e delle porte;
 - `uml/class-diagram-design.puml`;
 - la review esplicita di SRP, DIP e OCP sul design completo;

@@ -85,6 +85,8 @@ La bozza rappresenta lo stato temporaneo e recuperabile della procedura guidata 
 
 **Decisione:** gli eventuali nuovi `Immobile`, `Persona` e dati di `DocumentoRiconoscimento` acquisiti durante UC-01 non vengono salvati permanentemente al completamento dei singoli step. Fino alla conferma definitiva rimangono dati della bozza. La persistenza definitiva avviene insieme alla registrazione del `Contratto`; in caso di annullamento, tali nuovi dati non devono rimanere registrati.
 
+**Decisione di design sul recupero di una bozza residua:** alla successiva apertura di UC-01, se esiste una bozza, il sistema confronta progressivamente con i contratti già registrati l'identificazione catastale dell'Immobile, il codice fiscale dell'Inquilino e il periodo `dal`--`al`, quando tali dati sono presenti nella bozza. Solo se tutti e tre gli elementi sono disponibili e coincidono con un contratto registrato, la bozza è considerata residua di una registrazione già completata e viene eliminata automaticamente senza interazione con l'utente. Se i dati non sono tutti disponibili o uno dei confronti non coincide, la bozza viene normalmente proposta per la ripresa.
+
 ### Immobile, Indirizzo e DatiCatastali
 **Decisione:** modellare `Immobile`, `Indirizzo` e `DatiCatastali` come concetti distinti. `Indirizzo` è un concetto condiviso: viene usato sia per rappresentare l'ubicazione di un `Immobile` sia, tramite l'associazione nominata `residenza`, l'indirizzo di residenza di una `Persona`.
 
@@ -318,21 +320,23 @@ Partecipanti:
 - `Contratto`, `ContrattoRegistrato` e `Pagamento`: concetti già consolidati nella modellazione.
 
 Decisioni dinamiche rappresentate:
-- una bozza esistente viene recuperata all'avvio;
+- all'avvio, una bozza esistente viene prima confrontata progressivamente con i contratti registrati tramite dati catastali dell'Immobile, codice fiscale dell'Inquilino e periodo `dal`--`al`;
+- una bozza che coincide su tutti e tre gli elementi con un contratto già registrato viene considerata residua, eliminata silenziosamente e non proposta per la ripresa; negli altri casi viene recuperata;
 - ogni step valido aggiorna la bozza;
 - nuovi immobili, persone e dati di riconoscimento restano nella bozza fino alla conferma finale;
 - il controllo di sovrapposizione avviene prima della registrazione definitiva;
 - alla conferma valida vengono costruiti il `Contratto`, gli articoli registrati, il `ContrattoRegistrato` e il primo `Pagamento`;
-- il salvataggio definitivo è rappresentato come un'unica operazione logica coerente;
-- la bozza viene eliminata soltanto dopo il completamento con successo della registrazione definitiva;
-- in caso di sovrapposizione o errore di salvataggio la bozza resta disponibile;
+- il salvataggio dei dati definitivi è rappresentato come un'unica operazione logica coerente e atomica;
+- dopo il completamento con successo della registrazione definitiva viene tentata l'eliminazione della bozza, ma tale cleanup non appartiene alla transazione dei dati definitivi;
+- un errore nella cancellazione della bozza non invalida il contratto già registrato; la bozza residua viene riconosciuta ed eliminata automaticamente alla successiva apertura se coincide con un contratto registrato secondo il confronto definito;
+- in caso di sovrapposizione o errore del salvataggio definitivo la bozza resta disponibile;
 - l'annullamento prima della conferma elimina la bozza e non persiste i nuovi dati acquisiti.
 
 ## Activity Diagram UC-01
 L'Activity Diagram di UC-01 completa il Sequence Diagram rappresentando il flusso end-to-end della procedura guidata.
 
 Decisioni dinamiche rappresentate:
-- recupero dell'eventuale bozza e ripresa della procedura;
+- verifica dell'eventuale bozza all'avvio, eliminazione silenziosa se risulta residua di un contratto già registrato, altrimenti recupero e ripresa della procedura;
 - avanzamento attraverso i sei step previsti;
 - validazione e correzione dei dati prima dell'avanzamento;
 - distinzione tra selezione di un Immobile esistente e acquisizione di un nuovo Immobile;
@@ -341,7 +345,8 @@ Decisioni dinamiche rappresentate:
 - possibilità di annullamento prima della conferma definitiva;
 - nessuna persistenza definitiva dei nuovi dati acquisiti in caso di annullamento;
 - ritorno alla modifica in caso di sovrapposizione del periodo contrattuale;
-- registrazione definitiva coerente di Contratto, articoli valorizzati, ContrattoRegistrato, primo Pagamento ed eventuali nuovi dati acquisiti.
+- registrazione definitiva coerente e atomica di Contratto, articoli valorizzati, ContrattoRegistrato, primo Pagamento ed eventuali nuovi dati acquisiti;
+- cleanup della bozza successivo alla registrazione definitiva: un eventuale errore di cancellazione non annulla il risultato già persistito.
 
 L'Activity Diagram non introduce componenti architetturali: usa i ruoli `Proprietario` e `Sistema` per descrivere il processo.
 

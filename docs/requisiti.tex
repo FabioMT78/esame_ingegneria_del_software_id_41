@@ -186,14 +186,21 @@ Il sistema deve consentire al proprietario di registrare un contratto mediante u
 procedura guidata in sei step: immobile -> proprietario -> inquilino -> dati contrattuali ->
 riepilogo -> conferma. I dati obbligatori di uno step devono essere validi prima di
 proseguire e la procedura deve poter essere annullata prima della conferma definitiva.
-Se all'avvio della procedura esiste una bozza non conclusa, il sistema deve caricarne
-i dati. \\
+Se all'avvio della procedura esiste una bozza, il sistema deve confrontarla progressivamente
+con i contratti già registrati usando, quando disponibili, l'identificazione catastale dell'immobile,
+il codice fiscale dell'inquilino e il periodo 	exttt{dal}--	exttt{al}. Se tutti questi dati sono
+presenti nella bozza e coincidono con quelli di un contratto già registrato, la bozza deve essere
+considerata residua, eliminata senza richiedere conferma al proprietario e deve essere avviata una
+nuova procedura; negli altri casi il sistema deve caricare i dati della bozza. \\
 
 \req{RF-02} &
 Al completamento del primo step il sistema deve creare una bozza del contratto e aggiornarla
 al completamento di ogni step validato con successo. La bozza deve essere cancellata quando
-il proprietario annulla la procedura oppure quando il contratto viene registrato definitivamente
-con successo. \\
+il proprietario annulla la procedura. Dopo una registrazione definitiva conclusa con successo il
+sistema deve tentare di cancellare la bozza; un eventuale errore di tale cancellazione non deve
+invalidare il contratto già registrato. Una bozza residua che, alla successiva apertura, risulti
+corrispondere a un contratto già registrato secondo il confronto definito in RF-01 deve essere
+eliminata automaticamente. \\
 
 \req{RF-03} &
 Durante la registrazione del contratto il sistema deve consentire di selezionare un immobile
@@ -336,6 +343,9 @@ Sicurezza \\
 Gli errori applicativi recuperabili devono essere intercettati e registrati nei log.
 Un errore relativo a una singola operazione non deve lasciare dati parziali o incoerenti,
 non deve produrre un falso esito positivo e non deve impedire le operazioni successive.
+La cancellazione della bozza successiva a una registrazione definitiva già conclusa non fa parte
+dell'atomicità dei dati definitivi: un suo eventuale fallimento non deve annullare il contratto
+registrato e deve essere recuperabile alla successiva apertura della procedura.
 Il messaggio mostrato all'utente non deve esporre dettagli tecnici interni. &
 Affidabilità / resilienza \\
 
@@ -525,7 +535,10 @@ trasversali della versione 1.0.
     \item[CV-01 -- RNF-01] Dopo aver completato almeno uno step della registrazione del
     contratto, un'interruzione della procedura deve consentire, nel contesto mono-utente
     previsto dalla versione 1.0, di riaprire la procedura recuperando l'ultima bozza non
-    conclusa e i dati già acquisiti.
+    conclusa e i dati già acquisiti. Se la bozza residua corrisponde invece a un contratto
+    già registrato per identificazione catastale dell'immobile, codice fiscale dell'inquilino
+    e periodo 	exttt{dal}--	exttt{al}, deve essere eliminata automaticamente e non proposta
+    come procedura da riprendere.
 
     \item[CV-02 -- RNF-02] In condizioni nominali, ciascuna operazione interattiva di
     UC-01 e UC-02 che richiede il server deve completarsi entro 1,5 secondi.
@@ -538,8 +551,11 @@ trasversali della versione 1.0.
     richiesta e valore rilevato in forma sanitizzata.
 
     \item[CV-04 -- RNF-04] Un errore applicativo recuperabile deve produrre una voce di
-    log, non deve lasciare dati parziali, deve restituire un messaggio utente privo di
-    dettagli tecnici e non deve impedire una successiva operazione valida.
+    log, non deve lasciare dati definitivi parziali, deve restituire un messaggio utente privo di
+    dettagli tecnici e non deve impedire una successiva operazione valida. In particolare, un errore
+    durante la cancellazione della bozza successiva al commit non deve annullare la registrazione
+    definitiva; alla successiva apertura la bozza residua deve essere riconosciuta tramite il confronto
+    previsto da RF-01 e rimossa automaticamente.
 
     \item[CV-05 -- RNF-05] Durante un'operazione con attesa deve essere mostrato uno stato
     di elaborazione; al termine deve essere comunicato un esito positivo o negativo.
