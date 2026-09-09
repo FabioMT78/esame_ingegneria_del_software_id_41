@@ -57,9 +57,15 @@ alt nessuna mensilità disponibile
     end note
 
 else mensilità individuata
-    UC -> UC : prepara dati del pagamento\n(anno/mese competenza,\nimporto = canoneMensile)
+    UC -> UC : prepara dati del pagamento\n(anno/mese competenza,\nimporto calcolato dal Contratto)
 
     note right of UC
+    Per una competenza interamente coperta
+    l'importo coincide con canoneMensile.
+    Per l'ultima mensilità parziale si applica
+    il pro-rata sui giorni coperti, con
+    arrotondamento finale a due cifre decimali.
+
     La data di scadenza dipende dal
     giornoPagamento del Contratto.
 

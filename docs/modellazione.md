@@ -65,11 +65,16 @@ Per ogni mensilità derivata valgono le seguenti regole approvate:
 - può essere registrata come pagata dal primo giorno del relativo mese di competenza;
 - diventa dovuta dal giorno di pagamento previsto dal Contratto, compreso;
 - è futura se appartiene a un mese successivo a quello corrente;
-- un pagamento è tardivo quando viene registrato dopo la data di scadenza della mensilità.
+- un pagamento è tardivo quando viene registrato dopo la data di scadenza della mensilità;
+- le date `dal` e `al` sono entrambe comprese nel periodo contrattuale;
+- una mensilità interamente compresa nel periodo contrattuale ha importo pari a `canoneMensile`;
+- la prima mensilità, quando `dal` non coincide con il primo giorno del mese, ha importo proporzionale ai giorni compresi tra `dal` e la fine del mese, estremi inclusi;
+- l'ultima mensilità, quando `al` non coincide con l'ultimo giorno del mese, ha importo proporzionale ai giorni compresi tra l'inizio del mese e `al`, estremi inclusi;
+- per una mensilità di confine parziale l'importo è calcolato come `canoneMensile * giorniCoperti / giorniDelMese`, senza arrotondamenti intermedi e con arrotondamento del solo risultato finale a due cifre decimali.
 
-La prima mensilità non richiede una regola di esclusione speciale durante UC-02: alla registrazione definitiva del Contratto viene creato e memorizzato il relativo `Pagamento`, con data coincidente con la data di decorrenza del Contratto.
+La prima mensilità non richiede una regola di esclusione speciale durante UC-02: alla registrazione definitiva del Contratto viene creato e memorizzato il relativo `Pagamento`, con data coincidente con la data di decorrenza del Contratto e importo calcolato secondo le regole della competenza iniziale.
 
-Un eventuale oggetto software dedicato alla mensilità potrà essere valutato nel Class Diagram o nell'implementazione, se utile per il comportamento applicativo, senza trasformarlo automaticamente in entità persistente del dominio.
+Nella progettazione corrente non viene introdotta una classe software autonoma `Mensilita`: le regole temporali ed economiche della competenza restano responsabilità del `Contratto`, mentre il caso d'uso di pagamento individua la competenza non pagata confrontando periodo contrattuale e `Pagamento` già registrati. L'estrazione futura di un oggetto dedicato resta un possibile refactoring qualora tali regole crescano in complessità.
 
 ### Bozza di contratto
 **Decisione:** `BozzaContratto` non appartiene al Domain Model.
@@ -192,7 +197,7 @@ Attributi concettuali scelti per `Pagamento`:
 - `dataPagamento`;
 - `importo`.
 
-L'importo viene determinato automaticamente dal `canoneMensile` del Contratto al momento della registrazione e viene memorizzato nel `Pagamento` per preservare il dato storico. I pagamenti parziali restano fuori scope.
+L'importo viene determinato automaticamente a partire dal `canoneMensile` e dal periodo del Contratto e viene memorizzato nel `Pagamento` per preservare il dato storico. Per le mensilità intermedie coincide con il canone mensile; per la prima e l'ultima mensilità parziali viene applicato il pro-rata sui giorni effettivamente compresi nel periodo contrattuale, con arrotondamento del solo risultato finale a due cifre decimali. I pagamenti parziali restano fuori scope: il pro-rata costituisce l'importo completo dovuto per la mensilità di confine coperta solo in parte.
 
 La cardinalità approvata è:
 - un `Contratto` possiede da **1 a molti** `Pagamento`;
@@ -202,7 +207,7 @@ La cardinalità approvata è:
 Alla registrazione definitiva del `Contratto`, UC-01 crea e memorizza il `Pagamento` della prima mensilità con:
 - `annoCompetenza` e `meseCompetenza` ricavati dalla data `dal`;
 - `dataPagamento = Contratto.dal`;
-- `importo = Contratto.canoneMensile`.
+- `importo` calcolato dal Contratto per la competenza iniziale: canone pieno se `dal` è il primo giorno del mese, altrimenti pro-rata sui giorni da `dal` alla fine del mese, estremi inclusi.
 
 I Pagamenti successivi vengono aggiunti tramite UC-02.
 
@@ -245,11 +250,11 @@ Il contenuto storico strutturato del contratto è rappresentato dale istanze di 
 - ogni Contratto possiede esattamente un ContrattoRegistrato come copia storica completa;
 - il ContrattoRegistrato non deve dipendere da successive modifiche dei dati sorgente o degli articoli predefiniti;
 - i periodi di due contratti relativi allo stesso Immobile non possono sovrapporsi;
-- alla registrazione definitiva del Contratto viene registrato il pagamento della prima mensilità con anno e mese di competenza ricavati da `dal`, `dataPagamento = dal` e `importo = canoneMensile`;
+- alla registrazione definitiva del Contratto viene registrato il pagamento della prima mensilità con anno e mese di competenza ricavati da `dal`, `dataPagamento = dal` e importo calcolato secondo la regola della competenza iniziale;
 - ogni Contratto registrato possiede almeno un Pagamento;
 - `meseCompetenza` è compreso tra 1 e 12;
 - per la stessa coppia `annoCompetenza + meseCompetenza` dello stesso Contratto può esistere al massimo un Pagamento;
-- l'importo del Pagamento viene determinato dal canone mensile del Contratto al momento della registrazione e memorizzato come dato storico;
+- l'importo del Pagamento viene determinato dal Contratto a partire dal canone mensile e dai giorni effettivamente coperti nella competenza e memorizzato come dato storico; per le mensilità di confine parziali il calcolo usa `canoneMensile * giorniCoperti / giorniDelMese` e arrotonda soltanto il risultato finale a due cifre decimali;
 - una mensilità è pagabile dal primo giorno del relativo mese di competenza;
 - una mensilità diventa dovuta dal giorno di pagamento previsto dal Contratto, compreso;
 - un Pagamento registrato dopo la scadenza della relativa mensilità è tardivo;
@@ -268,6 +273,9 @@ La review iniziale del Domain Model aveva consolidato la baseline concettuale. D
 - `DocumentoRiconoscimento` mantiene il vincolo della versione 1.0 sui tipi ammessi: carta d'identità o passaporto.
 
 Le modifiche sono state propagate a requisiti, Domain Model e Class Diagram iniziale. Il Domain Model aggiornato è assunto come nuova baseline concettuale.
+
+### Aggiornamento controllato emerso nella fase di design
+Durante la progettazione architetturale è stata precisata la regola economica delle mensilità di confine. Le date `dal` e `al` sono inclusive; la prima e l'ultima mensilità possono quindi coprire soltanto una parte del relativo mese di calendario. In tali casi l'importo è calcolato in pro-rata sui giorni effettivamente compresi nel contratto, senza arrotondamenti intermedi e con arrotondamento del risultato finale a due cifre decimali. Questa precisazione non introduce una nuova entità di dominio e non modifica la struttura del Domain Model: aggiorna le regole associate a `Contratto` e `Pagamento` e i diagrammi dinamici dei due casi d'uso.
 
 ## Stato del Domain Model
 Il Domain Model aggiornato è approvato come baseline della fase 02.
@@ -355,7 +363,7 @@ Decisioni dinamiche rappresentate:
 - possibilità di pagare la mensilità corrente dal primo giorno del mese, anche prima del giorno di pagamento;
 - il pagamento tardivo resta consentito;
 - se non esiste alcuna mensilità disponibile, nessun Pagamento viene creato;
-- l'importo del nuovo Pagamento è determinato dal `canoneMensile` del Contratto;
+- l'importo del nuovo Pagamento è determinato automaticamente dal `Contratto`: coincide con il canone mensile per le competenze interamente coperte e applica il pro-rata per l'ultima mensilità parziale;
 - l'annullamento non produce alcuna registrazione;
 - la registrazione avviene soltanto dopo conferma esplicita;
 - un errore di salvataggio non deve produrre un falso esito positivo o dati incoerenti.
@@ -380,14 +388,6 @@ La catena attualmente coperta è:
 - comportamento dinamico di UC-01;
 - comportamento dinamico di UC-02.
 
-La fase successiva potrà introdurre le decisioni architetturali e di design che sono state volutamente rinviate, tra cui:
-- layering e responsabilità dei componenti;
-- organizzazione dei package;
-- interfacce applicative e repository;
-- scelte di persistenza;
-- rappresentazione concreta della bozza;
-- rappresentazione concreta di `ContrattoRegistrato`;
-- eventuali oggetti software di supporto, come una rappresentazione non persistente della mensilità derivata;
-- stack tecnologico.
+La **Fase 03 — Architettura, class design e SOLID** è in corso. Le decisioni architetturali già approvate sono documentate in `docs/architettura.md`; restano ancora da consolidare il confine transazionale di UC-01, il Class Diagram di design definitivo, l'analisi dei pattern, la persistenza concreta e lo stack tecnologico.
 
 Le sorgenti PlantUML approvate dovranno essere esportate in PDF e inserite nella relazione LaTeX quando verrà predisposta la documentazione finale.

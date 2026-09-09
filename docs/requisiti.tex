@@ -113,7 +113,7 @@ autorizzazione restano fuori scope.
           con le informazioni acquisite durante la registrazione del contratto.
     \item Il proprietario inserisce la data iniziale \texttt{dal}; la data finale \texttt{al}
           è determinata automaticamente in base alla durata del periodo iniziale della tipologia
-          selezionata e rappresenta l'ultimo giorno compreso nel periodo iniziale.
+          selezionata. Le date \texttt{dal} e \texttt{al} sono entrambe comprese nel periodo iniziale.
     \item Il valore relativo al rinnovo descrive la tipologia contrattuale, ma la versione 1.0 gestisce
           esclusivamente il periodo iniziale del contratto e non esegue operazioni o avvisi relativi
           al rinnovo successivo.
@@ -132,9 +132,11 @@ autorizzazione restano fuori scope.
             della relativa mensilità.
     \item Alla registrazione definitiva del contratto la prima mensilità si considera
           già versata e il sistema deve creare e memorizzare il relativo pagamento con anno e mese
-          di competenza corrispondenti alla decorrenza, data di pagamento coincidente con la data
-          \texttt{dal} e importo pari al canone mensile del contratto. Le successive registrazioni
-          di pagamento della versione 1.0 riguardano pertanto le mensilità successive alla prima.
+          di competenza corrispondenti alla decorrenza e data di pagamento coincidente con la data
+          \texttt{dal}. Se la decorrenza non coincide con il primo giorno del mese, l'importo della
+          prima mensilità è calcolato in proporzione ai giorni compresi tra \texttt{dal} e l'ultimo
+          giorno del mese, estremi inclusi. Le successive registrazioni di pagamento della versione
+          1.0 riguardano pertanto le mensilità successive alla prima.
     \item Ogni pagamento appartiene a un solo contratto ed è caratterizzato da anno di competenza,
           mese di competenza, data di pagamento e importo. Il mese di competenza è compreso tra 1 e 12.
           Per la stessa coppia anno--mese di competenza di un contratto può esistere al massimo un pagamento.
@@ -142,9 +144,14 @@ autorizzazione restano fuori scope.
           del contratto e non sono gestiti dal sistema nella versione 1.0.
     \item Un immobile può avere più contratti di locazione nel tempo, purché i relativi
           periodi di decorrenza non si sovrappongano.
-    \item Non sono ammessi pagamenti parziali del canone di locazione; al momento della
-          registrazione l'importo del pagamento è determinato dal canone mensile previsto nel
-          contratto e viene memorizzato nel pagamento come dato storico.
+    \item Non sono ammessi pagamenti parziali del canone di locazione. L'importo dovuto per una
+          mensilità interamente compresa nel periodo contrattuale coincide con il canone mensile.
+          Per la prima e l'ultima mensilità, quando il periodo copre soltanto una parte del mese,
+          l'importo è calcolato come \texttt{canoneMensile * giorniCoperti / giorniDelMese},
+          considerando inclusi i giorni \texttt{dal} e \texttt{al}. Non devono essere effettuati
+          arrotondamenti intermedi; il risultato finale deve essere arrotondato a due cifre decimali
+          e memorizzato nel pagamento come dato storico. Il pro-rata della mensilità di confine
+          rappresenta l'importo completo dovuto per il periodo coperto e non costituisce un pagamento parziale.
     \item Un pagamento può essere registrato anche dopo la relativa scadenza.
 \end{itemize}
 
@@ -238,8 +245,11 @@ di riconoscimento acquisiti nella procedura, insieme agli altri dati necessari a
 del contratto. Il sistema deve inoltre conservare una copia storica completa del contratto generato, comprensiva dei dati acquisiti
 nella registrazione e degli articoli valorizzati, in modo che non venga alterata da successive
 modifiche ai modelli predefiniti o ai dati sorgente. Il sistema deve inoltre creare e memorizzare il pagamento
-della prima mensilità con anno e mese di competenza corrispondenti alla decorrenza, data di
-pagamento coincidente con la data di decorrenza e importo pari al canone mensile del contratto. \\
+della prima mensilità con anno e mese di competenza corrispondenti alla decorrenza e data di
+pagamento coincidente con la data di decorrenza. L'importo deve essere determinato automaticamente
+applicando, quando la decorrenza non coincide con il primo giorno del mese, il pro-rata sui giorni
+coperti dalla data di decorrenza all'ultimo giorno del mese, estremi inclusi, con arrotondamento
+soltanto del risultato finale a due cifre decimali. \\
 
 \req{RF-07} &
 Per registrare un pagamento il sistema deve consentire al proprietario di selezionare
@@ -265,9 +275,13 @@ pagamento e impedire la prosecuzione della procedura. \\
 
 \req{RF-09} &
 L'importo del pagamento deve essere determinato automaticamente dal canone mensile del
-contratto e memorizzato insieme ad anno di competenza, mese di competenza e data di pagamento.
-La versione 1.0 deve consentire soltanto il pagamento completo e deve permettere la registrazione
-anche quando il pagamento è tardivo. \\
+contratto. Per una mensilità interamente compresa nel periodo contrattuale coincide con il canone
+mensile; per la prima o l'ultima mensilità che copre soltanto una parte del mese deve essere
+calcolato come \texttt{canoneMensile * giorniCoperti / giorniDelMese}, senza arrotondamenti
+intermedi e arrotondando soltanto il risultato finale a due cifre decimali. L'importo deve essere
+memorizzato insieme ad anno di competenza, mese di competenza e data di pagamento. La versione
+1.0 deve consentire soltanto il pagamento completo della mensilità così determinata e deve
+permettere la registrazione anche quando il pagamento è tardivo. \\
 
 \req{RF-10} &
 Nella procedura di registrazione di un pagamento prevista da UC-02, il sistema deve
@@ -412,8 +426,10 @@ gli eventuali nuovi immobili, nuove persone e nuovi dati di riconoscimento acqui
 la procedura; deve inoltre essere memorizzata una copia storica completa del contratto generato,
 comprensiva dei dati acquisiti nella registrazione e degli articoli valorizzati, e il sistema deve
 creare e memorizzare il pagamento della prima mensilità con anno e mese di competenza
-corrispondenti alla decorrenza, data di pagamento coincidente con la data di decorrenza e importo
-pari al canone mensile del contratto. La copia storica completa non deve essere modificata da
+corrispondenti alla decorrenza e data di pagamento coincidente con la data di decorrenza. Se la
+decorrenza non coincide con il primo giorno del mese, l'importo deve essere calcolato in pro-rata
+sui giorni coperti fino alla fine del mese, estremi inclusi, senza arrotondamenti intermedi e con
+arrotondamento del solo risultato finale a due cifre decimali. La copia storica completa non deve essere modificata da
 successive variazioni degli articoli predefiniti o dei dati sorgente.
 
 \paragraph{AC-08 -- Annullamento}
@@ -462,8 +478,12 @@ la registrazione del pagamento e non deve consentire di procedere.
 \paragraph{AC-13 -- Dati del pagamento}
 \textbf{Dato} che è stata individuata la mensilità da registrare,
 \textbf{quando} il sistema prepara il pagamento,
-\textbf{allora} deve determinare anno e mese di competenza e l'importo deve coincidere
-automaticamente con il canone mensile previsto dal contratto, senza richiedere un importo manuale.
+\textbf{allora} deve determinare anno e mese di competenza e calcolare automaticamente
+l'importo senza richiedere un valore manuale: per una mensilità interamente compresa nel periodo
+contrattuale l'importo coincide con il canone mensile; per la prima o l'ultima mensilità parziale
+l'importo è proporzionato ai giorni del mese effettivamente compresi nel contratto, considerando
+inclusi \texttt{dal} e \texttt{al}, senza arrotondamenti intermedi e con arrotondamento del
+risultato finale a due cifre decimali.
 
 \paragraph{AC-14 -- Pagabilità e scadenza della mensilità}
 \textbf{Dato} che la mensilità del mese corrente non è ancora stata pagata,

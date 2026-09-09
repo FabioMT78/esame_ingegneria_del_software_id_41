@@ -164,7 +164,14 @@ else proprietario conferma
         UC -> Registered : genera copia storica completa(Contratto)
         Registered --> UC : ContrattoRegistrato
 
-        UC -> Payment : crea prima mensilità(\nanno/mese da dal,\ndataPagamento = dal,\nimporto = canoneMensile)
+        UC -> Payment : crea prima mensilità(\nanno/mese da dal,\ndataPagamento = dal,\nimporto calcolato per la competenza iniziale)
+        note right of Payment
+        Se dal non coincide con il primo giorno del mese,
+        l'importo è calcolato in pro-rata sui giorni
+        coperti fino alla fine del mese, estremi inclusi.
+        Nessun arrotondamento intermedio; risultato finale
+        arrotondato a due cifre decimali.
+        end note
         Payment --> UC : Pagamento
 
         note over UC,Store
