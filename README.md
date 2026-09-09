@@ -30,8 +30,10 @@ Fasi completate:
 
 La baseline UML approvata è documentata in [`docs/modellazione.md`](docs/modellazione.md).
 
-Fase successiva:
-- architettura e design: responsabilità dei componenti, layering, interfacce, persistenza e organizzazione dei package.
+Fase in corso:
+- **Fase 03 — Architettura, class design e SOLID**. Sono già state consolidate l'architettura client-server con backend monolitico layered, la separazione `interface` / `application` / `domain` / `infrastructure`, le responsabilità applicative dei due casi d'uso, la gestione della bozza, il DIP sulle dipendenze infrastrutturali e la granularità iniziale delle porte di persistenza.
+
+Le decisioni approvate della fase corrente sono documentate in [`docs/architettura.md`](docs/architettura.md). Restano da definire il confine transazionale di UC-01, il Class Diagram di design definitivo, l'analisi dei pattern, la persistenza concreta e lo stack tecnologico.
 
 ## Quickstart
 
@@ -85,6 +87,7 @@ La documentazione viene mantenuta nello stesso repository del codice e versionat
 
 - requisiti: [`docs/requisiti.tex`](docs/requisiti.tex);
 - decisioni e stato della modellazione: [`docs/modellazione.md`](docs/modellazione.md);
+- architettura e decisioni di design: [`docs/architettura.md`](docs/architettura.md);
 - diagrammi UML PlantUML:
   - `uml/use-case.puml`;
   - `uml/domain-model.puml`;
@@ -93,7 +96,7 @@ La documentazione viene mantenuta nello stesso repository del codice e versionat
   - `uml/activity-uc01.puml`;
   - `uml/sequence-uc02.puml`;
 - relazione: `docs/` (da aggiungere nelle fasi successive);
-- decisioni architetturali / ADR: da aggiungere quando emergeranno decisioni non banali;
+- ADR separati: da aggiungere soltanto se emergeranno decisioni architetturali che richiedono una trattazione autonoma rispetto a `docs/architettura.md`;
 - changelog: da aggiungere prima della prima release.
 
 Le sorgenti PlantUML approvate verranno esportate in PDF e inserite nella relazione LaTeX nella fase di documentazione finale.
