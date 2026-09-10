@@ -208,7 +208,7 @@ Coordina:
 - creazione del `Pagamento` soltanto dopo conferma;
 - richiesta di persistenza del pagamento.
 
-La data corrente deve essere resa esplicita e controllabile dal lato server, in modo da consentire test deterministici. La forma tecnica con cui verrà fornita sarà definita insieme allo stack.
+La data corrente è una dipendenza del caso d'uso e non un dato fornito dal client. `RegistraPagamentoService` la ottiene tramite la porta applicativa `DataCorrenteProvider`, che espone `oggi() : date`. L'implementazione concreta appartiene all'infrastruttura. In questo modo il server resta autorevole sul tempo corrente e i test possono sostituire la sorgente reale con una data controllata e deterministica.
 
 ## Regole delle competenze mensili
 
@@ -452,12 +452,13 @@ di una Persona esistente non completa automaticamente lo step: i dati vengono mo
 se necessario prima di aggiornare la bozza.
 
 `RegistraPagamentoService` espone elenco Immobili, elenco inquilini per Immobile, preparazione della preview
-per la coppia Immobile--Inquilino e conferma del pagamento. Alla conferma ricarica e ricalcola lato server i dati
-autorevoli.
+per la coppia Immobile--Inquilino e conferma del pagamento. La data corrente non compare nelle API del caso
+d'uso: viene ottenuta internamente tramite `DataCorrenteProvider`. Alla conferma il Service ricarica e ricalcola
+lato server i dati autorevoli.
 
 Le porte approvate sono `BozzaContrattoRepository`, `ImmobileRepository`, `PersonaRepository`,
-`TipologiaContrattualeRepository`, `ContrattoRepository`, `PagamentoRepository`, `RegistrazioneContrattoPort`
-e `GeneratoreContrattoRegistrato`. Le loro firme essenziali sono rappresentate nel Class Diagram di design.
+`TipologiaContrattualeRepository`, `ContrattoRepository`, `PagamentoRepository`, `RegistrazioneContrattoPort`,
+`GeneratoreContrattoRegistrato` e `DataCorrenteProvider`. Le loro firme essenziali sono rappresentate nel Class Diagram di design.
 
 ### Comportamenti di dominio essenziali
 
@@ -495,6 +496,14 @@ implementazione infrastructure
 ```
 
 ```text
+RegistraPagamentoService
+        ↓
+DataCorrenteProvider <<interface>>
+        ↑
+implementazione infrastructure
+```
+
+```text
 RegistraContrattoService
         ↓
 GeneratoreContrattoRegistrato <<interface>>
@@ -527,6 +536,7 @@ application/
     PagamentoRepository
     RegistrazioneContrattoPort
     GeneratoreContrattoRegistrato
+    DataCorrenteProvider
 
 domain/
   Persona
@@ -566,6 +576,18 @@ La struttura è indicativa e descrive responsabilità, non package o namespace d
 | RNF-02 | UC-01 / UC-02 | client-server semplice, backend monolitico layered, query orientate ai casi d'uso |
 | RNF-03 | UC-01 / UC-02 | client e `interface` per validazione di confine; `infrastructure` per dettagli di logging/persistenza |
 | RNF-05 | UC-01 / UC-02 | client / presentation |
+
+## Review del design — esiti consolidati
+
+### Sorgente della data corrente in UC-02
+
+**Problema individuato:** la data corrente era esposta come parametro pubblico di `preparaPagamento` e `confermaPagamento`, pur non rappresentando un input fornito dal proprietario.
+
+**Decisione assunta:** la data corrente viene ottenuta da `RegistraPagamentoService` tramite la porta `DataCorrenteProvider`. Il client non fornisce la data usata per stabilire mese corrente, pagabilità, scadenza o tardività.
+
+**Principi coinvolti:** DIP, testabilità e separazione tra input del caso d'uso e dettagli tecnici del server.
+
+**Trade-off:** viene introdotta una piccola interfaccia aggiuntiva, motivata dalla necessità concreta di rendere il tempo sostituibile nei test e autorevole lato server.
 
 ## Decisioni ancora aperte
 
