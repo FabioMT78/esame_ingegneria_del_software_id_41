@@ -206,8 +206,8 @@ Persona "1" -- "0..*" Contratto : inquilino
 TipologiaContrattuale "1" -- "0..*" Contratto : tipologia
 TipologiaContrattuale "0..1" -- "1..*" Articolo : articoli predefiniti
 Contratto "0..1" -- "1..*" Articolo : articoli registrati
-Contratto "1" -- "1" ContrattoRegistrato : copia registrata
-Contratto "1" -- "1..*" Pagamento : pagamenti
+Contratto "1" -- "0..1" ContrattoRegistrato : copia registrata
+Contratto "1" -- "0..*" Pagamento : pagamenti
 
 BozzaContratto "1" --> "0..1" Immobile : immobile
 BozzaContratto "1" --> "0..1" Persona : proprietario
@@ -241,6 +241,12 @@ note right of Persona
   e modificabile prima della conferma definitiva.
 end note
 
+note right of RegistrazioneContrattoPort
+  { pre: il Contratto da registrare possiede
+    esattamente 1 ContrattoRegistrato
+    e almeno 1 Pagamento }
+end note
+
 note bottom of BozzaContratto
   Application model temporaneo, senza idBozza.
   Conserva lo stato validato della procedura.
@@ -252,6 +258,9 @@ note bottom of Contratto
   { giornoPagamento in 1..28 }
   { /al derivato da dal e tipologia.durata }
   { dal e al inclusivi }
+  Durante la costruzione: 0..1 ContrattoRegistrato e 0..* Pagamenti.
+  { registrazione definitiva: esattamente 1 ContrattoRegistrato
+    e almeno 1 Pagamento }
 end note
 
 note bottom of Pagamento

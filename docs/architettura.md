@@ -356,6 +356,9 @@ richieda creazioni o aggiornamenti: la distinzione appartiene all'implementazion
 La porta non riceve riferimenti duplicati a Immobile, Persone, copia storica o Pagamento: ciò evita che
 l'infrastruttura debba interpretare quale rappresentazione sia autorevole in presenza di dati discordanti.
 
+La precondizione della registrazione definitiva richiede che il `Contratto` possieda esattamente un
+`ContrattoRegistrato` e almeno un `Pagamento`. Il Service completa quindi il grafo prima di invocare la porta.
+
 L'operazione è atomica rispetto a questi dati definitivi: successo implica persistenza completa, mentre un errore deve produrre rollback senza lasciare uno stato parziale. Il meccanismo tecnico di transazione appartiene all'`infrastructure` e non è conosciuto dall'application layer.
 
 La cancellazione della bozza non appartiene a questa transazione. Viene richiesta da `RegistraContrattoService` soltanto dopo il commit; un eventuale errore di cleanup viene trattato come errore recuperabile e non invalida la registrazione riuscita.
@@ -462,7 +465,7 @@ Le porte approvate sono `BozzaContrattoRepository`, `ImmobileRepository`, `Perso
 
 ### Comportamenti di dominio essenziali
 
-`Contratto` espone `siSovrapponeA`, `calcolaImportoCompetenza`, `calcolaScadenzaCompetenza`, `associaArticoli`, `associaContrattoRegistrato` e `aggiungiPagamento`. Le associazioni definitive vengono quindi composte sul `Contratto` prima della richiesta di persistenza atomica.
+`Contratto` espone `siSovrapponeA`, `calcolaImportoCompetenza`, `calcolaScadenzaCompetenza`, `associaArticoli`, `associaContrattoRegistrato` e `aggiungiPagamento`. Durante la costruzione software può non avere ancora la copia registrata o pagamenti; prima della registrazione definitiva deve invece possedere esattamente un `ContrattoRegistrato` e almeno un `Pagamento`. Le associazioni definitive vengono quindi composte sul `Contratto` prima della richiesta di persistenza atomica.
 `Persona` espone operazioni coese per aggiornare i dati anagrafici, cambiare residenza e impostare il documento
 di riconoscimento; in UC-01 `id` e `codiceFiscale` restano invariati. Il cambio di residenza modifica
 l'associazione della Persona verso un Indirizzo, evitando di modificare in-place un Indirizzo condiviso.
@@ -472,6 +475,16 @@ l'associazione della Persona verso un Indirizzo, evitando di modificare in-place
 `ContrattoRegistrato` resta immutabile e `Pagamento` non memorizza la tardività, che è derivabile.
 
 La prima baseline completa è rappresentata in `uml/class-diagram-design.puml`.
+
+### Lifecycle del `Contratto` nel Class Diagram di design
+
+Il Domain Model descrive il `Contratto` registrato e mantiene le cardinalità `1` verso `ContrattoRegistrato` e
+`1..*` verso `Pagamento`. Il Class Diagram di design deve rappresentare anche lo stato transitorio necessario
+alla costruzione in memoria. Per questo usa `0..1` verso `ContrattoRegistrato` e `0..*` verso `Pagamento`,
+affiancando il vincolo `{registrazione definitiva: esattamente 1 ContrattoRegistrato e almeno 1 Pagamento}`.
+
+Questa differenza non modifica il requisito di dominio: rende esplicito il lifecycle software senza introdurre
+Factory, Builder o stati intermedi che non sono necessari nello scope corrente.
 
 ## DIP e testabilità
 
@@ -597,6 +610,16 @@ La struttura è indicativa e descrive responsabilità, non package o namespace d
 **Principi coinvolti:** coesione, riduzione dell'accoppiamento, SRP e rimozione di duplicazione rappresentativa.
 
 **Trade-off:** `Contratto` espone alcune operazioni aggiuntive per proteggere le proprie associazioni, ma viene eliminato un application model ridondante e la porta riceve una sola rappresentazione autorevole.
+
+### Lifecycle e cardinalità software di `Contratto`
+
+**Problema individuato:** le cardinalità obbligatorie `1` verso `ContrattoRegistrato` e `1..*` verso `Pagamento` non rappresentavano lo stato transitorio in cui il `Contratto` è già costruito ma la copia storica e il primo pagamento non sono ancora stati associati.
+
+**Decisione assunta:** nel Class Diagram di design le cardinalità diventano `0..1` e `0..*` durante il lifecycle software. Rimane esplicito il vincolo che un Contratto può essere registrato definitivamente soltanto con esattamente un `ContrattoRegistrato` e almeno un `Pagamento`. Il Domain Model conserva invece le cardinalità del Contratto registrato.
+
+**Principi coinvolti:** coerenza tra struttura statica e comportamento dinamico, chiarezza delle invarianti e riduzione di complessità accidentale.
+
+**Trade-off:** il modello software ammette formalmente uno stato incompleto durante la costruzione, ma tale stato è dichiarato transitorio e non registrabile; si evitano Factory, Builder o modelli intermedi non necessari.
 
 ## Decisioni ancora aperte
 

@@ -388,8 +388,14 @@ opzionale prima della prima persistenza; ciò non modifica il Domain Model conce
 Gli application model introdotti sono `BozzaContratto` e `PagamentoDaRegistrare`.
 Non viene mantenuto un application model `RegistrazioneContratto`: nel design rivisto la porta di registrazione
 definitiva riceve direttamente il `Contratto` completo, che costituisce la rappresentazione autorevole dello
-stato definitivo di UC-01. Le implementazioni concrete delle porte non sono ancora rappresentate perché
-persistenza e stack restano aperti.
+stato definitivo di UC-01.
+
+Il Class Diagram di design rappresenta anche il lifecycle di costruzione del `Contratto`: prima della registrazione
+può essere temporaneamente privo di `ContrattoRegistrato` e di `Pagamento`, quindi le molteplicità software sono
+`0..1` e `0..*`. La registrazione definitiva richiede però esattamente un `ContrattoRegistrato` e almeno un
+`Pagamento`. Il Domain Model mantiene le cardinalità `1` e `1..*`, riferite al Contratto registrato.
+
+Le implementazioni concrete delle porte non sono ancora rappresentate perché persistenza e stack restano aperti.
 
 ## Tracciabilità UML corrente
 | User Story | Requisiti | Acceptance Criteria | Caso d'uso | Artefatti UML correnti |
