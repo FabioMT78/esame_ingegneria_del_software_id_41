@@ -385,8 +385,11 @@ pubblici essenziali. Le classi di dominio persistibili ricevono nel design un `i
 opzionale prima della prima persistenza; ciò non modifica il Domain Model concettuale né le chiavi naturali.
 `BozzaContratto` non riceve un identificatore dedicato.
 
-Gli application model introdotti sono `BozzaContratto`, `RegistrazioneContratto` e `PagamentoDaRegistrare`.
-Le implementazioni concrete delle porte non sono ancora rappresentate perché persistenza e stack restano aperti.
+Gli application model introdotti sono `BozzaContratto` e `PagamentoDaRegistrare`.
+Non viene mantenuto un application model `RegistrazioneContratto`: nel design rivisto la porta di registrazione
+definitiva riceve direttamente il `Contratto` completo, che costituisce la rappresentazione autorevole dello
+stato definitivo di UC-01. Le implementazioni concrete delle porte non sono ancora rappresentate perché
+persistenza e stack restano aperti.
 
 ## Tracciabilità UML corrente
 | User Story | Requisiti | Acceptance Criteria | Caso d'uso | Artefatti UML correnti |

@@ -199,6 +199,7 @@ else proprietario conferma
 
         UC -> Registered : genera copia storica completa(Contratto)
         Registered --> UC : ContrattoRegistrato
+        UC -> Contract : associa copia registrata
 
         UC -> Payment : crea prima mensilità(\nanno/mese da dal,\ndataPagamento = dal,\nimporto calcolato per la competenza iniziale)
         note right of Payment
@@ -209,6 +210,7 @@ else proprietario conferma
         arrotondato a due cifre decimali.
         end note
         Payment --> UC : Pagamento
+        UC -> Contract : aggiungi primo pagamento
 
         note over UC,Store
         Solo in questo momento diventano persistenti
@@ -217,7 +219,7 @@ else proprietario conferma
         dati di riconoscimento quando pertinenti.
         end note
 
-        UC -> Store : salvaRegistrazioneDefinitiva(\ndati nuovi o modificati,\nContratto, Articoli,\nContrattoRegistrato, Pagamento)
+        UC -> Store : salvaRegistrazioneDefinitiva(Contratto completo)
 
         alt salvataggio definitivo riuscito
             Store --> UC : commit completato

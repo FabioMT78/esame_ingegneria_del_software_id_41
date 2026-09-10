@@ -38,7 +38,6 @@ package "application" {
       - giornoPagamento : int [0..1]
     }
 
-    class RegistrazioneContratto <<application model>>
 
     class PagamentoDaRegistrare <<application model>> {
       - contrattoId : identifier
@@ -84,7 +83,7 @@ package "application" {
     }
 
     interface RegistrazioneContrattoPort {
-      + registraDefinitivamente(registrazione : RegistrazioneContratto) : void
+      + registraDefinitivamente(contratto : Contratto) : void
     }
 
     interface GeneratoreContrattoRegistrato {
@@ -173,6 +172,8 @@ package "domain" {
     + calcolaImportoCompetenza(anno : int, mese : int) : decimal
     + calcolaScadenzaCompetenza(anno : int, mese : int) : date
     + associaArticoli(articoli : List<Articolo>) : void
+    + associaContrattoRegistrato(contrattoRegistrato : ContrattoRegistrato) : void
+    + aggiungiPagamento(pagamento : Pagamento) : void
   }
 
   class ContrattoRegistrato {
@@ -213,12 +214,6 @@ BozzaContratto "1" --> "0..1" Persona : proprietario
 BozzaContratto "1" --> "0..1" Persona : inquilino
 BozzaContratto "1" --> "0..1" TipologiaContrattuale : tipologia
 
-RegistrazioneContratto "1" --> "1" Immobile : immobile
-RegistrazioneContratto "1" --> "1" Persona : proprietario
-RegistrazioneContratto "1" --> "1" Persona : inquilino
-RegistrazioneContratto "1" --> "1" Contratto : contratto
-RegistrazioneContratto "1" --> "1" ContrattoRegistrato : copia storica
-RegistrazioneContratto "1" --> "1" Pagamento : primo pagamento
 
 RegistraContrattoService ..> BozzaContrattoRepository
 RegistraContrattoService ..> ImmobileRepository
@@ -228,7 +223,6 @@ RegistraContrattoService ..> ContrattoRepository
 RegistraContrattoService ..> RegistrazioneContrattoPort
 RegistraContrattoService ..> GeneratoreContrattoRegistrato
 RegistraContrattoService ..> ValorizzaArticoliService
-RegistraContrattoService ..> RegistrazioneContratto
 
 RegistraPagamentoService ..> ImmobileRepository
 RegistraPagamentoService ..> ContrattoRepository
@@ -236,7 +230,7 @@ RegistraPagamentoService ..> PagamentoRepository
 RegistraPagamentoService ..> DataCorrenteProvider
 RegistraPagamentoService ..> PagamentoDaRegistrare
 
-RegistrazioneContrattoPort ..> RegistrazioneContratto
+RegistrazioneContrattoPort ..> Contratto
 GeneratoreContrattoRegistrato ..> Contratto
 ValorizzaArticoliService ..> Articolo
 ValorizzaArticoliService ..> Contratto
@@ -253,10 +247,6 @@ note bottom of BozzaContratto
   Non contiene copie valorizzate degli Articoli.
 end note
 
-note bottom of RegistrazioneContratto
-  Input coeso della scrittura atomica di UC-01.
-  La porta infrastrutturale decide creazioni e aggiornamenti.
-end note
 
 note bottom of Contratto
   { giornoPagamento in 1..28 }

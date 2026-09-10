@@ -345,20 +345,16 @@ Le letture di UC-01 restano esposte tramite `ContrattoRepository`. La scrittura 
 
 Usata da `RegistraContrattoService` per la sola scrittura definitiva di UC-01.
 
-Espone l'operazione `registraDefinitivamente(registrazione : RegistrazioneContratto)`, dove
-`RegistrazioneContratto` è un application model che raccoglie il risultato definitivo coeso di UC-01.
-La registrazione comprende, quando necessari:
+Espone l'operazione `registraDefinitivamente(contratto : Contratto)`. Il `Contratto` ricevuto è la
+rappresentazione autorevole dello stato definitivo di UC-01 e rende raggiungibili, tramite le proprie
+associazioni, Immobile, proprietario, inquilino, articoli valorizzati, `ContrattoRegistrato` e primo `Pagamento`.
 
-- nuovo `Immobile`;
-- nuove `Persona` oppure modifiche validate a `Persona` già persistite;
-- nuove associazioni di residenza e dati di `DocumentoRiconoscimento` acquisiti o aggiornati;
-- `Contratto`;
-- `Articolo` valorizzati e associati al Contratto;
-- `ContrattoRegistrato`;
-- primo `Pagamento`.
+La registrazione comprende quindi, quando necessari, la creazione di nuovi dati o l'aggiornamento delle
+working copy validate di dati già persistiti. L'application layer non decide se la sincronizzazione concreta
+richieda creazioni o aggiornamenti: la distinzione appartiene all'implementazione infrastrutturale.
 
-L'application layer non decide se la sincronizzazione concreta richieda creazioni o aggiornamenti:
-la distinzione appartiene all'implementazione infrastrutturale.
+La porta non riceve riferimenti duplicati a Immobile, Persone, copia storica o Pagamento: ciò evita che
+l'infrastruttura debba interpretare quale rappresentazione sia autorevole in presenza di dati discordanti.
 
 L'operazione è atomica rispetto a questi dati definitivi: successo implica persistenza completa, mentre un errore deve produrre rollback senza lasciare uno stato parziale. Il meccanismo tecnico di transazione appartiene all'`infrastructure` e non è conosciuto dall'application layer.
 
@@ -400,14 +396,14 @@ Alla conferma di UC-01 devono diventare persistenti in modo coerente più oggett
 
 ### Scelta
 
-`RegistraContrattoService` prepara il risultato definitivo e invoca `RegistrazioneContrattoPort`. L'implementazione infrastrutturale esegue in un'unica transazione la persistenza degli eventuali nuovi dati e delle modifiche validate a dati esistenti, del `Contratto`, degli articoli valorizzati, di `ContrattoRegistrato` e del primo `Pagamento`.
+`RegistraContrattoService` prepara un `Contratto` completo, collega gli articoli valorizzati, `ContrattoRegistrato` e il primo `Pagamento`, quindi invoca `RegistrazioneContrattoPort`. L'implementazione infrastrutturale percorre tale stato definitivo ed esegue in un'unica transazione la persistenza degli eventuali nuovi dati e delle modifiche validate a dati esistenti.
 
 La transazione termina prima del cleanup della bozza:
 
 ```text
 RegistraContrattoService
         ↓
-RegistrazioneContrattoPort.registraDefinitivamente(...)
+RegistrazioneContrattoPort.registraDefinitivamente(contratto)
         ↓
 commit / rollback dei dati definitivi
         ↓ solo dopo il commit
@@ -440,9 +436,13 @@ competenza anno/mese all'interno del Contratto. Non viene introdotto un `idBozza
 
 ### Application model
 
-Oltre a `BozzaContratto`, il design introduce `RegistrazioneContratto`, input coeso dell'operazione atomica
-di UC-01, e `PagamentoDaRegistrare`, preview applicativa della competenza individuata in UC-02 prima della
-conferma. `PagamentoDaRegistrare` non reintroduce l'entità `Mensilita`: `Pagamento` nasce soltanto dopo conferma.
+Oltre a `BozzaContratto`, il design introduce `PagamentoDaRegistrare`, preview applicativa della competenza
+individuata in UC-02 prima della conferma. `PagamentoDaRegistrare` non reintroduce l'entità `Mensilita`:
+`Pagamento` nasce soltanto dopo conferma.
+
+Non viene mantenuto un application model `RegistrazioneContratto`: il `Contratto` completo costituisce la
+rappresentazione autorevole dello stato definitivo di UC-01 e contiene, tramite le proprie associazioni,
+Immobile, proprietario, inquilino, articoli registrati, copia storica e pagamenti.
 
 ### API e porte essenziali
 
@@ -462,7 +462,7 @@ Le porte approvate sono `BozzaContrattoRepository`, `ImmobileRepository`, `Perso
 
 ### Comportamenti di dominio essenziali
 
-`Contratto` espone `siSovrapponeA`, `calcolaImportoCompetenza`, `calcolaScadenzaCompetenza` e `associaArticoli`.
+`Contratto` espone `siSovrapponeA`, `calcolaImportoCompetenza`, `calcolaScadenzaCompetenza`, `associaArticoli`, `associaContrattoRegistrato` e `aggiungiPagamento`. Le associazioni definitive vengono quindi composte sul `Contratto` prima della richiesta di persistenza atomica.
 `Persona` espone operazioni coese per aggiornare i dati anagrafici, cambiare residenza e impostare il documento
 di riconoscimento; in UC-01 `id` e `codiceFiscale` restano invariati. Il cambio di residenza modifica
 l'associazione della Persona verso un Indirizzo, evitando di modificare in-place un Indirizzo condiviso.
@@ -525,7 +525,6 @@ application/
   RegistraPagamentoService
   model/
     BozzaContratto
-    RegistrazioneContratto
     PagamentoDaRegistrare
   ports/
     BozzaContrattoRepository
@@ -588,6 +587,16 @@ La struttura è indicativa e descrive responsabilità, non package o namespace d
 **Principi coinvolti:** DIP, testabilità e separazione tra input del caso d'uso e dettagli tecnici del server.
 
 **Trade-off:** viene introdotta una piccola interfaccia aggiuntiva, motivata dalla necessità concreta di rendere il tempo sostituibile nei test e autorevole lato server.
+
+### Eliminazione dell'application model `RegistrazioneContratto`
+
+**Problema individuato:** `RegistrazioneContratto` duplicava riferimenti a Immobile, proprietario, inquilino, copia storica e primo Pagamento già raggiungibili dal `Contratto`, rendendo rappresentabili stati discordanti.
+
+**Decisione assunta:** `RegistrazioneContratto` viene eliminato. `RegistrazioneContrattoPort` riceve direttamente il `Contratto` completo tramite `registraDefinitivamente(contratto : Contratto)`. Prima della chiamata, `RegistraContrattoService` associa al Contratto gli articoli valorizzati, `ContrattoRegistrato` e il primo `Pagamento`.
+
+**Principi coinvolti:** coesione, riduzione dell'accoppiamento, SRP e rimozione di duplicazione rappresentativa.
+
+**Trade-off:** `Contratto` espone alcune operazioni aggiuntive per proteggere le proprie associazioni, ma viene eliminato un application model ridondante e la porta riceve una sola rappresentazione autorevole.
 
 ## Decisioni ancora aperte
 
