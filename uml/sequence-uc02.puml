@@ -5,6 +5,7 @@ actor Proprietario
 boundary "Interfaccia UC-02" as UI
 control "Gestione UC-02" as UC
 database "Archivio dati" as Store
+participant "Contratto" as Contract
 participant "Pagamento" as Payment
 
 note over UI,UC
@@ -57,7 +58,11 @@ alt nessuna mensilità disponibile
     end note
 
 else mensilità individuata
-    UC -> UC : prepara dati del pagamento\n(anno/mese competenza,\nimporto calcolato dal Contratto)
+    UC -> Contract : calcolaImportoCompetenza(anno, mese)
+    Contract --> UC : importo
+    UC -> Contract : calcolaScadenzaCompetenza(anno, mese)
+    Contract --> UC : scadenza
+    UC -> UC : prepara dati del pagamento\n(anno/mese competenza, importo, scadenza)
 
     note right of UC
     Per una competenza interamente coperta
@@ -92,21 +97,37 @@ else mensilità individuata
         Proprietario -> UI : conferma
         UI -> UC : confermaPagamento()
 
-        UC -> Payment : crea(\nannoCompetenza,\nmeseCompetenza,\ndataPagamento = data corrente,\nimporto)
-        Payment --> UC : Pagamento
+        UC -> Store : ricarica Contratto e Pagamenti\nper la competenza selezionata
+        Store --> UC : Contratto + Pagamenti aggiornati
+        UC -> UC : rivalida che la competenza\nsia ancora registrabile
 
-        UC -> Store : salva(Pagamento)
-
-        alt salvataggio riuscito
-            Store --> UC : ok
-            UC --> UI : pagamento registrato
-        else errore di salvataggio
-            Store --> UC : errore
-            UC --> UI : mostra errore
+        alt competenza non più registrabile
+            UC --> UI : mostra errore / stato aggiornato
             note over UC,Store
-            Non deve essere comunicato un falso esito positivo
-            e non devono rimanere dati incoerenti.
+            La preview precedente non viene considerata autorevole.
+            Nessun nuovo Pagamento viene salvato.
             end note
+        else competenza ancora registrabile
+            UC -> Contract : calcolaImportoCompetenza(anno, mese)
+            Contract --> UC : importo aggiornato
+            UC -> Payment : crea(\nannoCompetenza,\nmeseCompetenza,\ndataPagamento = data corrente,\nimporto aggiornato)
+            Payment --> UC : Pagamento
+
+            UC -> Contract : aggiungiPagamento(Pagamento)
+            Contract --> UC : ok
+            UC -> Store : salva(contrattoId, Pagamento)
+
+            alt salvataggio riuscito
+                Store --> UC : ok
+                UC --> UI : pagamento registrato
+            else errore di salvataggio
+                Store --> UC : errore
+                UC --> UI : mostra errore
+                note over UC,Store
+                Non deve essere comunicato un falso esito positivo
+                e non devono rimanere dati incoerenti.
+                end note
+            end
         end
     end
 end

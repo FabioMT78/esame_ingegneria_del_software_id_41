@@ -360,6 +360,7 @@ Partecipanti:
 - `Interfaccia UC-02`: punto di interazione con il proprietario;
 - `Gestione UC-02`: ruolo logico che orchestra il caso d'uso;
 - `Archivio dati`: ruolo astratto per il recupero e il salvataggio dei dati persistenti;
+- `Contratto`: concetto di dominio che calcola importo e scadenza e protegge l'associazione dei pagamenti;
 - `Pagamento`: concetto di dominio creato al completamento positivo del caso d'uso.
 
 Decisioni dinamiche rappresentate:
@@ -373,13 +374,16 @@ Decisioni dinamiche rappresentate:
 - l'importo del nuovo Pagamento è determinato automaticamente dal `Contratto`: coincide con il canone mensile per le competenze interamente coperte e applica il pro-rata per l'ultima mensilità parziale;
 - l'annullamento non produce alcuna registrazione;
 - la registrazione avviene soltanto dopo conferma esplicita;
+- alla conferma vengono ricaricati e rivalidati Contratto e Pagamenti autorevoli, senza fidarsi della preview precedente;
+- il nuovo `Pagamento` viene aggiunto al `Contratto` tramite il comportamento di dominio `aggiungiPagamento` prima della persistenza;
+- la scrittura persistente identifica esplicitamente il Contratto proprietario del nuovo Pagamento;
 - un errore di salvataggio non deve produrre un falso esito positivo o dati incoerenti.
 
 `Mensilità` non compare come partecipante autonomo perché nella baseline approvata è un concetto derivato, non un'entità del Domain Model.
 
 ## Class Diagram di design
 
-La Fase 03 introduce `uml/class-diagram-design.puml`, distinto dal Class Diagram iniziale della Fase 02.
+La Fase 03 introduce `uml/class-diagram.puml`, distinto dal Class Diagram iniziale della Fase 02.
 Il diagramma rappresenta Service applicativi, application model, porte, oggetti di dominio e comportamenti
 pubblici essenziali. Le classi di dominio persistibili ricevono nel design un `id : identifier` tecnico,
 opzionale prima della prima persistenza; ciò non modifica il Domain Model concettuale né le chiavi naturali.
@@ -395,13 +399,15 @@ può essere temporaneamente privo di `ContrattoRegistrato` e di `Pagamento`, qui
 `0..1` e `0..*`. La registrazione definitiva richiede però esattamente un `ContrattoRegistrato` e almeno un
 `Pagamento`. Il Domain Model mantiene le cardinalità `1` e `1..*`, riferite al Contratto registrato.
 
+Per UC-02, `PagamentoRepository` espone `salva(contrattoId : identifier, pagamento : Pagamento)`: la relazione persistente con il Contratto viene resa esplicita nella porta senza aggiungere `contrattoId` all'oggetto `Pagamento` né una back-reference verso `Contratto`. Il caso d'uso invoca prima `Contratto.aggiungiPagamento` per applicare le invarianti di dominio.
+
 Le implementazioni concrete delle porte non sono ancora rappresentate perché persistenza e stack restano aperti.
 
 ## Tracciabilità UML corrente
 | User Story | Requisiti | Acceptance Criteria | Caso d'uso | Artefatti UML correnti |
 |---|---|---|---|---|
-| US-01 | RF-01–RF-06 | AC-01–AC-09 | UC-01 | `uml/use-case.puml`, `uml/domain-model.puml`, `uml/class-diagram-initial.puml`, `uml/sequence-uc01.puml`, `uml/activity-uc01.puml`, `uml/class-diagram-design.puml` |
-| US-02 | RF-07–RF-10 | AC-10–AC-15 | UC-02 | `uml/use-case.puml`, `uml/domain-model.puml`, `uml/class-diagram-initial.puml`, `uml/sequence-uc02.puml`, `uml/class-diagram-design.puml` |
+| US-01 | RF-01–RF-06 | AC-01–AC-09 | UC-01 | `uml/use-case.puml`, `uml/domain-model.puml`, `uml/class-diagram-initial.puml`, `uml/sequence-uc01.puml`, `uml/activity-uc01.puml`, `uml/class-diagram.puml` |
+| US-02 | RF-07–RF-10 | AC-10–AC-15 | UC-02 | `uml/use-case.puml`, `uml/domain-model.puml`, `uml/class-diagram-initial.puml`, `uml/sequence-uc02.puml`, `uml/class-diagram.puml` |
 
 
 ## Esito finale della fase 02
@@ -415,6 +421,6 @@ La catena attualmente coperta è:
 - comportamento dinamico di UC-01;
 - comportamento dinamico di UC-02.
 
-La **Fase 03 — Architettura, class design e SOLID** è in corso. Le decisioni architetturali, il confine transazionale di UC-01 e la prima baseline completa del Class Diagram di design sono documentati in `docs/architettura.md` e `uml/class-diagram-design.puml`. Restano ancora da completare la review esplicita di SOLID/qualità, la decisione motivata sui pattern, la persistenza concreta e lo stack tecnologico.
+La **Fase 03 — Architettura, class design e SOLID** è in corso. Le decisioni architetturali, il confine transazionale di UC-01 e la prima baseline completa del Class Diagram di design sono documentati in `docs/architettura.md` e `uml/class-diagram.puml`. Restano ancora da completare la review esplicita di SOLID/qualità, la decisione motivata sui pattern, la persistenza concreta e lo stack tecnologico.
 
 Le sorgenti PlantUML approvate dovranno essere esportate in PDF e inserite nella relazione LaTeX quando verrà predisposta la documentazione finale.

@@ -205,8 +205,10 @@ Coordina:
 - esclusione di competenze già pagate o future;
 - richiesta al `Contratto` dell'importo e della scadenza della competenza;
 - preparazione dei dati mostrati al proprietario;
+- alla conferma, ricaricamento e rivalidazione dei dati autorevoli;
 - creazione del `Pagamento` soltanto dopo conferma;
-- richiesta di persistenza del pagamento.
+- associazione del nuovo `Pagamento` al `Contratto` tramite `Contratto.aggiungiPagamento`, così da applicare le invarianti di dominio prima della persistenza;
+- richiesta a `PagamentoRepository` di persistere esplicitamente il nuovo pagamento per il `Contratto` identificato.
 
 La data corrente è una dipendenza del caso d'uso e non un dato fornito dal client. `RegistraPagamentoService` la ottiene tramite la porta applicativa `DataCorrenteProvider`, che espone `oggi() : date`. L'implementazione concreta appartiene all'infrastruttura. In questo modo il server resta autorevole sul tempo corrente e i test possono sostituire la sorgente reale con una data controllata e deterministica.
 
@@ -367,6 +369,15 @@ La cancellazione della bozza non appartiene a questa transazione. Viene richiest
 
 Usato soprattutto da `RegistraPagamentoService` per recuperare la storia dei pagamenti del contratto e per registrare un nuovo `Pagamento` in UC-02.
 
+Le operazioni di design sono:
+
+```text
+trovaPerContratto(contrattoId : identifier) : List<Pagamento>
+salva(contrattoId : identifier, pagamento : Pagamento) : void
+```
+
+La scrittura riceve esplicitamente l'identificatore del `Contratto` proprietario del pagamento. `Pagamento` non contiene quindi un duplicato tecnico `contrattoId` e non viene introdotta una back-reference `Pagamento -> Contratto` soltanto per esigenze di persistenza. Prima di invocare la porta, il caso d'uso aggiunge il pagamento al `Contratto` tramite `Contratto.aggiungiPagamento`, che protegge le invarianti note, inclusa l'unicità della competenza anno/mese all'interno dello stesso contratto.
+
 È mantenuto distinto da `ContrattoRepository` perché UC-02 ha come obiettivo esplicito la registrazione di un pagamento e la storia dei pagamenti costituisce una responsabilità persistente coerente e potenzialmente evolvibile.
 
 ## Entità senza repository autonomo
@@ -457,7 +468,8 @@ se necessario prima di aggiornare la bozza.
 `RegistraPagamentoService` espone elenco Immobili, elenco inquilini per Immobile, preparazione della preview
 per la coppia Immobile--Inquilino e conferma del pagamento. La data corrente non compare nelle API del caso
 d'uso: viene ottenuta internamente tramite `DataCorrenteProvider`. Alla conferma il Service ricarica e ricalcola
-lato server i dati autorevoli.
+lato server i dati autorevoli, crea il `Pagamento`, lo associa al `Contratto` tramite `aggiungiPagamento` e richiede
+`PagamentoRepository.salva(contrattoId, pagamento)`.
 
 Le porte approvate sono `BozzaContrattoRepository`, `ImmobileRepository`, `PersonaRepository`,
 `TipologiaContrattualeRepository`, `ContrattoRepository`, `PagamentoRepository`, `RegistrazioneContrattoPort`,
@@ -474,7 +486,7 @@ l'associazione della Persona verso un Indirizzo, evitando di modificare in-place
 `GeneratoreContrattoRegistrato` usa `genera(Contratto) : contenuto`, con `contenuto` ancora astratto.
 `ContrattoRegistrato` resta immutabile e `Pagamento` non memorizza la tardività, che è derivabile.
 
-La prima baseline completa è rappresentata in `uml/class-diagram-design.puml`.
+La prima baseline completa è rappresentata in `uml/class-diagram.puml`.
 
 ### Lifecycle del `Contratto` nel Class Diagram di design
 
@@ -634,6 +646,18 @@ La struttura è indicativa e descrive responsabilità, non package o namespace d
 **Principi coinvolti:** SRP, alta coesione, basso accoppiamento e controllo dell'overengineering.
 
 **Trade-off e criterio di rivalutazione:** il Service resta relativamente ricco di operazioni e collaboratori, ma il workflow rimane concentrato e leggibile. La separazione verrà rivalutata durante l'implementazione se emergeranno metodi lunghi con più livelli di astrazione, logiche autonome riutilizzabili, nuove famiglie indipendenti di motivi di cambiamento o difficoltà concrete di testing in isolamento.
+
+### Relazione tra `PagamentoRepository` e `Contratto` in UC-02
+
+**Problema individuato:** la firma `PagamentoRepository.salva(pagamento)` non indicava esplicitamente a quale `Contratto` appartenesse il pagamento, mentre `Pagamento` non contiene una back-reference al Contratto. Inoltre il caso d'uso rischiava di persistere il nuovo pagamento senza passare da `Contratto.aggiungiPagamento`, bypassando le invarianti espresse dal dominio.
+
+**Decisione assunta:** la porta espone `salva(contrattoId : identifier, pagamento : Pagamento)`. Alla conferma `RegistraPagamentoService` ricarica e rivalida i dati autorevoli, crea il `Pagamento`, lo aggiunge al `Contratto` tramite `Contratto.aggiungiPagamento` e soltanto dopo richiede la persistenza indicando esplicitamente l'identificatore del Contratto.
+
+**Alternative considerate:** aggiungere `contrattoId` a `Pagamento` avrebbe duplicato la relazione di dominio con un dettaglio tecnico; introdurre una back-reference `Pagamento -> Contratto` avrebbe aumentato l'accoppiamento senza una necessità di navigazione del dominio; salvare l'intero Contratto tramite `ContrattoRepository` avrebbe indebolito la responsabilità già assegnata a `PagamentoRepository` nel caso d'uso UC-02.
+
+**Principi coinvolti:** coerenza del modello, alta coesione delle responsabilità di dominio e chiarezza del contratto della porta applicativa.
+
+**Trade-off:** la porta di scrittura riceve un parametro in più, ma rende esplicita la relazione da persistere senza introdurre duplicazioni nel modello. La protezione applicativa dell'unicità non sostituisce un equivalente vincolo di consistenza nello storage, che verrà definito nella progettazione concreta della persistenza.
 
 ## Decisioni ancora aperte
 

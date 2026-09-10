@@ -79,7 +79,7 @@ package "application" {
 
     interface PagamentoRepository {
       + trovaPerContratto(contrattoId : identifier) : List<Pagamento>
-      + salva(pagamento : Pagamento) : void
+      + salva(contrattoId : identifier, pagamento : Pagamento) : void
     }
 
     interface RegistrazioneContrattoPort {
