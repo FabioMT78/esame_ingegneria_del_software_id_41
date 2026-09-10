@@ -621,11 +621,25 @@ La struttura è indicativa e descrive responsabilità, non package o namespace d
 
 **Trade-off:** il modello software ammette formalmente uno stato incompleto durante la costruzione, ma tale stato è dichiarato transitorio e non registrabile; si evitano Factory, Builder o modelli intermedi non necessari.
 
+### Review SRP di `RegistraContrattoService`
+
+**Segnale osservato:** `RegistraContrattoService` espone numerose operazioni e coordina diversi collaboratori. Questo può suggerire inizialmente una Large Class o un God Service e richiede quindi una verifica esplicita della responsabilità effettiva.
+
+**Diagnosi:** il numero di metodi e dipendenze non introduce, allo stato corrente, responsabilità eterogenee. Le operazioni pubbliche rappresentano i passaggi dello stesso caso d'uso UC-01 e il motivo principale di cambiamento del Service resta l'evoluzione del workflow di registrazione del contratto. Persistenza, transazione, generazione del documento, regole economiche e valorizzazione degli articoli sono delegate a collaboratori specializzati.
+
+**Alternative considerate:** la suddivisione per step, l'estrazione di un Service dedicato alla bozza e l'estrazione della sola verifica della bozza residua sono state valutate ma non adottate. Nello scope corrente distribuirebbero lo stesso workflow su più classi senza introdurre responsabilità autonome o riuso concreto.
+
+**Decisione assunta:** non suddividere `RegistraContrattoService` nella versione corrente. La classe mantiene la responsabilità unica di orchestrare UC-01 e continua a delegare le responsabilità specialistiche a dominio, porte e domain service.
+
+**Principi coinvolti:** SRP, alta coesione, basso accoppiamento e controllo dell'overengineering.
+
+**Trade-off e criterio di rivalutazione:** il Service resta relativamente ricco di operazioni e collaboratori, ma il workflow rimane concentrato e leggibile. La separazione verrà rivalutata durante l'implementazione se emergeranno metodi lunghi con più livelli di astrazione, logiche autonome riutilizzabili, nuove famiglie indipendenti di motivi di cambiamento o difficoltà concrete di testing in isolamento.
+
 ## Decisioni ancora aperte
 
 Prima di considerare completa la fase di design devono essere ancora definiti:
 
-- la review esplicita di SRP, DIP e OCP sul design completo;
+- il completamento della review esplicita di SRP, DIP e OCP sul design completo;
 - la decisione motivata sull'uso o non uso di Strategy, Factory Method, Adapter e Observer;
 - il formato persistente della bozza;
 - il formato concreto del contenuto di `ContrattoRegistrato`;
