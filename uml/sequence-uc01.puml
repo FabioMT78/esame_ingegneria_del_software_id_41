@@ -21,10 +21,8 @@ UC -> Draft : recupera()
 
 alt bozza esistente
     Draft --> UC : dati della bozza
-    UC -> Store : confronta progressivamente con contratti registrati
-(dati catastali, CF inquilino, dal/al disponibili)
-    alt tutti i dati presenti e coincidenti
-con un contratto già registrato
+    UC -> Store : confronta progressivamente con contratti registrati\n(dati catastali, CF inquilino, dal/al disponibili)
+    alt tutti i dati presenti e coincidenti\n con un contratto già registrato
         Store --> UC : corrispondenza completa
         UC -> Draft : elimina()
         note right of Draft
