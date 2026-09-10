@@ -41,10 +41,15 @@ package "application" {
 
     class PagamentoDaRegistrare <<application model>> {
       - contrattoId : identifier
+      - canoneMensile : decimal
+      - tipologiaDenominazione : string
+      - dal : date
+      - al : date
       - annoCompetenza : int
       - meseCompetenza : int
       - scadenza : date
       - importo : decimal
+      - dovuta : boolean
       - tardivo : boolean
     }
   }
@@ -258,6 +263,8 @@ note bottom of Contratto
   { giornoPagamento in 1..28 }
   { /al derivato da dal e tipologia.durata }
   { dal e al inclusivi }
+  Gli Articoli valorizzati fanno parte del Contratto valido (1..*):
+  l'assemblaggio interno non è modellato come stato alternativo del Contratto.
   Durante la costruzione: 0..1 ContrattoRegistrato e 0..* Pagamenti.
   { registrazione definitiva: esattamente 1 ContrattoRegistrato
     e almeno 1 Pagamento }
@@ -270,6 +277,12 @@ end note
 
 note bottom of ContrattoRegistrato
   Snapshot completo e immutabile della registrazione.
+end note
+
+note bottom of PagamentoDaRegistrare
+  Preview applicativa autorevole per la visualizzazione.
+  Alla conferma Contratto e Pagamenti vengono ricaricati
+  e i valori vengono ricalcolati lato server.
 end note
 
 note "identifier è un tipo astratto del design.\nL'id è assente prima della prima persistenza e stabile dopo il salvataggio.\ncontenuto è un tipo astratto da concretizzare con lo stack.\nLe implementazioni concrete delle porte appartengono a infrastructure e non sono mostrate." as NDesign

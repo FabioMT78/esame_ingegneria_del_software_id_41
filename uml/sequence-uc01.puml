@@ -192,10 +192,16 @@ else proprietario conferma
     else periodo disponibile
         Store --> UC : nessuna sovrapposizione
 
-        UC -> Contract : costruisci(dati finali validati)
-        Contract --> UC : Contratto
-        UC -> UC : valorizza copie degli Articoli predefiniti\nusando il Contratto definitivo
+        UC -> Contract : costruisci(dati finali validati:\nImmobile, proprietario, inquilino,\ntipologia e dati contrattuali)
+        Contract --> UC : Contratto in assemblaggio
+        UC -> UC : valorizza copie degli Articoli predefiniti\nusando i dati definitivi del Contratto
         UC -> Contract : associa articoli valorizzati
+        Contract --> UC : Contratto completo nei dati contrattuali
+        note over UC,Contract
+        Gli Articoli valorizzati sono parte del Contratto valido.
+        Il Contratto non viene considerato risultato definitivo
+        né registrato prima che tali Articoli siano associati.
+        end note
 
         UC -> Registered : genera copia storica completa(Contratto)
         Registered --> UC : ContrattoRegistrato

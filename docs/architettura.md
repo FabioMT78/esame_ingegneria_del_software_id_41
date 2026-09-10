@@ -24,7 +24,6 @@ Sono già consolidate:
 
 Restano ancora da consolidare:
 
-- la review conclusiva del Class Diagram di design;
 - l'eventuale adozione di design pattern;
 - la persistenza concreta;
 - il formato concreto della bozza e di `ContrattoRegistrato`;
@@ -451,8 +450,10 @@ competenza anno/mese all'interno del Contratto. Non viene introdotto un `idBozza
 ### Application model
 
 Oltre a `BozzaContratto`, il design introduce `PagamentoDaRegistrare`, preview applicativa della competenza
-individuata in UC-02 prima della conferma. `PagamentoDaRegistrare` non reintroduce l'entità `Mensilita`:
-`Pagamento` nasce soltanto dopo conferma.
+individuata in UC-02 prima della conferma. La preview contiene l'identificatore del Contratto, i dati contrattuali
+essenziali da mostrare (`canoneMensile`, denominazione della tipologia, `dal`, `al`), la competenza, scadenza e
+importo calcolati e gli stati derivati `dovuta` e `tardivo`. `PagamentoDaRegistrare` non reintroduce l'entità
+`Mensilita`: `Pagamento` nasce soltanto dopo conferma.
 
 Non viene mantenuto un application model `RegistrazioneContratto`: il `Contratto` completo costituisce la
 rappresentazione autorevole dello stato definitivo di UC-01 e contiene, tramite le proprie associazioni,
@@ -477,7 +478,7 @@ Le porte approvate sono `BozzaContrattoRepository`, `ImmobileRepository`, `Perso
 
 ### Comportamenti di dominio essenziali
 
-`Contratto` espone `siSovrapponeA`, `calcolaImportoCompetenza`, `calcolaScadenzaCompetenza`, `associaArticoli`, `associaContrattoRegistrato` e `aggiungiPagamento`. Durante la costruzione software può non avere ancora la copia registrata o pagamenti; prima della registrazione definitiva deve invece possedere esattamente un `ContrattoRegistrato` e almeno un `Pagamento`. Le associazioni definitive vengono quindi composte sul `Contratto` prima della richiesta di persistenza atomica.
+`Contratto` espone `siSovrapponeA`, `calcolaImportoCompetenza`, `calcolaScadenzaCompetenza`, `associaArticoli`, `associaContrattoRegistrato` e `aggiungiPagamento`. Alla conferma di UC-01 viene costruito soltanto dopo che la bozza contiene tutti i dati finali validati di Immobile, proprietario, inquilino, tipologia e dati contrattuali. Le copie degli Articoli predefiniti vengono quindi valorizzate e associate prima che il Contratto sia considerato completo e prima della registrazione definitiva. Il Class Diagram mantiene perciò `1..*` Articoli registrati come invariante del Contratto valido. Durante la successiva preparazione della registrazione software il Contratto può invece non avere ancora la copia registrata o pagamenti; prima della persistenza definitiva deve possedere esattamente un `ContrattoRegistrato` e almeno un `Pagamento`.
 `Persona` espone operazioni coese per aggiornare i dati anagrafici, cambiare residenza e impostare il documento
 di riconoscimento; in UC-01 `id` e `codiceFiscale` restano invariati. Il cambio di residenza modifica
 l'associazione della Persona verso un Indirizzo, evitando di modificare in-place un Indirizzo condiviso.
@@ -497,6 +498,12 @@ affiancando il vincolo `{registrazione definitiva: esattamente 1 ContrattoRegist
 
 Questa differenza non modifica il requisito di dominio: rende esplicito il lifecycle software senza introdurre
 Factory, Builder o stati intermedi che non sono necessari nello scope corrente.
+
+Gli `Articolo` seguono una scelta diversa: il Class Diagram mantiene `1..*` Articoli registrati sul `Contratto`.
+Alla conferma il Service costruisce il Contratto a partire da tutti i dati finali della bozza, valorizza le copie
+degli articoli predefiniti e le associa al Contratto prima che questo venga considerato un risultato valido del
+caso d'uso. L'eventuale brevissimo stato tecnico di assemblaggio in memoria non viene modellato come stato
+alternativo del dominio e non può raggiungere la persistenza definitiva.
 
 ## DIP e testabilità
 
@@ -659,11 +666,41 @@ La struttura è indicativa e descrive responsabilità, non package o namespace d
 
 **Trade-off:** la porta di scrittura riceve un parametro in più, ma rende esplicita la relazione da persistere senza introdurre duplicazioni nel modello. La protezione applicativa dell'unicità non sostituisce un equivalente vincolo di consistenza nello storage, che verrà definito nella progettazione concreta della persistenza.
 
+### Review consolidata finale — DIP, OCP e qualità del design
+
+La review conclusiva del design non ha evidenziato motivi per introdurre ulteriori layer, Service o interfacce
+prima dell'implementazione. Le dipendenze infrastrutturali rilevanti sono già invertite tramite porte, mentre
+`ValorizzaArticoliService` resta una dipendenza concreta di dominio perché non rappresenta un dettaglio
+infrastrutturale e non richiede sostituibilità preventiva.
+
+Per OCP non vengono introdotte Strategy o gerarchie dedicate alle tipologie contrattuali: nella versione 1.0 le
+varianti 3+2 e 4+4 sono rappresentate da dati (`durata`, `rinnovo`, articoli) e non da algoritmi differenti. I
+punti di variazione concreti già presenti, come la generazione di `ContrattoRegistrato`, sono isolati tramite
+porte. Ulteriori astrazioni verranno introdotte soltanto se l'implementazione farà emergere una variabilità reale.
+
+Durante la review era stata considerata l'ipotesi di ridurre a `0..*` la cardinalità degli Articoli registrati per
+rappresentare un possibile stato intermedio di costruzione del Contratto. L'ipotesi è stata scartata: il flusso è
+stato chiarito in modo che il Contratto venga costruito dai dati finali della bozza e completato con `1..*`
+Articoli valorizzati prima di essere considerato un risultato valido e prima della registrazione definitiva.
+Non vengono quindi indebolite le cardinalità del modello per rappresentare dettagli tecnici di assemblaggio.
+
+È stato invece completato `PagamentoDaRegistrare`: l'application model contiene anche i dati essenziali del
+Contratto da presentare e gli stati derivati `dovuta` e `tardivo`. In questo modo l'`interface` non deve accedere
+direttamente ai repository o ricostruire regole applicative. Alla conferma la preview non viene considerata
+autorevole: Contratto e Pagamenti vengono ricaricati e i valori vengono nuovamente calcolati lato server.
+
+Il possibile uso futuro di value object per concetti oggi rappresentati da primitive (`anno/mese`,
+`giornoPagamento` e simili) viene lasciato come refactoring guidato dall'implementazione: verrà valutato se
+emergeranno validazioni duplicate, firme poco espressive o altri segnali concreti di Primitive Obsession.
+
+La baseline corrente è quindi considerata sufficientemente coerente e testabile per iniziare lo sviluppo.
+Eventuali ulteriori incoerenze verranno trattate con review e refactoring mirati insieme agli incrementi di codice,
+test e Continuous Integration.
+
 ## Decisioni ancora aperte
 
 Prima di considerare completa la fase di design devono essere ancora definiti:
 
-- il completamento della review esplicita di SRP, DIP e OCP sul design completo;
 - la decisione motivata sull'uso o non uso di Strategy, Factory Method, Adapter e Observer;
 - il formato persistente della bozza;
 - il formato concreto del contenuto di `ContrattoRegistrato`;

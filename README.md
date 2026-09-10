@@ -33,7 +33,7 @@ La baseline UML approvata è documentata in [`docs/modellazione.md`](docs/modell
 Fase in corso:
 - **Fase 03 — Architettura, class design e SOLID**. Sono già state consolidate l'architettura client-server con backend monolitico layered, la separazione `interface` / `application` / `domain` / `infrastructure`, le responsabilità applicative dei due casi d'uso, la gestione della bozza, il DIP sulle dipendenze infrastrutturali, la granularità delle porte di persistenza, il confine transazionale di UC-01 e una prima baseline completa del Class Diagram di design.
 
-Le decisioni approvate della fase corrente sono documentate in [`docs/architettura.md`](docs/architettura.md) e rappresentate in [`uml/class-diagram-design.puml`](uml/class-diagram-design.puml). Restano da completare la review esplicita di SOLID e qualità del design, la decisione motivata sui pattern, la persistenza concreta e lo stack tecnologico.
+Le decisioni approvate della fase corrente sono documentate in [`docs/architettura.md`](docs/architettura.md) e rappresentate in [`uml/class-diagram.puml`](uml/class-diagram.puml). La review consolidata di SRP, DIP, OCP, coesione e accoppiamento è completata; la baseline corrente è ritenuta sufficiente per iniziare lo sviluppo e verrà rifinita tramite review mirate se implementazione e test faranno emergere problemi concreti. Restano da definire la decisione motivata sui pattern, la persistenza concreta e lo stack tecnologico.
 
 ## Quickstart
 
@@ -92,7 +92,7 @@ La documentazione viene mantenuta nello stesso repository del codice e versionat
   - `uml/use-case.puml`;
   - `uml/domain-model.puml`;
   - `uml/class-diagram-initial.puml`;
-  - `uml/class-diagram-design.puml`;
+  - `uml/class-diagram.puml`;
   - `uml/sequence-uc01.puml`;
   - `uml/activity-uc01.puml`;
   - `uml/sequence-uc02.puml`;

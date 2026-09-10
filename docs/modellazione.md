@@ -327,7 +327,7 @@ Decisioni dinamiche rappresentate:
 - ogni step valido aggiorna la bozza;
 - nuovi immobili e persone, insieme alle modifiche validate a persone già registrate e ai dati di riconoscimento, restano nella bozza fino alla conferma finale;
 - il controllo di sovrapposizione avviene prima della registrazione definitiva;
-- alla conferma valida viene costruito il `Contratto`; soltanto a quel punto gli articoli predefiniti vengono copiati e valorizzati sui dati finali, poi vengono costruiti `ContrattoRegistrato` e il primo `Pagamento`;
+- alla conferma valida, dopo che tutti i dati di Immobile, proprietario, inquilino, tipologia e contratto sono stati acquisiti e validati, viene costruito il `Contratto`; gli articoli predefiniti vengono quindi copiati, valorizzati usando tali dati definitivi e associati al Contratto prima che questo sia considerato completo e prima della registrazione definitiva; soltanto dopo vengono costruiti `ContrattoRegistrato` e il primo `Pagamento`;
 - il salvataggio dei dati definitivi è rappresentato come un'unica operazione logica coerente e atomica;
 - dopo il completamento con successo della registrazione definitiva viene tentata l'eliminazione della bozza, ma tale cleanup non appartiene alla transazione dei dati definitivi;
 - un errore nella cancellazione della bozza non invalida il contratto già registrato; la bozza residua viene riconosciuta ed eliminata automaticamente alla successiva apertura se coincide con un contratto registrato secondo il confronto definito;
@@ -389,7 +389,7 @@ pubblici essenziali. Le classi di dominio persistibili ricevono nel design un `i
 opzionale prima della prima persistenza; ciò non modifica il Domain Model concettuale né le chiavi naturali.
 `BozzaContratto` non riceve un identificatore dedicato.
 
-Gli application model introdotti sono `BozzaContratto` e `PagamentoDaRegistrare`.
+Gli application model introdotti sono `BozzaContratto` e `PagamentoDaRegistrare`. `PagamentoDaRegistrare` contiene, oltre a identificatore del Contratto, competenza, scadenza e importo, anche `canoneMensile`, denominazione della tipologia, `dal`, `al` e gli stati derivati `dovuta` e `tardivo`, così l'interfaccia può mostrare la preview senza interrogare direttamente i repository.
 Non viene mantenuto un application model `RegistrazioneContratto`: nel design rivisto la porta di registrazione
 definitiva riceve direttamente il `Contratto` completo, che costituisce la rappresentazione autorevole dello
 stato definitivo di UC-01.
@@ -398,6 +398,11 @@ Il Class Diagram di design rappresenta anche il lifecycle di costruzione del `Co
 può essere temporaneamente privo di `ContrattoRegistrato` e di `Pagamento`, quindi le molteplicità software sono
 `0..1` e `0..*`. La registrazione definitiva richiede però esattamente un `ContrattoRegistrato` e almeno un
 `Pagamento`. Il Domain Model mantiene le cardinalità `1` e `1..*`, riferite al Contratto registrato.
+
+Per gli `Articolo` il Class Diagram mantiene invece la cardinalità `1..*`: gli articoli valorizzati sono considerati
+parte costitutiva del Contratto valido. Il Service può usare internamente un oggetto durante l'assemblaggio, ma non
+lo considera risultato completo né lo espone alla registrazione definitiva prima di aver associato almeno un
+Articolo valorizzato.
 
 Per UC-02, `PagamentoRepository` espone `salva(contrattoId : identifier, pagamento : Pagamento)`: la relazione persistente con il Contratto viene resa esplicita nella porta senza aggiungere `contrattoId` all'oggetto `Pagamento` né una back-reference verso `Contratto`. Il caso d'uso invoca prima `Contratto.aggiungiPagamento` per applicare le invarianti di dominio.
 
@@ -421,6 +426,6 @@ La catena attualmente coperta è:
 - comportamento dinamico di UC-01;
 - comportamento dinamico di UC-02.
 
-La **Fase 03 — Architettura, class design e SOLID** è in corso. Le decisioni architetturali, il confine transazionale di UC-01 e la prima baseline completa del Class Diagram di design sono documentati in `docs/architettura.md` e `uml/class-diagram.puml`. Restano ancora da completare la review esplicita di SOLID/qualità, la decisione motivata sui pattern, la persistenza concreta e lo stack tecnologico.
+La **Fase 03 — Architettura, class design e SOLID** è in corso. Le decisioni architetturali, il confine transazionale di UC-01, la baseline del Class Diagram di design e la review consolidata di SOLID/qualità sono documentati in `docs/architettura.md` e `uml/class-diagram.puml`. Restano ancora da definire la decisione motivata sui pattern, la persistenza concreta e lo stack tecnologico. Ulteriori review strutturali verranno effettuate durante l'implementazione solo se codice e test faranno emergere problemi concreti.
 
 Le sorgenti PlantUML approvate dovranno essere esportate in PDF e inserite nella relazione LaTeX quando verrà predisposta la documentazione finale.

@@ -62,7 +62,8 @@ else mensilità individuata
     Contract --> UC : importo
     UC -> Contract : calcolaScadenzaCompetenza(anno, mese)
     Contract --> UC : scadenza
-    UC -> UC : prepara dati del pagamento\n(anno/mese competenza, importo, scadenza)
+    UC -> UC : determina stato dovuta/tardivo\nrispetto alla data corrente
+    UC -> UC : prepara preview applicativa\n(dati contratto, competenza, importo, scadenza, stato)
 
     note right of UC
     Per una competenza interamente coperta
@@ -79,7 +80,7 @@ else mensilità individuata
     ma rimane consentito.
     end note
 
-    UC --> UI : mostra dati del contratto e del pagamento\n(canoneMensile, tipologia, dal-al,\nanno/mese competenza, importo)
+    UC --> UI : mostra dati del contratto e del pagamento\n(canoneMensile, tipologia, dal-al,\nanno/mese competenza, scadenza, importo,\ndovuta/tardivo)
 
     alt proprietario seleziona Annulla
         Proprietario -> UI : Annulla
