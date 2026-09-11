@@ -1,0 +1,152 @@
+@startuml
+
+title Gestionale Affitti — Domain Model
+
+left to right direction
+hide methods
+hide stereotypes
+skinparam classAttributeIconSize 0
+
+class Persona {
+  nome
+  cognome
+  luogoNascita
+  dataNascita
+  codiceFiscale
+}
+
+class Indirizzo {
+  nazione
+  provincia
+  comune
+  cap
+  indirizzo
+  civico
+  scala
+  interno
+}
+
+class DocumentoRiconoscimento {
+  tipo
+  organoEmittente
+  dataRilascio
+  dataScadenza
+  numero
+}
+
+class Immobile {
+  nome
+}
+
+class DatiCatastali {
+  codiceComunale
+  foglio
+  particella
+  subalterno
+  categoria
+  consistenza
+  rendita
+}
+
+class Contratto {
+  nomeDescrizione
+  dal
+  /al
+  canoneMensile
+  giornoPagamento
+  registratoIl
+  contenuto
+  /stato
+}
+
+class TipologiaContrattuale {
+  denominazione
+  durata
+  rinnovo
+}
+
+class Articolo {
+  numArticolo
+  numParte
+  titolo
+  sottotitolo
+  descrizione
+}
+
+class Pagamento {
+  annoCompetenza
+  meseCompetenza
+  dataPagamento
+  importo
+}
+
+Persona "0..*" -- "1" Indirizzo : residenza
+Immobile "0..*" -- "1" Indirizzo : ubicazione
+Persona "1" -- "0..1" DocumentoRiconoscimento : documento
+
+Immobile "1" -- "1" DatiCatastali : dati catastali
+Immobile "1" -- "0..*" Contratto : oggetto della locazione
+
+Persona "1" -- "0..*" Contratto : proprietario
+Persona "1" -- "0..*" Contratto : inquilino
+
+TipologiaContrattuale "1" -- "0..*" Contratto : tipologia
+TipologiaContrattuale "1" -- "1..*" Articolo : articoli predefiniti
+
+Contratto "1" -- "1..*" Pagamento : pagamenti
+
+note right of Persona
+  { codiceFiscale univoco }
+  { se assume il ruolo di inquilino,
+    DocumentoRiconoscimento presente }
+end note
+
+note right of DocumentoRiconoscimento
+  { tipo = carta d'identità oppure passaporto }
+end note
+
+note bottom of DatiCatastali
+  { codiceComunale + foglio + particella +
+    subalterno identificano univocamente l'Immobile }
+end note
+
+note bottom of Indirizzo
+  { per l'Immobile, se interno è specificato,
+    l'indirizzo completo non può duplicare
+    quello di un altro Immobile }
+end note
+
+note right of Contratto
+  { giornoPagamento in 1..28 }
+  { /al determinato da dal e TipologiaContrattuale.durata }
+  { periodi relativi allo stesso Immobile non sovrapposti }
+  { registratoIl valorizzato alla registrazione definitiva }
+  { contenuto = copia completa del contratto generato }
+  { /stato derivato dal periodo e dalla data corrente:
+    futuro, in essere oppure scaduto }
+end note
+
+note bottom of TipologiaContrattuale
+  { durata e rinnovo espressi in anni }
+  { v1.0: concordato durata=3, rinnovo=2;
+    libero durata=4, rinnovo=4 }
+  { il rinnovo non estende il periodo gestito in v1.0 }
+end note
+
+note bottom of Articolo
+  { Articolo rappresenta esclusivamente un template }
+  { gli elementi con lo stesso numArticolo e numParte
+    differenti sono parti ordinate dello stesso articolo }
+  { numArticolo + numParte univoci nella TipologiaContrattuale }
+end note
+
+note bottom of Pagamento
+  { meseCompetenza in 1..12 }
+  { al massimo un Pagamento per annoCompetenza +
+    meseCompetenza dello stesso Contratto }
+  { importo determinato dal Contratto e memorizzato come storico }
+  { prima mensilità: anno/mese da Contratto.dal,
+    dataPagamento = Contratto.dal }
+end note
+
+@enduml

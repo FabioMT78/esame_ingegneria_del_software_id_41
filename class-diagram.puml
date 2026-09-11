@@ -1,0 +1,278 @@
+@startuml
+
+title Gestionale Affitti — Class Diagram di design
+
+left to right direction
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+hide empty members
+
+package "application" {
+  class RegistraContrattoService <<service>> {
+    + avvia() : BozzaContratto [0..1]
+    + elencaImmobili() : List<Immobile>
+    + elencaTipologie() : List<TipologiaContrattuale>
+    + selezionaImmobile(immobileId : int) : BozzaContratto
+    + inserisciNuovoImmobile(immobile : Immobile) : BozzaContratto
+    + cercaPersona(codiceFiscale : string) : Persona [0..1]
+    + impostaProprietario(persona : Persona) : BozzaContratto
+    + impostaInquilino(persona : Persona) : BozzaContratto
+    + impostaDatiContrattuali(nomeDescrizione : string, tipologiaId : int, dal : date, canoneMensile : decimal, giornoPagamento : int) : BozzaContratto
+    + conferma() : void
+    + annulla() : void
+  }
+
+  class RegistraPagamentoService <<service>> {
+    + elencaImmobili() : List<Immobile>
+    + elencaInquilini(immobileId : int) : List<Persona>
+    + preparaPagamento(immobileId : int, inquilinoId : int) : PagamentoDaRegistrare [0..1]
+    + confermaPagamento(contrattoId : int, annoCompetenza : int, meseCompetenza : int) : Pagamento
+  }
+
+  package "model" {
+    class BozzaContratto <<application model>> {
+      - stepCompletato : int
+      - nomeDescrizione : string [0..1]
+      - dal : date [0..1]
+      - canoneMensile : decimal [0..1]
+      - giornoPagamento : int [0..1]
+    }
+
+    class PagamentoDaRegistrare <<application model>> {
+      - contrattoId : int
+      - canoneMensile : decimal
+      - tipologiaDenominazione : string
+      - dal : date
+      - al : date
+      - annoCompetenza : int
+      - meseCompetenza : int
+      - scadenza : date
+      - importo : decimal
+      - dovuta : boolean
+      - tardivo : boolean
+    }
+  }
+
+  package "ports" {
+    interface BozzaContrattoRepository {
+      + recupera() : BozzaContratto [0..1]
+      + salva(bozza : BozzaContratto) : void
+      + elimina() : void
+    }
+
+    interface ImmobileRepository {
+      + trovaTutti() : List<Immobile>
+      + trovaPerId(id : int) : Immobile [0..1]
+      + trovaPerDatiCatastali(dati : DatiCatastali) : Immobile [0..1]
+      + esisteConIndirizzo(indirizzo : Indirizzo) : boolean
+    }
+
+    interface PersonaRepository {
+      + trovaPerCodiceFiscale(codiceFiscale : string) : Persona [0..1]
+    }
+
+    interface TipologiaContrattualeRepository {
+      + trovaTutte() : List<TipologiaContrattuale>
+      + trovaPerIdConArticoli(id : int) : TipologiaContrattuale [0..1]
+    }
+
+    interface ContrattoRepository {
+      + trovaPerId(id : int) : Contratto [0..1]
+      + trovaPerImmobile(immobileId : int) : List<Contratto>
+    }
+
+    interface PagamentoRepository {
+      + trovaPerContratto(contrattoId : int) : List<Pagamento>
+      + salva(contrattoId : int, pagamento : Pagamento) : void
+    }
+
+    interface RegistrazioneContrattoPort {
+      + registraDefinitivamente(contratto : Contratto) : void
+    }
+
+    interface GeneratoreDocumentoContratto {
+      + genera(contratto : Contratto) : string
+    }
+
+    interface DataCorrenteProvider {
+      + oggi() : date
+    }
+  }
+}
+
+package "domain" {
+  class Persona {
+    - id : int [0..1]
+    - nome : string
+    - cognome : string
+    - luogoNascita : string
+    - dataNascita : date
+    - codiceFiscale : string
+    + aggiornaDatiAnagrafici(nome : string, cognome : string, luogoNascita : string, dataNascita : date) : void
+    + cambiaResidenza(residenza : Indirizzo) : void
+    + impostaDocumentoRiconoscimento(documento : DocumentoRiconoscimento) : void
+  }
+
+  class Indirizzo {
+    - id : int [0..1]
+    - nazione : string
+    - provincia : string
+    - comune : string
+    - cap : string
+    - indirizzo : string
+    - civico : string
+    - scala : string
+    - interno : string
+  }
+
+  class DocumentoRiconoscimento {
+    - id : int [0..1]
+    - tipo : string
+    - organoEmittente : string
+    - dataRilascio : date
+    - dataScadenza : date
+    - numero : string
+  }
+
+  class Immobile {
+    - id : int [0..1]
+    - nome : string
+  }
+
+  class DatiCatastali {
+    - id : int [0..1]
+    - codiceComunale : string
+    - foglio : int
+    - particella : int
+    - subalterno : int
+    - categoria : string
+    - consistenza : decimal
+    - rendita : decimal
+  }
+
+  class TipologiaContrattuale {
+    - id : int [0..1]
+    - denominazione : string
+    - durata : int
+    - rinnovo : int
+  }
+
+  class Articolo {
+    - id : int [0..1]
+    - numArticolo : int
+    - numParte : int
+    - titolo : string
+    - sottotitolo : string [0..1]
+    - descrizione : string
+  }
+
+  class Contratto {
+    - id : int [0..1]
+    - nomeDescrizione : string
+    - dal : date
+    - /al : date
+    - canoneMensile : decimal
+    - giornoPagamento : int
+    - registratoIl : date
+    - contenuto : string [0..1]
+    + siSovrapponeA(altro : Contratto) : boolean
+    + calcolaImportoCompetenza(anno : int, mese : int) : decimal
+    + calcolaScadenzaCompetenza(anno : int, mese : int) : date
+    + statoAlla(data : date) : string
+    + impostaContenuto(contenuto : string) : void
+    + aggiungiPagamento(pagamento : Pagamento) : void
+  }
+
+  class Pagamento {
+    - id : int [0..1]
+    - annoCompetenza : int
+    - meseCompetenza : int
+    - dataPagamento : date
+    - importo : decimal
+  }
+}
+
+Persona "0..*" -- "1" Indirizzo : residenza
+Persona "1" -- "0..1" DocumentoRiconoscimento : documento
+Immobile "0..*" -- "1" Indirizzo : ubicazione
+Immobile "1" -- "1" DatiCatastali : dati catastali
+Immobile "1" -- "0..*" Contratto : oggetto della locazione
+Persona "1" -- "0..*" Contratto : proprietario
+Persona "1" -- "0..*" Contratto : inquilino
+TipologiaContrattuale "1" -- "0..*" Contratto : tipologia
+TipologiaContrattuale "1" -- "1..*" Articolo : articoli predefiniti
+Contratto "1" -- "0..*" Pagamento : pagamenti
+
+BozzaContratto "1" --> "0..1" Immobile : immobile
+BozzaContratto "1" --> "0..1" Persona : proprietario
+BozzaContratto "1" --> "0..1" Persona : inquilino
+BozzaContratto "1" --> "0..1" TipologiaContrattuale : tipologia
+
+RegistraContrattoService ..> BozzaContrattoRepository
+RegistraContrattoService ..> ImmobileRepository
+RegistraContrattoService ..> PersonaRepository
+RegistraContrattoService ..> TipologiaContrattualeRepository
+RegistraContrattoService ..> ContrattoRepository
+RegistraContrattoService ..> RegistrazioneContrattoPort
+RegistraContrattoService ..> GeneratoreDocumentoContratto
+RegistraContrattoService ..> DataCorrenteProvider
+
+RegistraPagamentoService ..> ImmobileRepository
+RegistraPagamentoService ..> ContrattoRepository
+RegistraPagamentoService ..> PagamentoRepository
+RegistraPagamentoService ..> DataCorrenteProvider
+RegistraPagamentoService ..> PagamentoDaRegistrare
+
+RegistrazioneContrattoPort ..> Contratto
+GeneratoreDocumentoContratto ..> Contratto
+
+note right of Persona
+  In UC-01 id e codiceFiscale non vengono modificati.
+  I dati recuperati sono una working copy verificabile
+  e modificabile prima della conferma definitiva.
+end note
+
+note right of RegistrazioneContrattoPort
+  { pre: il Contratto da registrare possiede
+    contenuto completo e almeno 1 Pagamento }
+end note
+
+note bottom of BozzaContratto
+  Application model temporaneo, senza idBozza.
+  Conserva soltanto i dati necessari a riprendere la procedura.
+  Non contiene Contratto generato, documento HTML,
+  copie di Articolo o Pagamenti definitivi.
+end note
+
+note bottom of Articolo
+  Template della tipologia contrattuale.
+  numArticolo identifica l'articolo logico;
+  numParte ordina eventuali frammenti dello stesso articolo.
+end note
+
+note bottom of Contratto
+  { giornoPagamento in 1..28 }
+  { /al derivato da dal e tipologia.durata }
+  { dal e al inclusivi }
+  { registratoIl assegnato alla conferma tramite DataCorrenteProvider }
+  Durante l'assemblaggio il contenuto può essere assente.
+  Il GeneratoreDocumentoContratto produce l'HTML completo e
+  il Service lo assegna prima della registrazione definitiva.
+  { registrazione definitiva: contenuto presente e almeno 1 Pagamento }
+  Lo stato futuro / in essere / scaduto è derivato e non persistito.
+end note
+
+note bottom of Pagamento
+  { meseCompetenza in 1..12 }
+  { univoco per Contratto + annoCompetenza + meseCompetenza }
+end note
+
+note bottom of PagamentoDaRegistrare
+  Preview applicativa per la visualizzazione.
+  Alla conferma Contratto e Pagamenti vengono ricaricati
+  e i valori vengono ricalcolati lato server.
+end note
+
+note "Gli id del design sono interi e vengono assegnati dalla persistenza PostgreSQL.\nIl contenuto storico del Contratto è una stringa HTML nella v1.0.\nLe implementazioni concrete delle porte appartengono a infrastructure e non sono mostrate." as NDesign
+
+@enduml
