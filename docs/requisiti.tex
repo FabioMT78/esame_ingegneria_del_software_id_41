@@ -108,19 +108,19 @@ autorizzazione restano fuori scope.
           Per ciascuna tipologia contrattuale sono definiti, in anni, la durata del periodo iniziale
           e la durata del rinnovo: rispettivamente 3 e 2 anni per il canone concordato, 4 e 4 anni
           per il canone libero.
-    \item Ogni tipologia contrattuale definisce uno o più articoli predefiniti. Ogni articolo è
-          caratterizzato da numero, titolo, sottotitolo e testo e può contenere dati da valorizzare
-          con le informazioni acquisite durante la registrazione del contratto.
+    \item Ogni tipologia contrattuale definisce uno o più articoli predefiniti usati come template.
+          Uno stesso articolo può essere suddiviso in più parti ordinate per consentire l'inserimento
+          dei dati acquisiti durante la registrazione tra porzioni successive del testo.
     \item Il proprietario inserisce la data iniziale \texttt{dal}; la data finale \texttt{al}
           è determinata automaticamente in base alla durata del periodo iniziale della tipologia
           selezionata. Le date \texttt{dal} e \texttt{al} sono entrambe comprese nel periodo iniziale.
     \item Il valore relativo al rinnovo descrive la tipologia contrattuale, ma la versione 1.0 gestisce
           esclusivamente il periodo iniziale del contratto e non esegue operazioni o avvisi relativi
           al rinnovo successivo.
-    \item Alla registrazione definitiva il sistema deve conservare una copia storica completa del
-          contratto generato, comprensiva dei dati acquisiti durante la registrazione e degli articoli
-          valorizzati. Tale copia deve rimanere invariata anche in presenza di successive modifiche
-          agli articoli predefiniti o ai dati sorgente utilizzati per generarla.
+    \item Alla registrazione definitiva il sistema deve conservare nel contratto una copia storica
+          completa del documento generato, ottenuta usando i dati finali validati e gli articoli template.
+          Tale copia deve rimanere invariata anche in presenza di successive modifiche agli articoli
+          predefiniti o ai dati sorgente utilizzati per generarla.
     \item Il canone è mensile e il giorno di pagamento deve essere compreso tra 1 e 28.
     \item Una mensilità può essere registrata come pagata a partire dal primo giorno
             del relativo mese di competenza, anche prima del giorno di pagamento
@@ -195,7 +195,9 @@ nuova procedura; negli altri casi il sistema deve caricare i dati della bozza. \
 
 \req{RF-02} &
 Al completamento del primo step il sistema deve creare una bozza del contratto e aggiornarla
-al completamento di ogni step validato con successo. La bozza deve essere cancellata quando
+al completamento di ogni step validato con successo. La bozza deve contenere soltanto i dati
+necessari a completare la procedura e non deve contenere un contratto già generato o la relativa
+copia documentale. Il contratto deve essere generato soltanto alla conferma definitiva. La bozza deve essere cancellata quando
 il proprietario annulla la procedura. Dopo una registrazione definitiva conclusa con successo il
 sistema deve tentare di cancellare la bozza; un eventuale errore di tale cancellazione non deve
 invalidare il contratto già registrato. Una bozza residua che, alla successiva apertura, risulti
@@ -236,8 +238,8 @@ contrattuale, la data iniziale, il canone mensile e il giorno di pagamento. La t
 contrattuale deve definire la durata del periodo iniziale, la durata del rinnovo e gli articoli
 predefiniti applicabili. Il sistema deve calcolare automaticamente la data finale del periodo
 iniziale utilizzando la durata della tipologia selezionata e rendere disponibili gli articoli
-predefiniti della tipologia. Le copie valorizzate degli articoli devono essere prodotte soltanto
-alla conferma definitiva, utilizzando i dati finali validati della registrazione. \\
+predefiniti della tipologia. Il documento completo del contratto deve essere generato soltanto
+alla conferma definitiva, componendo gli articoli template con i dati finali validati della registrazione. \\
 
 \req{RF-05} &
 La presenza di uno o più contratti già registrati per l'immobile non deve impedire l'avvio o
@@ -254,11 +256,11 @@ Per registrazione si intende il salvataggio permanente dei dati e non la registr
 ufficiale presso l'Agenzia delle Entrate. Alla registrazione definitiva il sistema deve salvare permanentemente anche gli eventuali nuovi
 immobili, le nuove persone e le modifiche validate apportate a persone già registrate, comprese
 residenza e dati del documento di riconoscimento quando pertinenti, insieme agli altri dati
-necessari alla registrazione del contratto. Nello stesso momento il sistema deve creare copie
-valorizzate degli articoli predefiniti usando i dati finali validati e associarle al contratto.
-Il sistema deve inoltre conservare una copia storica completa del contratto generato, comprensiva
-dei dati acquisiti nella registrazione e degli articoli valorizzati, in modo che non venga alterata
-da successive modifiche ai modelli predefiniti o ai dati sorgente. Il sistema deve inoltre creare e memorizzare il pagamento
+necessari alla registrazione del contratto. Nello stesso momento il sistema deve generare il
+contenuto completo del documento contrattuale usando gli articoli template e i dati finali validati,
+memorizzarlo nel contratto come copia storica e registrare la data della registrazione applicativa.
+Il contenuto storico non deve essere alterato da successive modifiche ai modelli predefiniti o ai
+dati sorgente. Il sistema deve inoltre creare e memorizzare il pagamento
 della prima mensilità con anno e mese di competenza corrispondenti alla decorrenza e data di
 pagamento coincidente con la data di decorrenza. L'importo deve essere determinato automaticamente
 applicando, quando la decorrenza non coincide con il primo giorno del mese, il pro-rata sui giorni
@@ -426,8 +428,8 @@ successivo finché non vengono corretti.
 \textbf{allora} il sistema deve calcolare automaticamente la data \texttt{al} usando
 la durata del periodo iniziale della tipologia, mantenere disponibile il valore di rinnovo
 senza applicarlo al periodo gestito nella versione 1.0, rendere disponibili gli articoli
-predefiniti della tipologia e accettare un giorno di pagamento compreso tra 1 e 28; la
-valorizzazione delle copie registrate deve avvenire soltanto alla conferma definitiva usando
+predefiniti della tipologia e accettare un giorno di pagamento compreso tra 1 e 28; il
+documento completo del contratto deve essere generato soltanto alla conferma definitiva usando
 i dati finali validati.
 
 \paragraph{AC-06 -- Coerenza del contratto}
@@ -446,14 +448,14 @@ immobile,
 \textbf{allora} il contratto deve essere registrato e devono essere salvati permanentemente
 gli eventuali nuovi immobili, le nuove persone e le modifiche validate apportate a persone già
 registrate, comprese residenza e dati del documento di riconoscimento quando pertinenti; il sistema
-deve inoltre creare e associare al contratto le copie valorizzate degli articoli predefiniti usando
-i dati finali validati e memorizzare una copia storica completa del contratto generato,
-comprensiva dei dati acquisiti nella registrazione e degli articoli valorizzati, e deve
-creare e memorizzare il pagamento della prima mensilità con anno e mese di competenza
+deve inoltre generare il documento completo usando gli articoli template e i dati finali validati,
+memorizzarne il contenuto nel contratto come copia storica completa e memorizzare la data della
+registrazione applicativa; il sistema deve inoltre creare e memorizzare il pagamento della prima
+mensilità con anno e mese di competenza
 corrispondenti alla decorrenza e data di pagamento coincidente con la data di decorrenza. Se la
 decorrenza non coincide con il primo giorno del mese, l'importo deve essere calcolato in pro-rata
 sui giorni coperti fino alla fine del mese, estremi inclusi, senza arrotondamenti intermedi e con
-arrotondamento del solo risultato finale a due cifre decimali. La copia storica completa non deve essere modificata da
+arrotondamento del solo risultato finale a due cifre decimali. Il contenuto storico del contratto non deve essere modificato da
 successive variazioni degli articoli predefiniti o dei dati sorgente.
 
 \paragraph{AC-08 -- Annullamento}

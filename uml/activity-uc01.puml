@@ -240,8 +240,8 @@ repeat
     note right
       Il valore di rinnovo descrive la tipologia,
       ma non viene applicato al periodo gestito
-      nella versione 1.0. Le copie valorizzate
-      degli articoli saranno create alla conferma
+      nella versione 1.0. Gli articoli sono template;
+      eventuali parti vengono composte alla conferma
       usando i dati finali validati.
     end note
   else (no)
@@ -326,10 +326,10 @@ repeat while (Periodo sovrapposto?) is (sì) not (no)
 ' REGISTRAZIONE DEFINITIVA
 ' =========================================================
 
+:Acquisisce la data corrente autorevole;
 :Crea il Contratto dai dati finali validati;
-:Valorizza copie degli articoli predefiniti;
-:Associa gli articoli valorizzati al Contratto;
-:Crea il ContrattoRegistrato\ncome copia storica completa;
+:Genera il documento HTML completo\ncomponendo template e dati finali;
+:Assegna al Contratto la data di registrazione\ne il contenuto storico generato;
 :Crea il Pagamento della prima mensilità\n(competenza da dal, dataPagamento = dal,\nimporto calcolato per la competenza iniziale);
 
 :Salva in modo coerente la registrazione definitiva,\ncompresi eventuali nuovi oggetti e modifiche validate\na Persone, residenze e DocumentiRiconoscimento;

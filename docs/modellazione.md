@@ -2,17 +2,19 @@
 Questo documento raccoglie le decisioni di modellazione assunte e serve a mantenere coerenti requisiti, diagrammi UML e successive decisioni di design.
 
 ## Stato della fase
-La **Fase 02 — Modellazione UML** è completata.
+La **Fase 02 — Modellazione UML** è completata e la baseline è stata successivamente raffinata durante la Fase 03 mantenendo gli stessi artefatti versionati.
 
 Artefatti approvati:
 - `uml/use-case.puml`
 - `uml/domain-model.puml`
-- `uml/class-diagram-initial.puml`
+- `uml/class-diagram.puml`
 - `uml/sequence-uc01.puml`
 - `uml/activity-uc01.puml`
 - `uml/sequence-uc02.puml`
 
 Non viene prodotto un Activity Diagram per UC-02: il relativo Sequence Diagram descrive già in modo sufficiente il flusso, le alternative e gli errori significativi; un ulteriore diagramma aggiungerebbe soprattutto duplicazione senza chiarire nuove decisioni di processo.
+
+Il Class Diagram viene mantenuto come unico artefatto versionato in `uml/class-diagram.puml`: la sua evoluzione dalla prima baseline concettuale al design software è ricostruibile tramite la storia Git.
 
 ## Use Case Diagram
 La versione 1.0 ha un solo attore diretto:
@@ -150,7 +152,7 @@ La cardinalità generale è:
 
 Vincolo aggiuntivo: quando una `Persona` assume il ruolo di `inquilino` in un `Contratto`, il `DocumentoRiconoscimento` deve essere presente. La versione 1.0 non gestisce storico o pluralità di documenti per la stessa Persona.
 
-### Tipologia contrattuale, Articolo e copia storica del contratto
+### Tipologia contrattuale, Articolo e contenuto storico del Contratto
 **Decisione:** la `TipologiaContrattuale` descrive sia il periodo iniziale sia il rinnovo previsto dalla tipologia, ma la versione 1.0 gestisce operativamente soltanto il periodo iniziale.
 
 Attributi concettuali scelti per `TipologiaContrattuale`:
@@ -164,31 +166,28 @@ Per le tipologie supportate:
 
 La data finale derivata `/al` del `Contratto` è calcolata usando esclusivamente `durata`. Il valore `rinnovo` descrive la tipologia ma non estende il periodo gestito dalla versione 1.0 e non introduce operazioni di rinnovo.
 
-**Decisione:** utilizzare un unico concetto `Articolo`. La differenza tra articolo predefinito e articolo registrato è espressa dal ruolo dell'associazione e dall'istanza concreta, non da classi distinte.
+**Decisione:** `Articolo` rappresenta esclusivamente il template contrattuale associato alla `TipologiaContrattuale`; non vengono create o persistite copie di `Articolo` associate al `Contratto`.
 
 Attributi concettuali scelti per `Articolo`:
 - `numArticolo`;
+- `numParte`;
 - `titolo`;
-- `sottotitolo`;
-- `testo`.
+- `sottotitolo`, opzionale;
+- `descrizione`.
 
-Le istanze di `Articolo` associate alla `TipologiaContrattuale` rappresentano i modelli predefiniti e possono contenere dati da valorizzare durante UC-01. Alla registrazione definitiva, dopo la costruzione del `Contratto` con i dati finali validati, il sistema ne crea copie distinte, le valorizza e le associa al `Contratto`. Le copie valorizzate non vengono conservate nella bozza, così eventuali modifiche effettuate dal riepilogo non possono renderle obsolete.
+Uno stesso articolo logico può essere suddiviso in più parti ordinate. `numArticolo` identifica l'articolo, mentre `numParte` stabilisce l'ordine dei frammenti. Questa struttura permette di comporre il testo finale inserendo tra due parti i valori dinamici acquisiti durante UC-01, senza codificare il numero della parte in una cifra decimale. La coppia `numArticolo + numParte` è univoca all'interno della tipologia contrattuale.
 
-**Cardinalità e vincolo di appartenenza:**
-- ogni `TipologiaContrattuale` possiede `1..*` `Articolo` nel ruolo di articoli predefiniti;
-- ogni `Contratto` registrato possiede `1..*` `Articolo` nel ruolo di articoli registrati;
-- ogni singola istanza di `Articolo` appartiene esattamente a uno tra `TipologiaContrattuale` e `Contratto`;
-- gli articoli registrati sono copie valorizzate distinte dagli articoli predefiniti e non vengono modificati se cambiano successivamente i modelli o i dati sorgente.
+Ogni `TipologiaContrattuale` possiede `1..*` `Articolo` predefiniti. Le parti vengono lette come template e utilizzate soltanto per generare il documento finale; non diventano elementi della storia persistente del `Contratto`.
 
-**Decisione:** modellare `ContrattoRegistrato` come copia storica completa e immutabile del contratto al momento della registrazione definitiva.
+**Decisione:** la copia storica completa viene conservata direttamente nel `Contratto` tramite l'attributo `contenuto`. Alla conferma definitiva il sistema genera il documento completo usando i dati finali validati e gli articoli template e assegna tale contenuto al `Contratto` prima della persistenza.
 
-`ContrattoRegistrato` contiene il contenuto completo del documento contrattuale generato, comprensivo dei dati inseriti durante UC-01 e degli articoli valorizzati. Ogni `Contratto` registrato possiede esattamente un `ContrattoRegistrato`, che deve rimanere indipendente da successive modifiche dei dati sorgente o degli articoli predefiniti.
+Il `Contratto` conserva anche `registratoIl`, data della registrazione applicativa. Poiché un `Contratto` viene creato e persistito soltanto alla conferma finale, `registratoIl` è valorizzato per ogni Contratto registrato e non viene usato come flag bozza/registrato.
 
-Il formato concreto del contenuto (`string`, Markdown, PDF, JSON/JSONB o altra rappresentazione) non viene deciso nel Domain Model. Nel Class Diagram iniziale viene usato il tipo astratto `string` per rappresentare il contenuto testuale; la scelta di persistenza e del formato definitivo è rinviata alla fase di design/infrastruttura.
+Lo stato del Contratto rispetto al tempo non viene memorizzato con flag `inEssere` o `scaduto`: è un valore derivato dal periodo e dalla data corrente, con i possibili significati futuro, in essere e scaduto.
 
-Non viene introdotto uno `storicoContratti` con più versioni dello stesso `Contratto`: la versione 1.0 non prevede modifiche successive alla registrazione definitiva. Lo storico dei diversi contratti relativi a un immobile è già rappresentato dall'associazione `Immobile`--`Contratto`.
+Nel Domain Model il formato concreto di `contenuto` resta astratto. La Fase 03 concretizza la versione 1.0 come HTML persistito in una colonna testuale. Una futura rappresentazione PDF potrà essere aggiunta come artefatto separato senza cambiare il significato di `contenuto`.
 
-La creazione delle copie degli articoli e del `ContrattoRegistrato` verrà rappresentata nel Sequence Diagram di UC-01.
+La copia memorizzata nel `Contratto` deve rimanere indipendente da successive modifiche dei template o dei dati sorgente utilizzati per generarla.
 
 ### Pagamento e storia dei pagamenti del Contratto
 **Decisione:** `Pagamento` resta un concetto separato dal `Contratto`, ma ne rappresenta un elemento della storia ed esiste sempre in relazione a un solo Contratto.
@@ -224,7 +223,6 @@ I concetti del Domain Model sono:
 - `Contratto`;
 - `TipologiaContrattuale`;
 - `Articolo`;
-- `ContrattoRegistrato`;
 - `Pagamento`;
 - `DocumentoRiconoscimento`.
 
@@ -233,11 +231,14 @@ Per `Contratto` gli attributi essenziali sono:
 - data iniziale `dal`;
 - data finale derivata `/al`;
 - canone mensile;
-- giorno di pagamento.
+- giorno di pagamento;
+- data di registrazione `registratoIl`;
+- `contenuto`, copia completa del documento generato;
+- stato temporale derivato `/stato`.
 
 La data finale `/al` resta visibile perché è semanticamente rilevante per il periodo contrattuale e per il vincolo di non sovrapposizione, ma è marcata come derivata poiché viene determinata da `dal` e da `TipologiaContrattuale.durata`.
 
-Il contenuto storico strutturato del contratto è rappresentato dale istanze di `Articolo` associate al `Contratto`, mentre `ContrattoRegistrato` conserva la copia completa del documento generato al momento della registrazione. Non vengono creati snapshot separati di `Persona`, `Immobile` o altri concetti: i valori rilevanti sono incorporati nella copia completa e negli articoli valorizzati.
+Gli `Articolo` rappresentano esclusivamente i template della tipologia contrattuale. La storia del contratto non viene ricostruita dai template: il documento completo generato alla conferma viene conservato direttamente in `Contratto.contenuto` e non deve essere rigenerato in seguito.
 
 ## Vincoli di dominio
 - il codice fiscale identifica una Persona registrata;
@@ -247,12 +248,13 @@ Il contenuto storico strutturato del contratto è rappresentato dale istanze di 
 - il giorno di pagamento è compreso tra 1 e 28;
 - `TipologiaContrattuale.durata` e `TipologiaContrattuale.rinnovo` sono espressi in anni;
 - la data finale del periodo iniziale è determinata dalla data iniziale e da `TipologiaContrattuale.durata`; il rinnovo non viene applicato al periodo gestito nella versione 1.0;
-- ogni TipologiaContrattuale possiede almeno un Articolo nel ruolo di articolo predefinito;
-- ogni Contratto registrato possiede almeno un Articolo nel ruolo di articolo registrato;
-- ogni istanza di Articolo appartiene esattamente a uno tra TipologiaContrattuale e Contratto;
-- le istanze di Articolo associate al Contratto sono copie valorizzate distinte dagli articoli predefiniti e non devono dipendere da successive modifiche dei modelli o dei dati sorgente;
-- ogni Contratto possiede esattamente un ContrattoRegistrato come copia storica completa;
-- il ContrattoRegistrato non deve dipendere da successive modifiche dei dati sorgente o degli articoli predefiniti;
+- ogni TipologiaContrattuale possiede almeno un Articolo template;
+- `numArticolo + numParte` identifica univocamente una parte di articolo all'interno della stessa TipologiaContrattuale;
+- più parti con lo stesso `numArticolo` sono ordinate tramite `numParte` e compongono lo stesso articolo logico;
+- gli Articolo template non vengono copiati o associati al Contratto registrato;
+- ogni Contratto registrato conserva la data `registratoIl` e una copia completa del documento generato in `contenuto`;
+- il contenuto storico del Contratto non deve dipendere da successive modifiche dei template o dei dati sorgente;
+- lo stato futuro / in essere / scaduto del Contratto è derivato dal periodo rispetto alla data corrente e non è memorizzato come flag persistente;
 - i periodi di due contratti relativi allo stesso Immobile non possono sovrapporsi;
 - alla registrazione definitiva del Contratto viene registrato il pagamento della prima mensilità con anno e mese di competenza ricavati da `dal`, `dataPagamento = dal` e importo calcolato secondo la regola della competenza iniziale;
 - ogni Contratto registrato possiede almeno un Pagamento;
@@ -267,22 +269,25 @@ Il contenuto storico strutturato del contratto è rappresentato dale istanze di 
 - le mensilità appartenenti a mesi successivi a quello corrente non possono essere proposte per la registrazione del pagamento.
 
 ## Esito della review del Domain Model
-La review iniziale del Domain Model aveva consolidato la baseline concettuale. Durante la costruzione del Class Diagram iniziale sono emerse ulteriori informazioni di dominio, che hanno richiesto un aggiornamento controllato della baseline:
-- `TipologiaContrattuale.durataPeriodoIniziale` è stata sostituita da `durata` e `rinnovo`, entrambi espressi in anni;
-- `Clausola` è stata sostituita da un unico concetto `Articolo`; il ruolo di articolo predefinito o registrato è espresso dalle associazioni e da istanze distinte;
-- è stato introdotto `ContrattoRegistrato` per conservare una copia storica completa del documento contrattuale generato;
+La review iniziale del Domain Model aveva consolidato la baseline concettuale. Le successive attività di design hanno prodotto raffinamenti controllati, propagati ai requisiti e agli UML:
+- `TipologiaContrattuale` usa `durata` e `rinnovo`, entrambi espressi in anni;
+- `Clausola` è stata sostituita da `Articolo`;
+- `Articolo` è stato successivamente semplificato a solo template della tipologia contrattuale, eliminando le copie valorizzate associate al Contratto;
+- uno stesso articolo logico può essere suddiviso in parti ordinate tramite `numArticolo` e `numParte`;
+- la precedente classe `ContrattoRegistrato` è stata eliminata perché il suo unico contenuto storico è ora responsabilità del `Contratto` stesso;
+- `Contratto` conserva `registratoIl` e `contenuto`, mentre lo stato temporale è derivato e non persistito;
 - `Pagamento` è stato raffinato con `annoCompetenza`, `meseCompetenza`, `dataPagamento` e `importo`;
 - l'unicità di un pagamento è riferita alla coppia anno--mese di competenza all'interno dello stesso Contratto;
 - `Contratto.al` resta rappresentato come attributo derivato `/al` e dipende dalla sola `durata` iniziale;
 - `DocumentoRiconoscimento` mantiene il vincolo della versione 1.0 sui tipi ammessi: carta d'identità o passaporto.
 
-Le modifiche sono state propagate a requisiti, Domain Model e Class Diagram iniziale. Il Domain Model aggiornato è assunto come nuova baseline concettuale.
-
 ### Aggiornamento controllato emerso nella fase di design
-Durante la progettazione architetturale è stata precisata la regola economica delle mensilità di confine. Le date `dal` e `al` sono inclusive; la prima e l'ultima mensilità possono quindi coprire soltanto una parte del relativo mese di calendario. In tali casi l'importo è calcolato in pro-rata sui giorni effettivamente compresi nel contratto, senza arrotondamenti intermedi e con arrotondamento del risultato finale a due cifre decimali. Questa precisazione non introduce una nuova entità di dominio e non modifica la struttura del Domain Model: aggiorna le regole associate a `Contratto` e `Pagamento` e i diagrammi dinamici dei due casi d'uso.
+Durante la progettazione architetturale è stata precisata la regola economica delle mensilità di confine. Le date `dal` e `al` sono inclusive; la prima e l'ultima mensilità possono quindi coprire soltanto una parte del relativo mese di calendario. In tali casi l'importo è calcolato in pro-rata sui giorni effettivamente compresi nel contratto, senza arrotondamenti intermedi e con arrotondamento del risultato finale a due cifre decimali.
+
+La progettazione della persistenza ha inoltre chiarito che `Articolo` è un template e non un elemento storico del Contratto. Il documento finale viene generato soltanto alla conferma definitiva e conservato direttamente in `Contratto.contenuto`; questa scelta elimina la duplicazione costituita da copie valorizzate degli articoli e dalla precedente classe contenitore `ContrattoRegistrato`.
 
 ## Stato del Domain Model
-Il Domain Model aggiornato è approvato come baseline della fase 02.
+Il Domain Model aggiornato è approvato come baseline concettuale.
 
 Sono consolidate le seguenti decisioni:
 - `Persona` con i ruoli associativi `proprietario` e `inquilino`;
@@ -290,47 +295,53 @@ Sono consolidate le seguenti decisioni:
 - `DocumentoRiconoscimento` come concetto autonomo, opzionale in generale ma obbligatorio per il ruolo di inquilino;
 - `DatiCatastali` come concetto autonomo e identificazione catastale basata su codice comunale, foglio, particella e subalterno;
 - `Mensilità` come concetto derivato, non come entità autonoma;
-- `BozzaContratto` esclusa dal Domain Model e rinviata ai diagrammi dinamici;
+- `BozzaContratto` esclusa dal Domain Model e mantenuta come application model;
 - `TipologiaContrattuale` con `durata` e `rinnovo`;
-- un unico `Articolo`, associato alla TipologiaContrattuale come modello predefinito oppure al Contratto come copia valorizzata;
-- `ContrattoRegistrato` associato 1:1 al Contratto come copia storica completa del documento generato;
-- `Contratto` ↔ `Pagamento` con cardinalità `1` ↔ `1..*`;
+- `Articolo` usato esclusivamente come template, eventualmente suddiviso in parti ordinate;
+- `Contratto` con data di registrazione e contenuto storico completo;
+- stato del Contratto derivato dal periodo, senza flag persistenti;
+- `Contratto` ↔ `Pagamento` con cardinalità `1` ↔ `1..*` nel modello del Contratto registrato;
 - `Pagamento` con competenza anno/mese e importo memorizzato.
 
-## Decisioni di tipizzazione per il Class Diagram iniziale
-Il Class Diagram iniziale aggiunge tipi software essenziali senza introdurre architettura, persistenza o framework.
+## Decisioni di tipizzazione per il Class Diagram
+Il Class Diagram aggiunge tipi software essenziali e viene mantenuto come unico artefatto versionato.
 
 Decisioni approvate:
+- gli identificatori tecnici persistenti sono `int`, assegnati da PostgreSQL tramite colonne identity;
 - `DatiCatastali.foglio`, `particella` e `subalterno` sono `int`, perché nel dominio assunto contengono esclusivamente valori numerici;
 - `codiceComunale` resta `string`;
+- `Articolo.numArticolo` e `Articolo.numParte` sono `int`;
 - `Pagamento.annoCompetenza` e `meseCompetenza` sono `int`;
 - `Pagamento.importo`, `Contratto.canoneMensile`, `DatiCatastali.consistenza` e `rendita` sono `decimal`;
-- le date sono rappresentate con il tipo astratto `date`;
-- gli identificatori/codici testuali, il contenuto degli articoli e `ContrattoRegistrato.contenuto` sono `string`.
-
-La scelta di memorizzare gli articoli in PostgreSQL tramite JSON/JSONB, tabelle relazionali o altra rappresentazione è rinviata alla progettazione della persistenza.
+- le date sono rappresentate con il tipo astratto `date` nel design e mappate sul tipo appropriato nello stack;
+- i codici testuali e le descrizioni sono `string`;
+- `Contratto.contenuto` è `string`; nella versione 1.0 contiene HTML completo persistito come `TEXT` in PostgreSQL.
 
 ## Sequence Diagram UC-01
-Il Sequence Diagram di UC-01 usa ruoli logici e non introduce ancora l'architettura definitiva.
+Il Sequence Diagram di UC-01 usa ruoli logici e non vincola il flusso alle classi concrete dell'architettura.
 
-Partecipanti:
+Partecipanti principali:
 - `Proprietario`: attore esterno;
 - `Interfaccia UC-01`: punto di interazione con il proprietario;
 - `Gestione UC-01`: ruolo logico che orchestra il caso d'uso;
 - `Bozza UC-01`: stato temporaneo recuperabile della procedura, non entità del Domain Model;
-- `Archivio dati`: ruolo astratto per letture e scritture persistenti, senza fissare repository, database o tecnologia;
-- `Contratto`, `ContrattoRegistrato` e `Pagamento`: concetti già consolidati nella modellazione.
+- `Archivio dati`: ruolo astratto per letture e scritture persistenti;
+- `Contratto` e `Pagamento`: concetti di dominio coinvolti alla conferma.
 
 Decisioni dinamiche rappresentate:
 - all'avvio, una bozza esistente viene prima confrontata progressivamente con i contratti registrati tramite dati catastali dell'Immobile, codice fiscale dell'Inquilino e periodo `dal`--`al`;
 - una bozza che coincide su tutti e tre gli elementi con un contratto già registrato viene considerata residua, eliminata silenziosamente e non proposta per la ripresa; negli altri casi viene recuperata;
 - ogni step valido aggiorna la bozza;
 - nuovi immobili e persone, insieme alle modifiche validate a persone già registrate e ai dati di riconoscimento, restano nella bozza fino alla conferma finale;
+- la bozza contiene soltanto i dati necessari a riprendere e completare il workflow, non un Contratto già generato né il documento storico;
 - il controllo di sovrapposizione avviene prima della registrazione definitiva;
-- alla conferma valida, dopo che tutti i dati di Immobile, proprietario, inquilino, tipologia e contratto sono stati acquisiti e validati, viene costruito il `Contratto`; gli articoli predefiniti vengono quindi copiati, valorizzati usando tali dati definitivi e associati al Contratto prima che questo sia considerato completo e prima della registrazione definitiva; soltanto dopo vengono costruiti `ContrattoRegistrato` e il primo `Pagamento`;
+- alla conferma valida viene acquisita la data corrente autorevole e viene costruito il `Contratto` con i dati finali;
+- gli `Articolo` della tipologia sono template: il documento HTML completo viene generato soltanto alla conferma componendo le parti ordinate con i dati finali validati;
+- il contenuto HTML viene assegnato al `Contratto` e costituisce la copia storica completa che non verrà rigenerata da modifiche successive ai template o ai dati sorgente;
+- viene creato il primo `Pagamento` e associato al `Contratto`;
 - il salvataggio dei dati definitivi è rappresentato come un'unica operazione logica coerente e atomica;
 - dopo il completamento con successo della registrazione definitiva viene tentata l'eliminazione della bozza, ma tale cleanup non appartiene alla transazione dei dati definitivi;
-- un errore nella cancellazione della bozza non invalida il contratto già registrato; la bozza residua viene riconosciuta ed eliminata automaticamente alla successiva apertura se coincide con un contratto registrato secondo il confronto definito;
+- un errore nella cancellazione della bozza non invalida il contratto già registrato;
 - in caso di sovrapposizione o errore del salvataggio definitivo la bozza resta disponibile;
 - l'annullamento prima della conferma elimina la bozza e non persiste né i nuovi dati acquisiti né le modifiche apportate a dati esistenti.
 
@@ -347,7 +358,9 @@ Decisioni dinamiche rappresentate:
 - possibilità di annullamento prima della conferma definitiva;
 - nessuna persistenza definitiva dei nuovi dati o delle modifiche a dati esistenti in caso di annullamento;
 - ritorno alla modifica in caso di sovrapposizione del periodo contrattuale;
-- registrazione definitiva coerente e atomica di Contratto, articoli valorizzati alla conferma, ContrattoRegistrato, primo Pagamento, eventuali nuovi dati e modifiche validate a Persone già registrate;
+- generazione del Contratto e del relativo documento HTML esclusivamente dopo la conferma finale;
+- memorizzazione nel Contratto della data di registrazione e del contenuto storico generato;
+- registrazione definitiva coerente e atomica di Contratto, contenuto storico, primo Pagamento, eventuali nuovi dati e modifiche validate a Persone già registrate;
 - cleanup della bozza successivo alla registrazione definitiva: un eventuale errore di cancellazione non annulla il risultato già persistito.
 
 L'Activity Diagram non introduce componenti architetturali: usa i ruoli `Proprietario` e `Sistema` per descrivere il processo.
@@ -382,50 +395,41 @@ Decisioni dinamiche rappresentate:
 `Mensilità` non compare come partecipante autonomo perché nella baseline approvata è un concetto derivato, non un'entità del Domain Model.
 
 ## Class Diagram di design
+`uml/class-diagram.puml` rappresenta Service applicativi, application model, porte, oggetti di dominio e comportamenti pubblici essenziali. È l'unico Class Diagram mantenuto nel repository; le sue revisioni precedenti sono recuperabili tramite Git.
 
-La Fase 03 introduce `uml/class-diagram.puml`, distinto dal Class Diagram iniziale della Fase 02.
-Il diagramma rappresenta Service applicativi, application model, porte, oggetti di dominio e comportamenti
-pubblici essenziali. Le classi di dominio persistibili ricevono nel design un `id : identifier` tecnico,
-opzionale prima della prima persistenza; ciò non modifica il Domain Model concettuale né le chiavi naturali.
-`BozzaContratto` non riceve un identificatore dedicato.
+Le classi di dominio persistibili usano `id : int`, coerente con la scelta PostgreSQL `INTEGER ... AS IDENTITY`. `BozzaContratto` non riceve un identificatore di dominio dedicato.
 
-Gli application model introdotti sono `BozzaContratto` e `PagamentoDaRegistrare`. `PagamentoDaRegistrare` contiene, oltre a identificatore del Contratto, competenza, scadenza e importo, anche `canoneMensile`, denominazione della tipologia, `dal`, `al` e gli stati derivati `dovuta` e `tardivo`, così l'interfaccia può mostrare la preview senza interrogare direttamente i repository.
-Non viene mantenuto un application model `RegistrazioneContratto`: nel design rivisto la porta di registrazione
-definitiva riceve direttamente il `Contratto` completo, che costituisce la rappresentazione autorevole dello
-stato definitivo di UC-01.
+Gli application model sono `BozzaContratto` e `PagamentoDaRegistrare`. `BozzaContratto` conserva esclusivamente i dati necessari alla ripresa di UC-01: non contiene un Contratto già generato, documento HTML, copie di Articolo o Pagamenti definitivi. `PagamentoDaRegistrare` contiene i dati necessari alla preview di UC-02 senza costringere l'interfaccia a interrogare direttamente i repository.
 
-Il Class Diagram di design rappresenta anche il lifecycle di costruzione del `Contratto`: prima della registrazione
-può essere temporaneamente privo di `ContrattoRegistrato` e di `Pagamento`, quindi le molteplicità software sono
-`0..1` e `0..*`. La registrazione definitiva richiede però esattamente un `ContrattoRegistrato` e almeno un
-`Pagamento`. Il Domain Model mantiene le cardinalità `1` e `1..*`, riferite al Contratto registrato.
+`Articolo` è presente soltanto come template della `TipologiaContrattuale`, con `numArticolo` e `numParte` per rappresentare parti ordinate dello stesso articolo logico. Non esiste più un'associazione `Contratto`--`Articolo`.
 
-Per gli `Articolo` il Class Diagram mantiene invece la cardinalità `1..*`: gli articoli valorizzati sono considerati
-parte costitutiva del Contratto valido. Il Service può usare internamente un oggetto durante l'assemblaggio, ma non
-lo considera risultato completo né lo espone alla registrazione definitiva prima di aver associato almeno un
-Articolo valorizzato.
+La precedente classe `ContrattoRegistrato` è eliminata. `Contratto` conserva direttamente `registratoIl` e `contenuto`; nel lifecycle software `contenuto` può essere temporaneamente assente durante l'assemblaggio, ma deve essere presente prima della registrazione definitiva. Il contenuto concreto della v1.0 è HTML.
 
-Per UC-02, `PagamentoRepository` espone `salva(contrattoId : identifier, pagamento : Pagamento)`: la relazione persistente con il Contratto viene resa esplicita nella porta senza aggiungere `contrattoId` all'oggetto `Pagamento` né una back-reference verso `Contratto`. Il caso d'uso invoca prima `Contratto.aggiungiPagamento` per applicare le invarianti di dominio.
+`GeneratoreDocumentoContratto` è una porta applicativa: produce il documento completo a partire dal `Contratto` e dai template raggiungibili tramite la relativa tipologia. `RegistraContrattoService` assegna il contenuto generato al Contratto prima di invocare `RegistrazioneContrattoPort`.
 
-Le implementazioni concrete delle porte non sono ancora rappresentate perché persistenza e stack restano aperti.
+`DataCorrenteProvider` è condiviso dai due casi d'uso: UC-01 lo usa per valorizzare `registratoIl`, UC-02 per determinare competenze disponibili, scadenza e tardività.
+
+Per UC-02, `PagamentoRepository` espone `salva(contrattoId : int, pagamento : Pagamento)`: la relazione persistente con il Contratto viene resa esplicita nella porta senza aggiungere `contrattoId` all'oggetto `Pagamento` né una back-reference verso `Contratto`. Il caso d'uso invoca prima `Contratto.aggiungiPagamento` per applicare le invarianti di dominio.
+
+Lo stato temporale del Contratto è ottenuto tramite `statoAlla(data)` e non viene memorizzato con flag `inEssere` o `scaduto`.
 
 ## Tracciabilità UML corrente
 | User Story | Requisiti | Acceptance Criteria | Caso d'uso | Artefatti UML correnti |
 |---|---|---|---|---|
-| US-01 | RF-01–RF-06 | AC-01–AC-09 | UC-01 | `uml/use-case.puml`, `uml/domain-model.puml`, `uml/class-diagram-initial.puml`, `uml/sequence-uc01.puml`, `uml/activity-uc01.puml`, `uml/class-diagram.puml` |
-| US-02 | RF-07–RF-10 | AC-10–AC-15 | UC-02 | `uml/use-case.puml`, `uml/domain-model.puml`, `uml/class-diagram-initial.puml`, `uml/sequence-uc02.puml`, `uml/class-diagram.puml` |
-
+| US-01 | RF-01–RF-06 | AC-01–AC-09 | UC-01 | `uml/use-case.puml`, `uml/domain-model.puml`, `uml/class-diagram.puml`, `uml/sequence-uc01.puml`, `uml/activity-uc01.puml` |
+| US-02 | RF-07–RF-10 | AC-10–AC-15 | UC-02 | `uml/use-case.puml`, `uml/domain-model.puml`, `uml/class-diagram.puml`, `uml/sequence-uc02.puml` |
 
 ## Esito finale della fase 02
-La modellazione UML della versione 1.0 è approvata come baseline per la fase successiva.
+La modellazione UML della versione 1.0 è approvata come baseline e le modifiche emerse durante la progettazione sono state propagate agli stessi artefatti versionati.
 
-La catena attualmente coperta è:
+La catena coperta è:
 - requisiti e acceptance criteria;
 - casi d'uso;
 - modello concettuale del dominio;
-- Class Diagram iniziale;
+- Class Diagram di design mantenuto come unico artefatto versionato;
 - comportamento dinamico di UC-01;
 - comportamento dinamico di UC-02.
 
-La **Fase 03 — Architettura, class design e SOLID** è in corso. Le decisioni architetturali, il confine transazionale di UC-01, la baseline del Class Diagram di design e la review consolidata di SOLID/qualità sono documentati in `docs/architettura.md` e `uml/class-diagram.puml`. Restano ancora da definire la decisione motivata sui pattern, la persistenza concreta e lo stack tecnologico. Ulteriori review strutturali verranno effettuate durante l'implementazione solo se codice e test faranno emergere problemi concreti.
+La **Fase 03 — Architettura, class design e SOLID** è completata nella baseline corrente. Le decisioni architetturali, lo stack, la persistenza, il confine transazionale di UC-01 e la review consolidata di SOLID/qualità sono documentati in `docs/architettura.md` e `uml/class-diagram.puml`. Eventuali incoerenze che emergeranno durante implementazione e test verranno trattate con review e refactoring mirati, aggiornando insieme gli artefatti coinvolti.
 
 Le sorgenti PlantUML approvate dovranno essere esportate in PDF e inserite nella relazione LaTeX quando verrà predisposta la documentazione finale.

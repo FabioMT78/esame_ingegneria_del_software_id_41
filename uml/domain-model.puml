@@ -54,6 +54,9 @@ class Contratto {
   /al
   canoneMensile
   giornoPagamento
+  registratoIl
+  contenuto
+  /stato
 }
 
 class TipologiaContrattuale {
@@ -64,13 +67,10 @@ class TipologiaContrattuale {
 
 class Articolo {
   numArticolo
+  numParte
   titolo
   sottotitolo
-  testo
-}
-
-class ContrattoRegistrato {
-  contenuto
+  descrizione
 }
 
 class Pagamento {
@@ -91,10 +91,8 @@ Persona "1" -- "0..*" Contratto : proprietario
 Persona "1" -- "0..*" Contratto : inquilino
 
 TipologiaContrattuale "1" -- "0..*" Contratto : tipologia
-TipologiaContrattuale "0..1" -- "1..*" Articolo : articoli predefiniti
-Contratto "0..1" -- "1..*" Articolo : articoli registrati
+TipologiaContrattuale "1" -- "1..*" Articolo : articoli predefiniti
 
-Contratto "1" -- "1" ContrattoRegistrato : copia registrata
 Contratto "1" -- "1..*" Pagamento : pagamenti
 
 note right of Persona
@@ -121,8 +119,11 @@ end note
 note right of Contratto
   { giornoPagamento in 1..28 }
   { /al determinato da dal e TipologiaContrattuale.durata }
-  { periodi relativi allo stesso Immobile
-    non sovrapposti }
+  { periodi relativi allo stesso Immobile non sovrapposti }
+  { registratoIl valorizzato alla registrazione definitiva }
+  { contenuto = copia completa del contratto generato }
+  { /stato derivato dal periodo e dalla data corrente:
+    futuro, in essere oppure scaduto }
 end note
 
 note bottom of TipologiaContrattuale
@@ -133,23 +134,17 @@ note bottom of TipologiaContrattuale
 end note
 
 note bottom of Articolo
-  { ogni Articolo appartiene esattamente a uno tra
-    TipologiaContrattuale e Contratto }
-  { gli articoli registrati sono copie valorizzate
-    distinte dagli articoli predefiniti }
-end note
-
-note bottom of ContrattoRegistrato
-  { copia storica completa del contratto generato }
-  { invariata rispetto a successive modifiche
-    dei dati sorgente o degli articoli predefiniti }
+  { Articolo rappresenta esclusivamente un template }
+  { gli elementi con lo stesso numArticolo e numParte
+    differenti sono parti ordinate dello stesso articolo }
+  { numArticolo + numParte univoci nella TipologiaContrattuale }
 end note
 
 note bottom of Pagamento
   { meseCompetenza in 1..12 }
   { al massimo un Pagamento per annoCompetenza +
     meseCompetenza dello stesso Contratto }
-  { importo = canoneMensile al momento della registrazione }
+  { importo determinato dal Contratto e memorizzato come storico }
   { prima mensilità: anno/mese da Contratto.dal,
     dataPagamento = Contratto.dal }
 end note

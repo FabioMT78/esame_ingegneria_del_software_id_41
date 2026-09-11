@@ -7,7 +7,6 @@ control "Gestione UC-01" as UC
 participant "Bozza UC-01" as Draft
 database "Archivio dati" as Store
 participant "Contratto" as Contract
-participant "ContrattoRegistrato" as Registered
 participant "Pagamento" as Payment
 
 note over UI,UC
@@ -21,8 +20,10 @@ UC -> Draft : recupera()
 
 alt bozza esistente
     Draft --> UC : dati della bozza
-    UC -> Store : confronta progressivamente con contratti registrati\n(dati catastali, CF inquilino, dal/al disponibili)
-    alt tutti i dati presenti e coincidenti\n con un contratto già registrato
+    UC -> Store : confronta progressivamente con contratti registrati
+(dati catastali, CF inquilino, dal/al disponibili)
+    alt tutti i dati presenti e coincidenti
+con un contratto già registrato
         Store --> UC : corrispondenza completa
         UC -> Draft : elimina()
         note right of Draft
@@ -149,9 +150,9 @@ group Step 4 — Dati contrattuali
     Store --> UC : TipologiaContrattuale + Articoli predefiniti
     UC -> UC : calcola /al usando durata
     note right of UC
-    Gli articoli predefiniti sono resi disponibili,
-    ma le copie valorizzate vengono create soltanto
-    alla conferma usando i dati finali validati.
+    Gli articoli predefiniti sono template.
+    Eventuali parti con lo stesso numero di articolo
+    vengono ordinate e composte soltanto alla conferma.
     end note
     UC -> Draft : aggiorna(dati contrattuali e tipologia)
     UC --> UI : mostra riepilogo
@@ -190,20 +191,19 @@ else proprietario conferma
     else periodo disponibile
         Store --> UC : nessuna sovrapposizione
 
-        UC -> Contract : costruisci(dati finali validati:\nImmobile, proprietario, inquilino,\ntipologia e dati contrattuali)
+        UC -> UC : acquisisce data corrente autorevole
+        UC -> Contract : costruisci(dati finali validati:\nImmobile, proprietario, inquilino,\ntipologia, dati contrattuali, registratoIl)
         Contract --> UC : Contratto in assemblaggio
-        UC -> UC : valorizza copie degli Articoli predefiniti\nusando i dati definitivi del Contratto
-        UC -> Contract : associa articoli valorizzati
-        Contract --> UC : Contratto completo nei dati contrattuali
-        note over UC,Contract
-        Gli Articoli valorizzati sono parte del Contratto valido.
-        Il Contratto non viene considerato risultato definitivo
-        né registrato prima che tali Articoli siano associati.
-        end note
 
-        UC -> Registered : genera copia storica completa(Contratto)
-        Registered --> UC : ContrattoRegistrato
-        UC -> Contract : associa copia registrata
+        UC -> UC : genera documento HTML completo\ncomponendo articoli template e dati finali
+        UC -> Contract : impostaContenuto(documento HTML)
+        Contract --> UC : Contratto con copia storica completa
+        note over UC,Contract
+        Il documento viene generato esclusivamente alla conferma
+        usando i dati finali validati. Il contenuto salvato nel
+        Contratto non viene rigenerato da successive modifiche
+        dei template o dei dati sorgente.
+        end note
 
         UC -> Payment : crea prima mensilità(\nanno/mese da dal,\ndataPagamento = dal,\nimporto calcolato per la competenza iniziale)
         note right of Payment
