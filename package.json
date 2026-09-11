@@ -9,7 +9,8 @@
   "scripts": {
     "start": "node src/web/server.js",
     "dev": "nodemon src/web/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest",
+    "verify": "npm test"
   },
   "repository": {
     "type": "git",
