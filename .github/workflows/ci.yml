@@ -4,28 +4,28 @@ on:
   push:
     branches:
       - main
+
   pull_request:
     branches:
       - main
 
 jobs:
   verify:
-    name: Build and test
+    name: Verify project
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version: '24.21.0'
-          cache: npm
+      - name: Prepare environment
+        run: cp docker/.env.example docker/.env
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Verify project
-        run: npm run verify
-        
+      - name: Verify project in container
+        run: |
+          docker compose \
+            --env-file docker/.env \
+            -f docker/compose.yaml \
+            run --rm --no-deps app \
+            sh -c "npm ci && npm run verify"
+            
