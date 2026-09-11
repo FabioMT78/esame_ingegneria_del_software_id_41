@@ -38,8 +38,7 @@ L'unico attore che interagisce direttamente con il sistema nella versione 1.0 è
 \textbf{proprietario}. L'\textbf{inquilino} è un concetto del dominio ma non è un attore
 del sistema.
 
-La specifica dettagliata dei due casi d'uso e la relativa modellazione vengono rinviate
-alla fase UML. I due casi d'uso core individuati sono:
+I due casi d'uso core della versione 1.0 sono:
 
 \begin{itemize}
     \item \textbf{UC-01 -- Registrare un contratto di locazione};
@@ -352,9 +351,9 @@ Sicurezza \\
 Gli errori applicativi recuperabili devono essere intercettati e registrati nei log.
 Un errore relativo a una singola operazione non deve lasciare dati parziali o incoerenti,
 non deve produrre un falso esito positivo e non deve impedire le operazioni successive.
-La cancellazione della bozza successiva a una registrazione definitiva già conclusa non fa parte
-dell'atomicità dei dati definitivi: un suo eventuale fallimento non deve annullare il contratto
-registrato e deve essere recuperabile alla successiva apertura della procedura.
+Un eventuale fallimento della cancellazione della bozza successiva a una registrazione definitiva
+già conclusa non deve annullare il contratto registrato e deve consentire il recupero previsto
+alla successiva apertura della procedura.
 Il messaggio mostrato all'utente non deve esporre dettagli tecnici interni. &
 Affidabilità / resilienza \\
 
@@ -570,18 +569,18 @@ trasversali della versione 1.0.
     \item[CV-04 -- RNF-04] Un errore applicativo recuperabile deve produrre una voce di
     log, non deve lasciare dati definitivi parziali, deve restituire un messaggio utente privo di
     dettagli tecnici e non deve impedire una successiva operazione valida. In particolare, un errore
-    durante la cancellazione della bozza successiva al commit non deve annullare la registrazione
-    definitiva; alla successiva apertura la bozza residua deve essere riconosciuta tramite il confronto
+    durante la cancellazione della bozza successiva alla registrazione definitiva non deve annullare
+    il contratto registrato; alla successiva apertura la bozza residua deve essere riconosciuta tramite il confronto
     previsto da RF-01 e rimossa automaticamente.
 
     \item[CV-05 -- RNF-05] Durante un'operazione con attesa deve essere mostrato uno stato
     di elaborazione; al termine deve essere comunicato un esito positivo o negativo.
 \end{description}
 
-\section{Tracciabilità iniziale}
+\section{Tracciabilità}
 
-La tabella mantiene soltanto il collegamento necessario alla fase successiva.
-La tracciabilità verso UML, componenti, codice e test verrà estesa progressivamente.
+La tabella esplicita il collegamento tra user stories, requisiti funzionali,
+acceptance criteria e casi d'uso core.
 
 \begin{longtable}{>{\raggedright\arraybackslash}p{2cm}
                   >{\raggedright\arraybackslash}p{5cm}
@@ -607,7 +606,7 @@ US-02 & RF-07--RF-10 & AC-10--AC-15 & UC-02 \\
 
 \section{Questioni aperte}
 
-Prima di considerare definitivamente chiusa la specifica dei requisiti restano da chiarire:
+Restano da chiarire i seguenti aspetti:
 
 \begin{itemize}
     \item definire in modo riproducibile le condizioni nominali e l'ambiente di misura utilizzati

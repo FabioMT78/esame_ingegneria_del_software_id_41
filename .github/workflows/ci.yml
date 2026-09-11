@@ -9,6 +9,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   verify:
     name: Verify project
@@ -28,4 +31,3 @@ jobs:
             -f docker/compose.yaml \
             run --rm --no-deps app \
             sh -c "npm ci && npm run verify"
-            
