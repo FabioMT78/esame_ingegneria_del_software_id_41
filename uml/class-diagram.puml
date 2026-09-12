@@ -9,7 +9,7 @@ hide empty members
 
 package "application" {
   class RegistraContrattoService <<service>> {
-    + avvia() : BozzaContratto [0..1]
+    + avvia(): Promise<BozzaContratto | null>
     + elencaImmobili() : List<Immobile>
     + elencaTipologie() : List<TipologiaContrattuale>
     + selezionaImmobile(immobileId : int) : BozzaContratto
@@ -19,7 +19,7 @@ package "application" {
     + impostaInquilino(persona : Persona) : BozzaContratto
     + impostaDatiContrattuali(nomeDescrizione : string, tipologiaId : int, dal : date, canoneMensile : decimal, giornoPagamento : int) : BozzaContratto
     + conferma() : void
-    + annulla() : void
+    + annulla() : Promise<void>
   }
 
   class RegistraPagamentoService <<service>> {
@@ -55,16 +55,16 @@ package "application" {
 
   package "ports" {
     interface BozzaContrattoRepository {
-      + recupera() : BozzaContratto [0..1]
-      + salva(bozza : BozzaContratto) : void
-      + elimina() : void
+      + recupera(): Promise<BozzaContratto | null>
+      + salva(bozza: BozzaContratto): Promise<void>
+      + elimina(): Promise<void>
     }
 
     interface ImmobileRepository {
-      + trovaTutti() : List<Immobile>
-      + trovaPerId(id : int) : Immobile [0..1]
-      + trovaPerDatiCatastali(dati : DatiCatastali) : Immobile [0..1]
-      + esisteConIndirizzo(indirizzo : Indirizzo) : boolean
+      + trovaTutti() : Promise<List<Immobile>>
+      + trovaPerId(id : int) : Promise<Immobile | null>
+      + trovaPerDatiCatastali(dati : DatiCatastali) : Promise<Immobile | null>
+      + esisteConIndirizzo(indirizzo : Indirizzo) : Promise<boolean>
     }
 
     interface PersonaRepository {
@@ -178,6 +178,7 @@ package "domain" {
     + siSovrapponeA(altro : Contratto) : boolean
     + calcolaImportoCompetenza(anno : int, mese : int) : decimal
     + calcolaScadenzaCompetenza(anno : int, mese : int) : date
+    + {static} calcolaDataFine(dal : date, tipologia : TipologiaContrattuale) : date
     + statoAlla(data : date) : string
     + impostaContenuto(contenuto : string) : void
     + aggiungiPagamento(pagamento : Pagamento) : void
@@ -234,7 +235,7 @@ end note
 
 note right of RegistrazioneContrattoPort
   { pre: il Contratto da registrare possiede
-    contenuto completo e almeno 1 Pagamento }
+  contenuto completo e almeno 1 Pagamento }
 end note
 
 note bottom of BozzaContratto

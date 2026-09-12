@@ -35,7 +35,6 @@ function creaContratto(
   });
 }
 
-
 describe("Contratto.al", () => {
   test("deriva la data finale dalla durata triennale meno un giorno", () => {
     const contratto = creaContratto("2026-06-01");
@@ -57,14 +56,9 @@ describe("Contratto.calcolaDataFine", () => {
     const dal = new Date("2026-06-15T00:00:00.000Z");
     const dalOriginale = new Date(dal.getTime());
 
-    const al = Contratto.calcolaDataFine(
-      dal,
-      canoneConcordato,
-    );
+    const al = Contratto.calcolaDataFine(dal, canoneConcordato);
 
-    expect(al).toEqual(
-      new Date("2029-06-14T00:00:00.000Z"),
-    );
+    expect(al).toEqual(new Date("2029-06-14T00:00:00.000Z"));
 
     expect(dal).toEqual(dalOriginale);
   });
