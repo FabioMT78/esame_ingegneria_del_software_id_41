@@ -10,7 +10,7 @@
     "build": "tsc --project tsconfig.json",
     "start": "node dist/web/server.js",
     "dev": "tsx watch src/web/server.ts",
-    "typecheck:test": "tsc --project tsconfig.test.json",
+    "typecheck:test": "tsc --project test/tsconfig.json",
     "lint": "eslint src test public --max-warnings=0",
     "test": "jest",
     "verify": "npm run build && npm run typecheck:test && npm run lint && npm test"
