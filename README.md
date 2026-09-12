@@ -1,8 +1,6 @@
 # Gestionale Affitti
 
-L'obiettivo è realizzare un sistema piccolo ma completo per la gestione essenziale di locazioni immobiliari, mantenendo coerenza tra requisiti, modellazione, design, implementazione e test.
-
-## Overview
+Gestionale Affitti è un'applicazione web per la gestione essenziale di locazioni immobiliari ad uso abitativo.
 
 La versione `1.0` è focalizzata su due casi d'uso principali end-to-end:
 
@@ -11,32 +9,7 @@ La versione `1.0` è focalizzata su due casi d'uso principali end-to-end:
 
 Il progetto privilegia uno scope contenuto, la testabilità, la chiarezza delle responsabilità e la tracciabilità rispetto al numero di funzionalità.
 
-La specifica completa dello scope, delle user stories, dei requisiti funzionali e non funzionali e degli acceptance criteria è disponibile in [`docs/requisiti.tex`](docs/requisiti.tex).
-
-### Stato del progetto
-
-Il progetto è in corso di sviluppo.
-
-Fasi completate:
-
-- definizione del progetto e dello scope;
-- requisiti, user stories e acceptance criteria;
-- **Fase 02 — Modellazione UML**, comprendente Use Case Diagram, Domain Model, Class Diagram, Sequence Diagram di UC-01, Activity Diagram di UC-01 e Sequence Diagram di UC-02;
-- **Fase 03 — Architettura, class design e SOLID**, comprendente architettura client-server con backend monolitico layered, Dependency Rule, porte applicative, responsabilità dei Service, confine transazionale di UC-01, review SRP/DIP/OCP, scelta motivata sui design pattern, stack applicativo e strategia di persistenza.
-
-La **Fase 04 — Setup progetto, build, test e CI** è completata. La baseline dispone di:
-
-- ambiente Docker Compose riproducibile;
-- bootstrap minimo Express con endpoint tecnico `GET /health`;
-- primo comportamento reale di dominio, `Contratto.siSovrapponeA`;
-- unit test Jest deterministici e indipendenti dal database;
-- comando canonico di verifica eseguito nel container applicativo;
-- workflow GitHub Actions su push e pull request verso `main`;
-- verifica CI completata con esito verde sulla baseline.
-
-La fase successiva è **Fase 05 — UC-01: implementazione incrementale e test**.
-
-La baseline UML approvata è documentata in [`docs/modellazione.md`](docs/modellazione.md). Le decisioni architetturali e tecnologiche sono documentate in [`docs/architettura.md`](docs/architettura.md) e rappresentate in [`uml/class-diagram.puml`](uml/class-diagram.puml).
+La specifica completa dello scope, delle user stories, dei requisiti funzionali e non funzionali e degli acceptance criteria è disponibile in [`docs/requisiti.tex`](docs/requisiti.tex). Le decisioni di modellazione sono documentate in [`docs/modellazione.md`](docs/modellazione.md); architettura, responsabilità e decisioni di design sono descritte in [`docs/architettura.md`](docs/architettura.md).
 
 ## Quickstart
 
@@ -86,14 +59,14 @@ Personalizzare i valori presenti in `docker/.env` quando necessario.
 docker compose --env-file docker/.env -f docker/compose.yaml pull
 ```
 
-La baseline verificata usa:
+Le immagini di riferimento sono:
 
 ```text
 node:24.21.0-alpine3.24
 postgres:16.15-alpine3.24
 ```
 
-### Avvio dell'applicazione
+## Avvio dell'applicazione
 
 Avviare i servizi:
 
@@ -101,7 +74,7 @@ Avviare i servizi:
 docker compose --env-file docker/.env -f docker/compose.yaml up
 ```
 
-Il container applicativo esegue il bootstrap Express tramite `npm run dev`; PostgreSQL viene avviato come dipendenza e deve raggiungere lo stato `healthy`.
+Il container applicativo esegue `npm run dev`; PostgreSQL viene avviato come dipendenza e deve raggiungere lo stato `healthy`.
 
 In un secondo terminale verificare il bootstrap HTTP:
 
@@ -121,9 +94,34 @@ Per arrestare i servizi:
 docker compose --env-file docker/.env -f docker/compose.yaml down
 ```
 
-### Verifica del progetto
+## Verifica del progetto
 
-Il comando canonico da eseguire dall'host installa le dipendenze dal lockfile ed esegue la suite di test **dentro il container Node.js di riferimento**:
+Il comando applicativo canonico di verifica è:
+
+```bash
+npm run verify
+```
+
+Esegue, nell'ordine:
+
+```text
+build
+→ type-check di sorgenti e test
+→ lint
+→ test
+```
+
+Poiché l'ambiente di riferimento è Docker, dall'host il comando equivalente è:
+
+```bash
+docker compose \
+  --env-file docker/.env \
+  -f docker/compose.yaml \
+  run --rm --no-deps app \
+  npm run verify
+```
+
+Per una verifica riproducibile a partire dal `package-lock.json`, equivalente al setup usato dalla CI, eseguire:
 
 ```bash
 docker compose \
@@ -133,21 +131,13 @@ docker compose \
   sh -c "npm ci && npm run verify"
 ```
 
-`--no-deps` evita di avviare PostgreSQL perché gli unit test attualmente presenti verificano esclusivamente logica di dominio e non richiedono servizi esterni.
-
-All'interno del container il comando di verifica applicativa è:
-
-```bash
-npm run verify
-```
-
-La scelta mantiene separate le responsabilità: Docker fornisce l'ambiente riproducibile, mentre lo script npm definisce la verifica del software.
+`--no-deps` evita di avviare PostgreSQL quando la verifica coinvolge esclusivamente unit test che non richiedono servizi esterni.
 
 ## Usage
 
-La versione `1.0` sarà utilizzata dal **proprietario**, unico attore che interagisce direttamente con il sistema.
+La versione `1.0` è utilizzata dal **proprietario**, unico attore che interagisce direttamente con il sistema.
 
-I due flussi principali previsti sono:
+I due flussi principali sono:
 
 1. registrazione di un nuovo contratto di locazione relativo all'intero immobile;
 2. registrazione del pagamento mensile del canone relativo a un contratto esistente.
@@ -158,24 +148,29 @@ Per i dettagli comportamentali e i criteri di accettazione fare riferimento a [`
 
 ## Configurazione
 
-La baseline tecnologica usa:
+Lo stack applicativo usa:
 
-- Node.js 24 LTS, con immagine verificata `node:24.21.0-alpine3.24`;
+- Node.js 24 LTS;
+- TypeScript in modalità strict per backend e test;
 - Express.js per il backend;
-- CommonJS come sistema di moduli;
+- sintassi `import`/`export` nei sorgenti TypeScript e output CommonJS per il runtime Node.js;
+- `tsc` per la compilazione;
+- `tsx` per esecuzione e watch in sviluppo;
+- ESLint per l'analisi statica di backend, test e JavaScript del frontend;
+- Jest con `ts-jest` per i test;
 - npm e `package-lock.json` per la gestione riproducibile delle dipendenze;
 - HTML5, CSS e JavaScript vanilla per il frontend;
-- PostgreSQL 16, con immagine verificata `postgres:16.15-alpine3.24`;
+- PostgreSQL 16;
 - `pg` come driver SQL;
 - JSONB per la bozza di UC-01;
-- HTML persistito come `TEXT` per il contenuto storico del Contratto;
+- HTML persistito come `TEXT` per il contenuto storico del contratto;
 - Docker Compose con container separati per applicazione e database.
 
 La configurazione Docker è mantenuta nella cartella `docker/`. Il file `docker/.env.example` documenta le variabili richieste, mentre `docker/.env` contiene i valori locali e non viene versionato.
 
 ## Struttura del progetto
 
-La struttura fisica segue i boundary approvati dall'architettura e viene materializzata incrementalmente quando compaiono file con una responsabilità reale:
+La struttura fisica segue i boundary definiti dall'architettura e viene materializzata quando compaiono file con una responsabilità reale:
 
 ```text
 src/
@@ -209,47 +204,42 @@ Le directory vuote non vengono mantenute artificialmente con file placeholder: v
 
 ## Test
 
-Jest è il framework scelto per unit test, assert, spy e mock.
+Jest, con `ts-jest`, è il framework usato per gli unit test. I test del backend sono scritti in TypeScript e vengono sottoposti a type-check dedicato prima dell'esecuzione.
 
-La prima regola di dominio implementata e protetta dai test è `Contratto.siSovrapponeA`, collegata al vincolo che vieta la sovrapposizione dei periodi contrattuali dello stesso immobile. I test verificano anche la semantica degli estremi inclusivi: condividere il giorno finale costituisce sovrapposizione, mentre iniziare il giorno successivo non la costituisce.
+Gli unit test della business logic devono essere indipendenti e deterministici. PostgreSQL viene coinvolto solo nei test che richiedono realmente mapping, query o transazioni.
 
-Gli unit test di business logic restano indipendenti dal database. PostgreSQL verrà coinvolto soltanto quando saranno introdotti integration test che richiedono realmente mapping, query o transazioni.
+Il comando per eseguire esclusivamente i test è:
+
+```bash
+npm test
+```
+
+Dall'host, usando il container applicativo:
+
+```bash
+docker compose \
+  --env-file docker/.env \
+  -f docker/compose.yaml \
+  run --rm --no-deps app \
+  npm test
+```
 
 ## Continuous Integration
 
-Il repository usa GitHub Actions per la Continuous Integration.
-
-Il workflow viene eseguito su:
+Il repository usa GitHub Actions per la Continuous Integration su:
 
 - push verso `main`;
 - pull request verso `main`.
 
-La pipeline minima esegue:
+La pipeline esegue il checkout del repository, prepara la configurazione non sensibile, installa le dipendenze tramite `npm ci` ed esegue `npm run verify` nel container applicativo.
 
-```text
-checkout
-→ preparazione della configurazione non sensibile
-→ avvio del container applicativo per la verifica
-→ npm ci
-→ npm run verify
-→ esito del job
-```
-
-La CI usa la stessa immagine Node.js e lo stesso comando applicativo della verifica locale. PostgreSQL non viene avviato nella baseline degli unit test perché non è una dipendenza dei comportamenti attualmente verificati.
-
-Un fallimento di Jest produce un exit code non nullo e rende il job CI rosso; non è necessario introdurre intenzionalmente commit falliti su `main` per dimostrarlo.
+Il job fallisce se fallisce uno dei controlli inclusi nel quality gate: compilazione TypeScript, type-check dei test, ESLint o Jest.
 
 ## Workflow Git
 
 Il progetto individuale usa `main` come branch di integrazione e può utilizzare feature branch brevi quando un incremento lo rende utile.
 
-Prima di integrare un incremento:
-
-1. la modifica deve essere piccola e logicamente coerente;
-2. la verifica locale nel container deve essere verde;
-3. codice, test, UML e documentazione devono essere aggiornati insieme quando la modifica li coinvolge;
-4. dopo il push la CI deve verificare automaticamente l'incremento;
-5. un eventuale feature branch viene integrato in `main` soltanto con verifica verde.
+Prima di integrare una modifica è necessario verificare che il quality gate sia verde e aggiornare insieme codice, test, UML e documentazione quando la modifica coinvolge più artefatti.
 
 Non viene adottato Git Flow e non vengono introdotti branch `develop`, `staging` o `production` senza una necessità concreta.
 
@@ -258,7 +248,7 @@ Non viene adottato Git Flow e non vengono introdotti branch `develop`, `staging`
 La documentazione viene mantenuta nello stesso repository del codice e versionata insieme al progetto.
 
 - requisiti: [`docs/requisiti.tex`](docs/requisiti.tex);
-- decisioni e stato della modellazione: [`docs/modellazione.md`](docs/modellazione.md);
+- modellazione: [`docs/modellazione.md`](docs/modellazione.md);
 - architettura e decisioni di design: [`docs/architettura.md`](docs/architettura.md);
 - diagrammi UML PlantUML:
   - `uml/use-case.puml`;
@@ -266,13 +256,10 @@ La documentazione viene mantenuta nello stesso repository del codice e versionat
   - `uml/class-diagram.puml`;
   - `uml/sequence-uc01.puml`;
   - `uml/activity-uc01.puml`;
-  - `uml/sequence-uc02.puml`;
-- relazione: `docs/` (da aggiungere nelle fasi successive);
-- ADR separati: da aggiungere soltanto se emergeranno decisioni architetturali che richiedono una trattazione autonoma rispetto a `docs/architettura.md`;
-- changelog: da aggiungere prima della prima release.
+  - `uml/sequence-uc02.puml`.
 
-Le sorgenti PlantUML approvate verranno esportate in PDF e inserite nella relazione LaTeX nella fase di documentazione finale.
+Le sorgenti PlantUML sono la rappresentazione autorevole dei diagrammi modellati e vengono esportate in PDF per la relazione.
 
 ## Release
 
-La release finale del progetto sarà identificata tramite un tag Git, ad esempio `v1.0.0`, dopo la verifica di build/esecuzione, test, CI, documentazione e tracciabilità.
+La release finale viene identificata tramite un tag Git, ad esempio `v1.0.0`, dopo la verifica di build, test, CI, documentazione, tracciabilità e changelog.

@@ -187,7 +187,7 @@ Gli identificatori persistenti sono tecnici e separati dalle chiavi naturali del
 
 La bozza è l'unica struttura persistita come documento JSONB. Questa scelta è coerente con la sua natura di application model temporaneo, composto da dati eterogenei necessari alla ripresa del workflow e non ancora trasformati in stato definitivo del dominio.
 
-La serializzazione è responsabilità dell'infrastruttura e usa mapping esplicito tra `BozzaContratto` e plain JSON, senza serializzare automaticamente il grafo interno delle classi JavaScript.
+La serializzazione è responsabilità dell'infrastruttura e usa mapping esplicito tra `BozzaContratto` e plain JSON, senza serializzare automaticamente il grafo interno degli oggetti applicativi e di dominio.
 
 La versione 1.0 è mono-utente e ammette una sola bozza attiva; non viene quindi introdotto un identificatore di dominio dedicato alla bozza.
 
@@ -267,21 +267,26 @@ I test di integrazione vengono riservati ai comportamenti che dipendono realment
 ### Backend
 
 - **Node.js 24 LTS** come runtime;
+- **TypeScript** come linguaggio dei sorgenti backend, con type checking strict e compilazione tramite `tsc`;
 - **Express.js** per il confine HTTP;
-- **CommonJS** come sistema di moduli;
+- sintassi `import`/`export` nei sorgenti e **CommonJS** come formato dei moduli eseguiti da Node.js;
 - **npm** e `package-lock.json` per la gestione riproducibile delle dipendenze;
 - **pg** come driver PostgreSQL;
-- **Nodemon** come supporto allo sviluppo locale.
+- **tsx** come supporto all'esecuzione e al watch in sviluppo.
 
-La linea LTS viene preferita a una release Current per stabilità del runtime. Non viene introdotto un ORM perché lo scope permette di mantenere espliciti SQL e mapping senza aggiungere un ulteriore livello di astrazione.
+La linea LTS viene preferita a una release Current per stabilità del runtime. TypeScript viene applicato al backend per rendere espliciti contratti e dipendenze e anticipare errori rilevabili staticamente; il costo accettato è una fase di compilazione e una configurazione aggiuntiva del toolchain. Il runtime resta JavaScript su Node.js e l'output compilato rimane CommonJS, quindi l'adozione di TypeScript non introduce un cambio del modello di deployment.
+
+Non viene introdotto un ORM perché lo scope permette di mantenere espliciti SQL e mapping senza aggiungere un ulteriore livello di astrazione.
 
 ### Frontend
 
-Il client usa HTML5, CSS e JavaScript vanilla, con `fetch()` per le chiamate HTTP/JSON. Non viene introdotto un framework SPA o un template engine aggiuntivo, perché i due workflow core non ne giustificano la complessità.
+Il client usa HTML5, CSS e JavaScript vanilla, con `fetch()` per le chiamate HTTP/JSON. TypeScript non viene esteso al frontend nella versione 1.0, evitando una pipeline di build lato browser che i due workflow core non giustificano. Non viene introdotto un framework SPA o un template engine aggiuntivo.
 
-### Database e test
+### Database, test e quality gate
 
-PostgreSQL 16 è il database relazionale della versione 1.0. Jest è il framework di testing scelto per unit test, assert, spy e mock.
+PostgreSQL 16 è il database relazionale della versione 1.0. Jest, integrato con `ts-jest`, è il framework di testing scelto per unit test, assert, spy e mock. I test backend sono scritti in TypeScript e vengono sottoposti a un type-check dedicato.
+
+ESLint svolge l'analisi statica dei sorgenti backend, dei test e del JavaScript frontend. Il comando `npm run verify` orchestra build TypeScript, type-check dei test, lint e test, fornendo un unico quality gate usato sia localmente sia dalla CI.
 
 ### Ambiente Docker
 
