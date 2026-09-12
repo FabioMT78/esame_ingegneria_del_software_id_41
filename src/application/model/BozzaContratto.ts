@@ -1,8 +1,11 @@
 import type Immobile from "../../domain/Immobile";
+import type Persona from "../../domain/Persona";
 
 type BozzaContrattoParams = {
   stepCompletato: number;
   immobile?: Immobile;
+  proprietario?: Persona;
+  inquilino?: Persona;
   nomeDescrizione?: string;
   dal?: Date;
   canoneMensile?: number;
@@ -12,6 +15,8 @@ type BozzaContrattoParams = {
 class BozzaContratto {
   stepCompletato: number;
   immobile?: Immobile;
+  proprietario?: Persona;
+  inquilino?: Persona;
   nomeDescrizione?: string;
   dal?: Date;
   canoneMensile?: number;
@@ -20,6 +25,8 @@ class BozzaContratto {
   constructor({
     stepCompletato,
     immobile,
+    proprietario,
+    inquilino,
     nomeDescrizione,
     dal,
     canoneMensile,
@@ -29,6 +36,14 @@ class BozzaContratto {
 
     if (immobile !== undefined) {
       this.immobile = immobile;
+    }
+
+    if (proprietario !== undefined) {
+      this.proprietario = proprietario;
+    }
+
+    if (inquilino !== undefined) {
+      this.inquilino = inquilino;
     }
 
     if (nomeDescrizione !== undefined) {

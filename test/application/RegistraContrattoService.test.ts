@@ -2,9 +2,12 @@ import RegistraContrattoService from "../../src/application/RegistraContrattoSer
 import BozzaContratto from "../../src/application/model/BozzaContratto";
 import type BozzaContrattoRepository from "../../src/application/ports/BozzaContrattoRepository";
 import type ImmobileRepository from "../../src/application/ports/ImmobileRepository";
+import type PersonaRepository from "../../src/application/ports/PersonaRepository";
 import DatiCatastali from "../../src/domain/DatiCatastali";
+import DocumentoRiconoscimento from "../../src/domain/DocumentoRiconoscimento";
 import Immobile from "../../src/domain/Immobile";
 import Indirizzo from "../../src/domain/Indirizzo";
+import Persona from "../../src/domain/Persona";
 
 class BozzaContrattoRepositoryFake implements BozzaContrattoRepository {
   bozza: BozzaContratto | null = null;
@@ -49,6 +52,20 @@ class ImmobileRepositoryFake implements ImmobileRepository {
   async esisteConIndirizzo(_indirizzo: Indirizzo): Promise<boolean> {
     this.verificheIndirizzo += 1;
     return this.indirizzoDuplicato;
+  }
+}
+
+class PersonaRepositoryFake implements PersonaRepository {
+  persone: Persona[] = [];
+
+  async trovaPerCodiceFiscale(
+    codiceFiscale: string,
+  ): Promise<Persona | null> {
+    return (
+      this.persone.find(
+        (persona) => persona.codiceFiscale === codiceFiscale,
+      ) ?? null
+    );
   }
 }
 
@@ -116,21 +133,66 @@ function creaNuovoImmobileConInterno(): Immobile {
   });
 }
 
+function creaPersona(
+  codiceFiscale: string,
+  conDocumento = false,
+  id?: number,
+): Persona {
+  const persona = new Persona({
+    ...(id !== undefined ? { id } : {}),
+    nome: "Mario",
+    cognome: "Rossi",
+    luogoNascita: "Roma",
+    dataNascita: new Date("1980-01-10T00:00:00.000Z"),
+    codiceFiscale,
+    residenza: new Indirizzo({
+      provincia: "RM",
+      comune: "Roma",
+      indirizzo: "Via Residenza",
+    }),
+  });
+
+  if (conDocumento) {
+    persona.impostaDocumentoRiconoscimento(
+      new DocumentoRiconoscimento({
+        tipo: "carta d'identità",
+        organoEmittente: "Comune di Roma",
+        dataRilascio: new Date("2024-01-01T00:00:00.000Z"),
+        dataScadenza: new Date("2034-01-01T00:00:00.000Z"),
+        numero: "CA1234567",
+      }),
+    );
+  }
+
+  return persona;
+}
+
+function creaBozzaConImmobile(stepCompletato = 1): BozzaContratto {
+  return new BozzaContratto({
+    stepCompletato,
+    immobile: creaImmobile(1, "Casa Roma", 10),
+  });
+}
+
 function creaService(
   bozzaRepository = new BozzaContrattoRepositoryFake(),
   immobileRepository = new ImmobileRepositoryFake(),
+  personaRepository = new PersonaRepositoryFake(),
 ): {
   service: RegistraContrattoService;
   bozzaRepository: BozzaContrattoRepositoryFake;
   immobileRepository: ImmobileRepositoryFake;
+  personaRepository: PersonaRepositoryFake;
 } {
   return {
     service: new RegistraContrattoService(
       bozzaRepository,
       immobileRepository,
+      personaRepository,
     ),
     bozzaRepository,
     immobileRepository,
+    personaRepository,
   };
 }
 
@@ -349,6 +411,180 @@ describe("RegistraContrattoService.inserisciNuovoImmobile", () => {
     expect(bozza.nomeDescrizione).toBe("Contratto esistente");
     expect(bozza.canoneMensile).toBe(900);
     expect(bozza.giornoPagamento).toBe(10);
+    expect(bozzaRepository.salvataggi).toBe(1);
+  });
+});
+
+describe("RegistraContrattoService.cercaPersona", () => {
+  test("restituisce null quando il codice fiscale non è registrato", async () => {
+    const { service } = creaService();
+
+    await expect(
+      service.cercaPersona("RSSMRA80A10H501U"),
+    ).resolves.toBeNull();
+  });
+
+  test("restituisce una working copy indipendente mantenendo invariati id e codice fiscale", async () => {
+    const personaRepository = new PersonaRepositoryFake();
+    const registrata = creaPersona(
+      "RSSMRA80A10H501U",
+      true,
+      12,
+    );
+    personaRepository.persone = [registrata];
+
+    const { service } = creaService(
+      new BozzaContrattoRepositoryFake(),
+      new ImmobileRepositoryFake(),
+      personaRepository,
+    );
+
+    const workingCopy = await service.cercaPersona(
+      "RSSMRA80A10H501U",
+    );
+
+    expect(workingCopy).not.toBeNull();
+    expect(workingCopy).not.toBe(registrata);
+    expect(workingCopy?.id).toBe(12);
+    expect(workingCopy?.codiceFiscale).toBe("RSSMRA80A10H501U");
+    expect(workingCopy?.residenza).not.toBe(registrata.residenza);
+    expect(workingCopy?.documento).not.toBe(registrata.documento);
+
+    workingCopy?.aggiornaDatiAnagrafici(
+      "Mario",
+      "Rossi",
+      "Milano",
+      new Date("1980-01-10T00:00:00.000Z"),
+    );
+    workingCopy?.cambiaResidenza(
+      new Indirizzo({
+        provincia: "MI",
+        comune: "Milano",
+        indirizzo: "Via Modificata",
+      }),
+    );
+
+    expect(registrata.luogoNascita).toBe("Roma");
+    expect(registrata.residenza.comune).toBe("Roma");
+  });
+});
+
+describe("RegistraContrattoService.impostaProprietario", () => {
+  test("salva il proprietario nella bozza e completa lo step 2 senza richiedere un documento", async () => {
+    const bozzaRepository = new BozzaContrattoRepositoryFake();
+    bozzaRepository.bozza = creaBozzaConImmobile();
+
+    const { service } = creaService(bozzaRepository);
+    const proprietario = creaPersona("RSSMRA80A10H501U");
+
+    const bozza = await service.impostaProprietario(proprietario);
+
+    expect(bozza.stepCompletato).toBe(2);
+    expect(bozza.proprietario).toBe(proprietario);
+    expect(bozzaRepository.bozza).toBe(bozza);
+    expect(bozzaRepository.salvataggi).toBe(1);
+  });
+
+  test("rifiuta il proprietario se lo step immobile non è completato", async () => {
+    const bozzaRepository = new BozzaContrattoRepositoryFake();
+    const { service } = creaService(bozzaRepository);
+
+    await expect(
+      service.impostaProprietario(
+        creaPersona("RSSMRA80A10H501U"),
+      ),
+    ).rejects.toThrow("Step immobile non completato");
+
+    expect(bozzaRepository.salvataggi).toBe(0);
+  });
+
+  test("non fa retrocedere una bozza già avanzata", async () => {
+    const bozzaRepository = new BozzaContrattoRepositoryFake();
+    bozzaRepository.bozza = creaBozzaConImmobile(4);
+
+    const { service } = creaService(bozzaRepository);
+
+    const bozza = await service.impostaProprietario(
+      creaPersona("RSSMRA80A10H501U"),
+    );
+
+    expect(bozza.stepCompletato).toBe(4);
+    expect(bozzaRepository.salvataggi).toBe(1);
+  });
+});
+
+describe("RegistraContrattoService.impostaInquilino", () => {
+  test("rifiuta l'inquilino se lo step proprietario non è completato", async () => {
+    const bozzaRepository = new BozzaContrattoRepositoryFake();
+    bozzaRepository.bozza = creaBozzaConImmobile();
+
+    const { service } = creaService(bozzaRepository);
+
+    await expect(
+      service.impostaInquilino(
+        creaPersona("VRDLGI90B20H501X", true),
+      ),
+    ).rejects.toThrow("Step proprietario non completato");
+
+    expect(bozzaRepository.salvataggi).toBe(0);
+  });
+
+  test("rifiuta un inquilino senza documento lasciando invariata la bozza", async () => {
+    const bozzaRepository = new BozzaContrattoRepositoryFake();
+    const bozza = creaBozzaConImmobile(2);
+    const proprietario = creaPersona("RSSMRA80A10H501U");
+    bozza.proprietario = proprietario;
+    bozzaRepository.bozza = bozza;
+
+    const { service } = creaService(bozzaRepository);
+
+    await expect(
+      service.impostaInquilino(
+        creaPersona("VRDLGI90B20H501X"),
+      ),
+    ).rejects.toThrow(
+      "Documento di riconoscimento obbligatorio per l'inquilino",
+    );
+
+    expect(bozzaRepository.bozza).toBe(bozza);
+    expect(bozzaRepository.bozza?.proprietario).toBe(proprietario);
+    expect(bozzaRepository.bozza?.inquilino).toBeUndefined();
+    expect(bozzaRepository.salvataggi).toBe(0);
+  });
+
+  test("salva l'inquilino con documento e completa lo step 3", async () => {
+    const bozzaRepository = new BozzaContrattoRepositoryFake();
+    const bozza = creaBozzaConImmobile(2);
+    bozza.proprietario = creaPersona("RSSMRA80A10H501U");
+    bozzaRepository.bozza = bozza;
+
+    const { service } = creaService(bozzaRepository);
+    const inquilino = creaPersona(
+      "VRDLGI90B20H501X",
+      true,
+    );
+
+    const aggiornata = await service.impostaInquilino(inquilino);
+
+    expect(aggiornata.stepCompletato).toBe(3);
+    expect(aggiornata.inquilino).toBe(inquilino);
+    expect(bozzaRepository.bozza).toBe(aggiornata);
+    expect(bozzaRepository.salvataggi).toBe(1);
+  });
+
+  test("non fa retrocedere una bozza già avanzata", async () => {
+    const bozzaRepository = new BozzaContrattoRepositoryFake();
+    const bozza = creaBozzaConImmobile(4);
+    bozza.proprietario = creaPersona("RSSMRA80A10H501U");
+    bozzaRepository.bozza = bozza;
+
+    const { service } = creaService(bozzaRepository);
+
+    const aggiornata = await service.impostaInquilino(
+      creaPersona("VRDLGI90B20H501X", true),
+    );
+
+    expect(aggiornata.stepCompletato).toBe(4);
     expect(bozzaRepository.salvataggi).toBe(1);
   });
 });
