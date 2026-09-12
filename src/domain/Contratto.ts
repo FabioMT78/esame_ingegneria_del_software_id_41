@@ -38,16 +38,20 @@ class Contratto {
     this.giornoPagamento = giornoPagamento;
   }
 
-  get al(): Date {
-    const anniversario = new Date(this.dal.getTime());
+  static calcolaDataFine(dal: Date, tipologia: TipologiaContrattuale): Date {
+    const anniversario = new Date(dal.getTime());
 
     anniversario.setUTCFullYear(
-      anniversario.getUTCFullYear() + this.tipologia.durata,
+      anniversario.getUTCFullYear() + tipologia.durata,
     );
 
     anniversario.setUTCDate(anniversario.getUTCDate() - 1);
 
     return anniversario;
+  }
+
+  get al(): Date {
+    return Contratto.calcolaDataFine(this.dal, this.tipologia);
   }
 
   siSovrapponeA(altro: Contratto): boolean {
@@ -93,16 +97,13 @@ class Contratto {
     inizioRapporto = true,
   ): number {
     const giorniDelMese = new Date(Date.UTC(anno, mese, 0));
-    const canoneGiornaliero =
-      canoneMensile / giorniDelMese.getUTCDate();
+    const canoneGiornaliero = canoneMensile / giorniDelMese.getUTCDate();
 
     const numeroGiorniDaPagare = inizioRapporto
       ? giorniDelMese.getUTCDate() - this.dal.getUTCDate() + 1
       : this.al.getUTCDate();
 
-    return (
-      Math.round(canoneGiornaliero * numeroGiorniDaPagare * 100) / 100
-    );
+    return Math.round(canoneGiornaliero * numeroGiorniDaPagare * 100) / 100;
   }
 
   calcolaImportoCompetenza(anno: number, mese: number): number {
@@ -120,24 +121,14 @@ class Contratto {
       dataDiCompetenza.getUTCMonth() === this.dal.getUTCMonth() &&
       dataDiCompetenza.getUTCFullYear() === this.dal.getUTCFullYear()
     ) {
-      return this.#calcolaImporto(
-        anno,
-        mese,
-        this.canoneMensile,
-        true,
-      );
+      return this.#calcolaImporto(anno, mese, this.canoneMensile, true);
     }
 
     if (
       dataDiCompetenza.getUTCMonth() === this.al.getUTCMonth() &&
       dataDiCompetenza.getUTCFullYear() === this.al.getUTCFullYear()
     ) {
-      return this.#calcolaImporto(
-        anno,
-        mese,
-        this.canoneMensile,
-        false,
-      );
+      return this.#calcolaImporto(anno, mese, this.canoneMensile, false);
     }
 
     return this.canoneMensile;

@@ -3,9 +3,8 @@
     "target": "ES2023",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "types": ["node", "jest"],
 
-    "rootDir": ".",
+    "rootDir": "src",
     "outDir": "dist",
 
     "strict": true,
@@ -19,11 +18,11 @@
     "sourceMap": true,
   },
   "include": [
-    "src/**/*",
-    "test/**/*"
+    "src/**/*"
   ],
   "exclude": [
     "node_modules",
-    "dist"
+    "dist",
+    "test"
   ]
 }

@@ -52,6 +52,24 @@ describe("Contratto.al", () => {
   });
 });
 
+describe("Contratto.calcolaDataFine", () => {
+  test("calcola la data finale senza costruire un Contratto e senza modificare la data iniziale", () => {
+    const dal = new Date("2026-06-15T00:00:00.000Z");
+    const dalOriginale = new Date(dal.getTime());
+
+    const al = Contratto.calcolaDataFine(
+      dal,
+      canoneConcordato,
+    );
+
+    expect(al).toEqual(
+      new Date("2029-06-14T00:00:00.000Z"),
+    );
+
+    expect(dal).toEqual(dalOriginale);
+  });
+});
+
 describe("Contratto.siSovrapponeA", () => {
   test("restituisce true quando i periodi si sovrappongono", () => {
     const contrattoEsistente = creaContratto("2026-06-01");
