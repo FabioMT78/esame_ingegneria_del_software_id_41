@@ -65,16 +65,16 @@ Un Immobile possiede un nome leggibile assegnato dal proprietario; tale nome non
 
 `Indirizzo` è condiviso fra ubicazione dell'Immobile e residenza della Persona. Gli attributi concettuali rappresentati sono:
 
-- nazione;
+- nazione, se disponibile;
 - provincia;
 - comune;
-- CAP;
+- CAP, se disponibile;
 - indirizzo;
-- civico;
-- scala, se presente;
-- interno, se presente.
+- civico, se disponibile;
+- scala, se disponibile;
+- interno, se disponibile.
 
-Per l'ubicazione di un Immobile valgono i dati previsti dai requisiti; per la residenza di una Persona sono obbligatori almeno provincia, comune, indirizzo e numero civico. Il riuso dello stesso concetto non rende automaticamente obbligatori per la residenza tutti gli attributi necessari all'ubicazione di un immobile.
+Nazione, CAP, civico, scala e interno non sono considerati obbligatori in nessuno dei due contesti, perché non sono dati universalmente disponibili per ogni ubicazione o residenza. Per la versione 1.0 i dati minimi comuni richiesti a un `Indirizzo` sono provincia, comune e indirizzo; gli altri attributi vengono valorizzati quando disponibili.
 
 Quando l'interno è specificato per un Immobile, l'indirizzo completo non può duplicare quello di un altro Immobile registrato.
 

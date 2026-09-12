@@ -11,7 +11,9 @@ participant "Pagamento" as Payment
 
 note over UI,UC
 I partecipanti applicativi sono ruoli logici.
-Non definiscono ancora l'architettura definitiva.
+Non definiscono una corrispondenza uno-a-uno
+con le classi concrete, ma le operazioni pubbliche
+richiamate sono mantenute coerenti con il Class Diagram.
 end note
 
 Proprietario -> UI : avvia registrazione contratto
@@ -42,45 +44,49 @@ else nessuna bozza
 end
 
 group Step 1 — Immobile
+    UC -> Store : trovaTutti()
+    Store --> UC : List<Immobile>
+    UC --> UI : mostra immobili disponibili
+
     Proprietario -> UI : seleziona immobile esistente\noppure inserisce nuovo immobile
 
     alt seleziona immobile esistente
-        UI -> UC : selezionaImmobile(riferimento)
-        UC -> Store : recupera immobile(riferimento)
+        UI -> UC : selezionaImmobile(immobileId)
+        UC -> Store : trovaPerId(immobileId)
 
         alt immobile trovato
             Store --> UC : Immobile
-            UC -> Draft : crea/aggiorna(immobile)
+            UC -> Draft : salva(bozza con Immobile selezionato)
             UC --> UI : mostra step proprietario
         else immobile non trovato
-            Store --> UC : assente
+            Store --> UC : null
             UC --> UI : mostra errore
         end
 
     else inserisce nuovo immobile
-        UI -> UC : validaStepImmobile(dati)
-        UC -> UC : valida dati immobile
+        UI -> UC : inserisciNuovoImmobile(immobile)
+        UC -> UC : valida dati del nuovo Immobile
 
         alt dati non validi
             UC --> UI : mostra errori di validazione
         else dati validi
-            UC -> Store : cerca duplicato catastale(\ncodiceComunale, foglio,\nparticella, subalterno)
+            UC -> Store : trovaPerDatiCatastali(datiCatastali)
 
             alt duplicato catastale
-                Store --> UC : immobile esistente
+                Store --> UC : Immobile
                 UC --> UI : segnala duplicato catastale
             else nessun duplicato catastale
-                Store --> UC : nessun duplicato
+                Store --> UC : null
 
                 alt interno specificato
-                    UC -> Store : cerca duplicato indirizzo completo
+                    UC -> Store : esisteConIndirizzo(indirizzo)
 
                     alt duplicato indirizzo
-                        Store --> UC : immobile esistente
+                        Store --> UC : true
                         UC --> UI : segnala duplicato indirizzo
                     else nessun duplicato indirizzo
-                        Store --> UC : nessun duplicato
-                        UC -> Draft : crea/aggiorna(dati immobile)
+                        Store --> UC : false
+                        UC -> Draft : salva(bozza con nuovo Immobile)
                         note right of Draft
                         Il nuovo Immobile resta nella bozza
                         e non viene ancora salvato permanentemente.
@@ -89,7 +95,7 @@ group Step 1 — Immobile
                     end
 
                 else interno non specificato
-                    UC -> Draft : crea/aggiorna(dati immobile)
+                    UC -> Draft : salva(bozza con nuovo Immobile)
                     note right of Draft
                     Il nuovo Immobile resta nella bozza
                     e non viene ancora salvato permanentemente.
@@ -104,7 +110,7 @@ end
 loop per ruolo [proprietario, inquilino]
     Proprietario -> UI : inserisce codice fiscale
     UI -> UC : cercaPersona(codiceFiscale)
-    UC -> Store : cerca Persona per codice fiscale
+    UC -> Store : trovaPerCodiceFiscale(codiceFiscale)
 
     alt Persona già registrata
         Store --> UC : Persona
@@ -114,28 +120,32 @@ loop per ruolo [proprietario, inquilino]
             Proprietario -> UI : verifica / modifica documento disponibile
         end
     else Persona non registrata
-        Store --> UC : assente
+        Store --> UC : null
         UC --> UI : richiede dati anagrafici e residenza
         Proprietario -> UI : inserisce dati Persona
     end
 
-    UI -> UC : impostaPersonaNelRuolo(dati Persona, ruolo)
-    UC -> UC : valida dati Persona
+    opt ruolo = inquilino e documento assente o da correggere
+        UC --> UI : richiede / consente modifica documento
+        Proprietario -> UI : inserisce / modifica dati documento
+    end
+
+    alt ruolo = proprietario
+        UI -> UC : impostaProprietario(persona)
+    else ruolo = inquilino
+        UI -> UC : impostaInquilino(persona)
+    end
+
+    UC -> UC : valida Persona e, per l'inquilino, documento
     note right of UC
     Per una Persona già registrata il codice fiscale
     resta invariato; gli altri dati possono essere corretti.
     end note
 
-    alt dati Persona non validi
+    alt dati non validi
         UC --> UI : mostra errori di validazione
-    else dati Persona validi
-        opt ruolo = inquilino e documento assente o da correggere
-            UC --> UI : richiede / consente modifica documento
-            Proprietario -> UI : inserisce / modifica dati documento
-            UI -> UC : valida documento
-        end
-
-        UC -> Draft : aggiorna(working copy Persona e ruolo)
+    else dati validi
+        UC -> Draft : salva(bozza con working copy Persona e ruolo)
         note right of Draft
         Nuovi dati e modifiche a dati esistenti restano
         nella bozza fino alla conferma definitiva.
@@ -144,24 +154,28 @@ loop per ruolo [proprietario, inquilino]
 end
 
 group Step 4 — Dati contrattuali
+    UC -> Store : trovaTutte()
+    Store --> UC : List<TipologiaContrattuale>
+    UC --> UI : mostra tipologie disponibili
+
     Proprietario -> UI : seleziona tipologia ed inserisce nome/descrizione, dal,\ncanoneMensile, giornoPagamento
-    UI -> UC : impostaDatiContrattuali(dati)
-    UC -> Store : carica tipologia e articoli predefiniti
+    UI -> UC : impostaDatiContrattuali(nomeDescrizione, tipologiaId, dal,\ncanoneMensile, giornoPagamento)
+    UC -> Store : trovaPerIdConArticoli(tipologiaId)
     Store --> UC : TipologiaContrattuale + Articoli predefiniti
-    UC -> UC : calcola /al usando durata
+    UC -> UC : calcola /al usando Contratto.calcolaDataFine(dal, tipologia)
     note right of UC
     Gli articoli predefiniti sono template.
     Eventuali parti con lo stesso numero di articolo
     vengono ordinate e composte soltanto alla conferma.
     end note
-    UC -> Draft : aggiorna(dati contrattuali e tipologia)
+    UC -> Draft : salva(bozza con dati contrattuali e tipologia)
     UC --> UI : mostra riepilogo
 end
 
 opt modifica dal riepilogo
     Proprietario -> UI : modifica dati
-    UI -> UC : rivalida modifiche
-    UC -> Draft : aggiorna(dati modificati)
+    UI -> UC : richiama l'operazione dello step modificato
+    UC -> Draft : salva(bozza aggiornata)
     UC --> UI : mostra riepilogo aggiornato
 end
 
@@ -179,23 +193,23 @@ alt proprietario annulla
     UC --> UI : conferma annullamento
 else proprietario conferma
     Proprietario -> UI : conferma
-    UI -> UC : confermaRegistrazione()
-    UC -> Store : verifica sovrapposizione periodo
+    UI -> UC : conferma()
+    UC -> Store : trovaPerImmobile(immobileId)
+    Store --> UC : List<Contratto>
+    UC -> UC : verifica sovrapposizione del nuovo periodo
+con i Contratti recuperati
 
     alt periodo sovrapposto
-        Store --> UC : sovrapposizione presente
         UC --> UI : mostra errore di sovrapposizione
         note right of Draft
         La bozza resta disponibile.
         end note
     else periodo disponibile
-        Store --> UC : nessuna sovrapposizione
-
-        UC -> UC : acquisisce data corrente autorevole
+        UC -> UC : acquisisce data corrente tramite DataCorrenteProvider
         UC -> Contract : costruisci(dati finali validati:\nImmobile, proprietario, inquilino,\ntipologia, dati contrattuali, registratoIl)
         Contract --> UC : Contratto in assemblaggio
 
-        UC -> UC : genera documento HTML completo\ncomponendo articoli template e dati finali
+        UC -> UC : genera documento HTML completo tramite\nGeneratoreDocumentoContratto.genera(contratto)
         UC -> Contract : impostaContenuto(documento HTML)
         Contract --> UC : Contratto con copia storica completa
         note over UC,Contract
@@ -205,7 +219,7 @@ else proprietario conferma
         dei template o dei dati sorgente.
         end note
 
-        UC -> Payment : crea prima mensilità(\nanno/mese da dal,\ndataPagamento = dal,\nimporto calcolato per la competenza iniziale)
+        UC -> Payment : crea prima mensilità(\nanno/mese da dal,\ndataPagamento = dal,\nimporto = Contratto.calcolaImportoCompetenza(...))
         note right of Payment
         Se dal non coincide con il primo giorno del mese,
         l'importo è calcolato in pro-rata sui giorni
@@ -214,7 +228,7 @@ else proprietario conferma
         arrotondato a due cifre decimali.
         end note
         Payment --> UC : Pagamento
-        UC -> Contract : aggiungi primo pagamento
+        UC -> Contract : aggiungiPagamento(pagamento)
 
         note over UC,Store
         Solo in questo momento diventano persistenti
@@ -223,10 +237,10 @@ else proprietario conferma
         dati di riconoscimento quando pertinenti.
         end note
 
-        UC -> Store : salvaRegistrazioneDefinitiva(Contratto completo)
+        UC -> Store : registraDefinitivamente(contratto)
 
-        alt salvataggio definitivo riuscito
-            Store --> UC : commit completato
+        alt registrazione definitiva riuscita
+            Store --> UC : Promise risolta
             UC -> Draft : elimina()
             alt eliminazione bozza riuscita
                 Draft --> UC : ok
@@ -241,8 +255,8 @@ else proprietario conferma
                 end note
                 UC --> UI : registrazione completata
             end
-        else errore di salvataggio definitivo
-            Store --> UC : rollback / errore
+        else errore di registrazione definitiva
+            Store --> UC : Promise rifiutata / errore
             UC --> UI : mostra errore
             note over Draft,Store
             Nessun dato definitivo deve rimanere

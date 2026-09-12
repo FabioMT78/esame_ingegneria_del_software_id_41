@@ -10,23 +10,23 @@ hide empty members
 package "application" {
   class RegistraContrattoService <<service>> {
     + avvia(): Promise<BozzaContratto | null>
-    + elencaImmobili() : List<Immobile>
-    + elencaTipologie() : List<TipologiaContrattuale>
-    + selezionaImmobile(immobileId : int) : BozzaContratto
-    + inserisciNuovoImmobile(immobile : Immobile) : BozzaContratto
-    + cercaPersona(codiceFiscale : string) : Persona [0..1]
-    + impostaProprietario(persona : Persona) : BozzaContratto
-    + impostaInquilino(persona : Persona) : BozzaContratto
-    + impostaDatiContrattuali(nomeDescrizione : string, tipologiaId : int, dal : date, canoneMensile : decimal, giornoPagamento : int) : BozzaContratto
-    + conferma() : void
-    + annulla() : Promise<void>
+    + elencaImmobili(): Promise<List<Immobile>>
+    + elencaTipologie(): Promise<List<TipologiaContrattuale>>
+    + selezionaImmobile(immobileId : int): Promise<BozzaContratto>
+    + inserisciNuovoImmobile(immobile : Immobile): Promise<BozzaContratto>
+    + cercaPersona(codiceFiscale : string): Promise<Persona | null>
+    + impostaProprietario(persona : Persona): Promise<BozzaContratto>
+    + impostaInquilino(persona : Persona): Promise<BozzaContratto>
+    + impostaDatiContrattuali(nomeDescrizione : string, tipologiaId : int, dal : date, canoneMensile : decimal, giornoPagamento : int): Promise<BozzaContratto>
+    + conferma(): Promise<void>
+    + annulla(): Promise<void>
   }
 
   class RegistraPagamentoService <<service>> {
-    + elencaImmobili() : List<Immobile>
-    + elencaInquilini(immobileId : int) : List<Persona>
-    + preparaPagamento(immobileId : int, inquilinoId : int) : PagamentoDaRegistrare [0..1]
-    + confermaPagamento(contrattoId : int, annoCompetenza : int, meseCompetenza : int) : Pagamento
+    + elencaImmobili(): Promise<List<Immobile>>
+    + elencaInquilini(immobileId : int): Promise<List<Persona>>
+    + preparaPagamento(immobileId : int, inquilinoId : int): Promise<PagamentoDaRegistrare | null>
+    + confermaPagamento(contrattoId : int, annoCompetenza : int, meseCompetenza : int): Promise<Pagamento>
   }
 
   package "model" {
@@ -61,33 +61,33 @@ package "application" {
     }
 
     interface ImmobileRepository {
-      + trovaTutti() : Promise<List<Immobile>>
-      + trovaPerId(id : int) : Promise<Immobile | null>
-      + trovaPerDatiCatastali(dati : DatiCatastali) : Promise<Immobile | null>
-      + esisteConIndirizzo(indirizzo : Indirizzo) : Promise<boolean>
+      + trovaTutti(): Promise<List<Immobile>>
+      + trovaPerId(id : int): Promise<Immobile | null>
+      + trovaPerDatiCatastali(dati : DatiCatastali): Promise<Immobile | null>
+      + esisteConIndirizzo(indirizzo : Indirizzo): Promise<boolean>
     }
 
     interface PersonaRepository {
-      + trovaPerCodiceFiscale(codiceFiscale : string) : Persona [0..1]
+      + trovaPerCodiceFiscale(codiceFiscale : string): Promise<Persona | null>
     }
 
     interface TipologiaContrattualeRepository {
-      + trovaTutte() : List<TipologiaContrattuale>
-      + trovaPerIdConArticoli(id : int) : TipologiaContrattuale [0..1]
+      + trovaTutte(): Promise<List<TipologiaContrattuale>>
+      + trovaPerIdConArticoli(id : int): Promise<TipologiaContrattuale | null>
     }
 
     interface ContrattoRepository {
-      + trovaPerId(id : int) : Contratto [0..1]
-      + trovaPerImmobile(immobileId : int) : List<Contratto>
+      + trovaPerId(id : int): Promise<Contratto | null>
+      + trovaPerImmobile(immobileId : int): Promise<List<Contratto>>
     }
 
     interface PagamentoRepository {
-      + trovaPerContratto(contrattoId : int) : List<Pagamento>
-      + salva(contrattoId : int, pagamento : Pagamento) : void
+      + trovaPerContratto(contrattoId : int): Promise<List<Pagamento>>
+      + salva(contrattoId : int, pagamento : Pagamento): Promise<void>
     }
 
     interface RegistrazioneContrattoPort {
-      + registraDefinitivamente(contratto : Contratto) : void
+      + registraDefinitivamente(contratto : Contratto): Promise<void>
     }
 
     interface GeneratoreDocumentoContratto {
@@ -115,14 +115,14 @@ package "domain" {
 
   class Indirizzo {
     - id : int [0..1]
-    - nazione : string
+    - nazione : string [0..1]
     - provincia : string
     - comune : string
-    - cap : string
+    - cap : string [0..1]
     - indirizzo : string
-    - civico : string
-    - scala : string
-    - interno : string
+    - civico : string [0..1]
+    - scala : string [0..1]
+    - interno : string [0..1]
   }
 
   class DocumentoRiconoscimento {
@@ -233,6 +233,12 @@ note right of Persona
   e modificabile prima della conferma definitiva.
 end note
 
+note right of Indirizzo
+  Nazione, CAP, civico, scala e interno sono opzionali:
+  non sono dati universalmente disponibili né per
+  l'ubicazione di un Immobile né per la residenza.
+end note
+
 note right of RegistrazioneContrattoPort
   { pre: il Contratto da registrare possiede
   contenuto completo e almeno 1 Pagamento }
@@ -274,6 +280,6 @@ note bottom of PagamentoDaRegistrare
   e i valori vengono ricalcolati lato server.
 end note
 
-note "Gli id del design sono interi e vengono assegnati dalla persistenza PostgreSQL.\nIl contenuto storico del Contratto è una stringa HTML nella v1.0.\nLe implementazioni concrete delle porte appartengono a infrastructure e non sono mostrate." as NDesign
+note "Le operazioni dei Service che attraversano porte di persistenza sono asincrone.\nLe porte di persistenza restituiscono Promise perché le implementazioni concrete useranno pg.\nGeneratoreDocumentoContratto e DataCorrenteProvider restano sincroni: nella v1.0 non richiedono I/O asincrono.\nGli id del design sono interi e vengono assegnati dalla persistenza PostgreSQL.\nIl contenuto storico del Contratto è una stringa HTML nella v1.0.\nLe implementazioni concrete delle porte appartengono a infrastructure e non sono mostrate." as NDesign
 
 @enduml

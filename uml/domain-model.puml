@@ -16,14 +16,14 @@ class Persona {
 }
 
 class Indirizzo {
-  nazione
+  nazione [0..1]
   provincia
   comune
-  cap
+  cap [0..1]
   indirizzo
-  civico
-  scala
-  interno
+  civico [0..1]
+  scala [0..1]
+  interno [0..1]
 }
 
 class DocumentoRiconoscimento {
@@ -111,6 +111,7 @@ note bottom of DatiCatastali
 end note
 
 note bottom of Indirizzo
+  { nazione, CAP, civico, scala e interno opzionali }
   { per l'Immobile, se interno è specificato,
     l'indirizzo completo non può duplicare
     quello di un altro Immobile }

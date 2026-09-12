@@ -81,9 +81,9 @@ autorizzazione restano fuori scope.
 \begin{itemize}
     \item Ogni immobile può avere un nome assegnato dal proprietario. Il nome è un'etichetta
           leggibile, non deve essere univoco e non identifica l'immobile.
-    \item Ogni immobile è caratterizzato da un indirizzo composto da nazione,
-            provincia, comune, CAP, indirizzo, eventuale numero civico,
-            eventuale scala ed eventuale interno.
+    \item Ogni immobile è caratterizzato da un indirizzo che comprende almeno provincia,
+          comune e indirizzo. Nazione, CAP, numero civico, scala e interno sono acquisiti
+          quando disponibili e non sono obbligatori.
       \item Ogni immobile è caratterizzato da dati catastali comprendenti codice
             comunale, foglio, particella, subalterno, categoria, consistenza e rendita.
       \item L'immobile è identificato catastalmente dalla combinazione di codice comunale,
@@ -96,8 +96,9 @@ autorizzazione restano fuori scope.
     \item Proprietario e inquilino sono riconosciuti tramite codice fiscale.
             Se una persona non è ancora registrata, il sistema deve consentirne
             la registrazione acquisendo nome, cognome, luogo di nascita,
-            data di nascita, codice fiscale e indirizzo di residenza composto da
-            provincia, comune, indirizzo e numero civico.
+            data di nascita, codice fiscale e indirizzo di residenza comprendente almeno
+            provincia, comune e indirizzo. Nazione, CAP, numero civico, scala e interno
+            sono acquisiti quando disponibili e non sono obbligatori.
       \item Per una persona che assume il ruolo di inquilino devono inoltre essere
             presenti i dati del documento di riconoscimento: tipo di documento
             (carta d'identità o passaporto), organo emittente, data di rilascio,
@@ -209,6 +210,8 @@ già registrato, presentandolo tramite il nome assegnato, oppure di inserirne un
 La selezione deve riferirsi univocamente all'immobile registrato anche quando più immobili
 hanno lo stesso nome.
 Per un nuovo immobile il sistema deve acquisire l'indirizzo e i dati catastali.
+L'indirizzo deve comprendere almeno provincia, comune e indirizzo; nazione, CAP, numero civico,
+scala e interno devono poter essere acquisiti quando disponibili senza essere obbligatori.
 L'immobile deve essere riconosciuto catastalmente tramite la combinazione di codice comunale,
 foglio, particella e subalterno. Il sistema deve rifiutare la creazione di un immobile
 con una combinazione catastale già presente.
@@ -220,8 +223,9 @@ Se il codice fiscale corrisponde a una persona già registrata, il sistema deve 
 mostrare i dati affinché il proprietario possa verificarli ed eventualmente modificarli prima
 di completare lo step. Nell'ambito di UC-01 il codice fiscale della persona già registrata non
 è modificabile. In caso contrario il sistema deve consentire di acquisire i dati di una nuova
-persona: nome, cognome, luogo di nascita, data di nascita, codice fiscale, provincia, comune,
-indirizzo e numero civico della residenza.
+persona: nome, cognome, luogo di nascita, data di nascita, codice fiscale, provincia, comune
+e indirizzo della residenza; nazione, CAP, numero civico, scala e interno devono poter essere
+acquisiti quando disponibili senza essere obbligatori.
 Per la persona che assume il ruolo di inquilino il sistema deve inoltre acquisire o consentire
 di aggiornare, quando necessario, tipo di documento di riconoscimento (carta d'identità o
 passaporto), organo emittente, data di rilascio, data di scadenza e numero del documento.
@@ -404,8 +408,9 @@ il codice fiscale della persona.
 \textbf{Dato} l'inserimento del codice fiscale del proprietario o dell'inquilino,
 \textbf{quando} il soggetto non è ancora registrato,
 \textbf{allora} il sistema deve consentire di registrarlo acquisendo nome,
-cognome, luogo di nascita, data di nascita, codice fiscale, provincia,
-comune, indirizzo e numero civico della residenza.
+cognome, luogo di nascita, data di nascita, codice fiscale, provincia, comune e indirizzo
+della residenza; nazione, CAP, numero civico, scala e interno devono poter essere acquisiti
+quando disponibili senza essere obbligatori.
 
 \textbf{Dato} che la persona deve assumere il ruolo di inquilino,
 \textbf{quando} i dati del documento di riconoscimento non sono presenti o devono essere corretti,
