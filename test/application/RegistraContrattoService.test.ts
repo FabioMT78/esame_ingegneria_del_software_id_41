@@ -1,10 +1,15 @@
 import RegistraContrattoService from "../../src/application/RegistraContrattoService";
 import BozzaContratto from "../../src/application/model/BozzaContratto";
 import type BozzaContrattoRepository from "../../src/application/ports/BozzaContrattoRepository";
+import type ContrattoRepository from "../../src/application/ports/ContrattoRepository";
+import type DataCorrenteProvider from "../../src/application/ports/DataCorrenteProvider";
+import type GeneratoreDocumentoContratto from "../../src/application/ports/GeneratoreDocumentoContratto";
 import type ImmobileRepository from "../../src/application/ports/ImmobileRepository";
 import type PersonaRepository from "../../src/application/ports/PersonaRepository";
+import type RegistrazioneContrattoPort from "../../src/application/ports/RegistrazioneContrattoPort";
 import type TipologiaContrattualeRepository from "../../src/application/ports/TipologiaContrattualeRepository";
 import Articolo from "../../src/domain/Articolo";
+import Contratto from "../../src/domain/Contratto";
 import DatiCatastali from "../../src/domain/DatiCatastali";
 import DocumentoRiconoscimento from "../../src/domain/DocumentoRiconoscimento";
 import Immobile from "../../src/domain/Immobile";
@@ -87,6 +92,36 @@ class TipologiaContrattualeRepositoryFake
   ): Promise<TipologiaContrattuale | null> {
     this.ricercheConArticoli += 1;
     return this.tipologie.find((tipologia) => tipologia.id === id) ?? null;
+  }
+}
+
+class ContrattoRepositoryFake implements ContrattoRepository {
+  async trovaPerId(_id: number): Promise<Contratto | null> {
+    return null;
+  }
+
+  async trovaPerImmobile(_immobileId: number): Promise<Contratto[]> {
+    return [];
+  }
+}
+
+class RegistrazioneContrattoPortFake
+  implements RegistrazioneContrattoPort
+{
+  async registraDefinitivamente(_contratto: Contratto): Promise<void> {}
+}
+
+class GeneratoreDocumentoContrattoFake
+  implements GeneratoreDocumentoContratto
+{
+  genera(_contratto: Contratto): string {
+    return "<article>Contratto</article>";
+  }
+}
+
+class DataCorrenteProviderFake implements DataCorrenteProvider {
+  oggi(): Date {
+    return new Date("2026-01-01T00:00:00.000Z");
   }
 }
 
@@ -254,6 +289,10 @@ function creaService(
       immobileRepository,
       personaRepository,
       tipologiaRepository,
+      new ContrattoRepositoryFake(),
+      new RegistrazioneContrattoPortFake(),
+      new GeneratoreDocumentoContrattoFake(),
+      new DataCorrenteProviderFake(),
     ),
     bozzaRepository,
     immobileRepository,

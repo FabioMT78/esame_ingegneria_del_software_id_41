@@ -2,12 +2,17 @@ import Contratto from "../domain/Contratto";
 import DocumentoRiconoscimento from "../domain/DocumentoRiconoscimento";
 import type Immobile from "../domain/Immobile";
 import Indirizzo from "../domain/Indirizzo";
+import Pagamento from "../domain/Pagamento";
 import Persona from "../domain/Persona";
 import type TipologiaContrattuale from "../domain/TipologiaContrattuale";
 import BozzaContratto from "./model/BozzaContratto";
 import type BozzaContrattoRepository from "./ports/BozzaContrattoRepository";
+import type ContrattoRepository from "./ports/ContrattoRepository";
+import type DataCorrenteProvider from "./ports/DataCorrenteProvider";
+import type GeneratoreDocumentoContratto from "./ports/GeneratoreDocumentoContratto";
 import type ImmobileRepository from "./ports/ImmobileRepository";
 import type PersonaRepository from "./ports/PersonaRepository";
+import type RegistrazioneContrattoPort from "./ports/RegistrazioneContrattoPort";
 import type TipologiaContrattualeRepository from "./ports/TipologiaContrattualeRepository";
 
 class RegistraContrattoService {
@@ -16,10 +21,25 @@ class RegistraContrattoService {
     private readonly immobileRepository: ImmobileRepository,
     private readonly personaRepository: PersonaRepository,
     private readonly tipologiaRepository: TipologiaContrattualeRepository,
+    private readonly contrattoRepository: ContrattoRepository,
+    private readonly registrazioneContrattoPort: RegistrazioneContrattoPort,
+    private readonly generatoreDocumento: GeneratoreDocumentoContratto,
+    private readonly dataCorrenteProvider: DataCorrenteProvider,
   ) {}
 
   async avvia(): Promise<BozzaContratto | null> {
-    return this.bozzaRepository.recupera();
+    const bozza = await this.bozzaRepository.recupera();
+
+    if (bozza === null) {
+      return null;
+    }
+
+    if (!(await this.bozzaCorrispondeAContrattoRegistrato(bozza))) {
+      return bozza;
+    }
+
+    await this.bozzaRepository.elimina();
+    return null;
   }
 
   async elencaImmobili(): Promise<Immobile[]> {
@@ -149,6 +169,111 @@ class RegistraContrattoService {
     return bozza;
   }
 
+  async conferma(): Promise<void> {
+    const bozza = await this.bozzaRepository.recupera();
+
+    if (bozza === null) {
+      throw new Error("Bozza del contratto non disponibile");
+    }
+
+    const {
+      immobile,
+      proprietario,
+      inquilino,
+      tipologia,
+      nomeDescrizione,
+      dal,
+      canoneMensile,
+      giornoPagamento,
+    } = bozza;
+
+    if (
+      bozza.stepCompletato < 4 ||
+      immobile === undefined ||
+      proprietario === undefined ||
+      inquilino === undefined ||
+      inquilino.documento === undefined ||
+      tipologia === undefined ||
+      nomeDescrizione === undefined ||
+      nomeDescrizione.trim().length === 0 ||
+      dal === undefined ||
+      canoneMensile === undefined ||
+      giornoPagamento === undefined
+    ) {
+      throw new Error("Bozza del contratto incompleta");
+    }
+
+    Contratto.validaGiornoPagamento(giornoPagamento);
+
+    const al = Contratto.calcolaDataFine(dal, tipologia);
+    const immobilePersistito =
+      await this.trovaImmobilePersistito(immobile);
+
+    if (immobilePersistito?.id !== undefined) {
+      const contrattiEsistenti =
+        await this.contrattoRepository.trovaPerImmobile(
+          immobilePersistito.id,
+        );
+
+      const sovrapposto = contrattiEsistenti.some((contratto) =>
+        Contratto.periodiSiSovrappongono(
+          dal,
+          al,
+          contratto.dal,
+          contratto.al,
+        ),
+      );
+
+      if (sovrapposto) {
+        throw new Error(
+          "Il periodo del contratto si sovrappone a un contratto esistente",
+        );
+      }
+    }
+
+    const contratto = new Contratto({
+      nomeDescrizione,
+      immobile,
+      proprietario,
+      inquilino,
+      tipologia,
+      dal,
+      canoneMensile,
+      giornoPagamento,
+      registratoIl: this.dataCorrenteProvider.oggi(),
+    });
+
+    contratto.impostaContenuto(
+      this.generatoreDocumento.genera(contratto),
+    );
+
+    const annoCompetenza = dal.getUTCFullYear();
+    const meseCompetenza = dal.getUTCMonth() + 1;
+
+    contratto.aggiungiPagamento(
+      new Pagamento({
+        annoCompetenza,
+        meseCompetenza,
+        dataPagamento: dal,
+        importo: contratto.calcolaImportoCompetenza(
+          annoCompetenza,
+          meseCompetenza,
+        ),
+      }),
+    );
+
+    await this.registrazioneContrattoPort.registraDefinitivamente(
+      contratto,
+    );
+
+    try {
+      await this.bozzaRepository.elimina();
+    } catch {
+      // La registrazione definitiva è già conclusa.
+      // La bozza residua verrà riconosciuta al successivo avvio.
+    }
+  }
+
   async annulla(): Promise<void> {
     await this.bozzaRepository.elimina();
   }
@@ -171,6 +296,75 @@ class RegistraContrattoService {
     await this.bozzaRepository.salva(bozza);
 
     return bozza;
+  }
+
+  private async bozzaCorrispondeAContrattoRegistrato(
+    bozza: BozzaContratto,
+  ): Promise<boolean> {
+    const { immobile, inquilino, dal, tipologia } = bozza;
+
+    if (
+      immobile === undefined ||
+      inquilino === undefined ||
+      dal === undefined ||
+      tipologia === undefined
+    ) {
+      return false;
+    }
+
+    const immobilePersistito =
+      await this.trovaImmobilePersistito(immobile);
+
+    if (immobilePersistito?.id === undefined) {
+      return false;
+    }
+
+    const al = Contratto.calcolaDataFine(dal, tipologia);
+    const contratti =
+      await this.contrattoRepository.trovaPerImmobile(
+        immobilePersistito.id,
+      );
+
+    return contratti.some(
+      (contratto) =>
+        this.stessiDatiCatastali(
+          immobile.datiCatastali,
+          contratto.immobile.datiCatastali,
+        ) &&
+        contratto.inquilino.codiceFiscale ===
+          inquilino.codiceFiscale &&
+        contratto.dal.getTime() === dal.getTime() &&
+        contratto.al.getTime() === al.getTime(),
+    );
+  }
+
+  private async trovaImmobilePersistito(
+    immobile: Immobile,
+  ): Promise<Immobile | null> {
+    if (immobile.id !== undefined) {
+      const trovatoPerId =
+        await this.immobileRepository.trovaPerId(immobile.id);
+
+      if (trovatoPerId !== null) {
+        return trovatoPerId;
+      }
+    }
+
+    return this.immobileRepository.trovaPerDatiCatastali(
+      immobile.datiCatastali,
+    );
+  }
+
+  private stessiDatiCatastali(
+    primo: Immobile["datiCatastali"],
+    secondo: Immobile["datiCatastali"],
+  ): boolean {
+    return (
+      primo.codiceComunale === secondo.codiceComunale &&
+      primo.foglio === secondo.foglio &&
+      primo.particella === secondo.particella &&
+      primo.subalterno === secondo.subalterno
+    );
   }
 
   private creaWorkingCopyPersona(persona: Persona): Persona {

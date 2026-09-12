@@ -1,33 +1,62 @@
-type TipologiaContrattuale = {
-  durata: number;
-  rinnovo: number;
-};
+import type Immobile from "./Immobile";
+import type Pagamento from "./Pagamento";
+import type Persona from "./Persona";
+import type TipologiaContrattuale from "./TipologiaContrattuale";
 
 type ContrattoParams = {
-  dal: Date;
+  id?: number;
+  nomeDescrizione: string;
+  immobile: Immobile;
+  proprietario: Persona;
+  inquilino: Persona;
   tipologia: TipologiaContrattuale;
+  dal: Date;
   canoneMensile: number;
   giornoPagamento: number;
+  registratoIl: Date;
 };
 
 class Contratto {
-  dal: Date;
+  id?: number;
+  nomeDescrizione: string;
+  immobile: Immobile;
+  proprietario: Persona;
+  inquilino: Persona;
   tipologia: TipologiaContrattuale;
+  dal: Date;
   canoneMensile: number;
   giornoPagamento: number;
+  registratoIl: Date;
+  contenuto?: string;
+  pagamenti: Pagamento[] = [];
 
   constructor({
-    dal,
+    id,
+    nomeDescrizione,
+    immobile,
+    proprietario,
+    inquilino,
     tipologia,
+    dal,
     canoneMensile,
     giornoPagamento,
+    registratoIl,
   }: ContrattoParams) {
     Contratto.validaGiornoPagamento(giornoPagamento);
 
-    this.dal = new Date(dal.getTime());
+    if (id !== undefined) {
+      this.id = id;
+    }
+
+    this.nomeDescrizione = nomeDescrizione;
+    this.immobile = immobile;
+    this.proprietario = proprietario;
+    this.inquilino = inquilino;
     this.tipologia = tipologia;
+    this.dal = new Date(dal.getTime());
     this.canoneMensile = canoneMensile;
     this.giornoPagamento = giornoPagamento;
+    this.registratoIl = new Date(registratoIl.getTime());
   }
 
   static validaGiornoPagamento(giornoPagamento: number): void {
@@ -42,7 +71,7 @@ class Contratto {
     }
   }
 
-  static calcolaDataFine(dal: Date, tipologia: TipologiaContrattuale): Date {
+  static calcolaDataFine(dal: Date, tipologia: Pick<TipologiaContrattuale, "durata">): Date {
     const anniversario = new Date(dal.getTime());
 
     anniversario.setUTCFullYear(
@@ -54,12 +83,46 @@ class Contratto {
     return anniversario;
   }
 
+  static periodiSiSovrappongono(
+    dal: Date,
+    al: Date,
+    altroDal: Date,
+    altroAl: Date,
+  ): boolean {
+    return dal <= altroAl && altroDal <= al;
+  }
+
   get al(): Date {
     return Contratto.calcolaDataFine(this.dal, this.tipologia);
   }
 
   siSovrapponeA(altro: Contratto): boolean {
-    return this.dal <= altro.al && altro.dal <= this.al;
+    return Contratto.periodiSiSovrappongono(
+      this.dal,
+      this.al,
+      altro.dal,
+      altro.al,
+    );
+  }
+
+  impostaContenuto(contenuto: string): void {
+    this.contenuto = contenuto;
+  }
+
+  aggiungiPagamento(pagamento: Pagamento): void {
+    const duplicato = this.pagamenti.some(
+      (esistente) =>
+        esistente.annoCompetenza === pagamento.annoCompetenza &&
+        esistente.meseCompetenza === pagamento.meseCompetenza,
+    );
+
+    if (duplicato) {
+      throw new Error(
+        "Esiste già un pagamento per la competenza indicata",
+      );
+    }
+
+    this.pagamenti.push(pagamento);
   }
 
   #checkPeriodoDiCompetenza(dataDiCompetenza: Date): void {
@@ -91,9 +154,6 @@ class Contratto {
     }
   }
 
-  /**
-   * Calcola l'importo che deve corrispondere l'inquilino.
-   */
   #calcolaImporto(
     anno: number,
     mese: number,
