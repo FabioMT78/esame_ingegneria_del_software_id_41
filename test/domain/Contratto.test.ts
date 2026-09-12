@@ -1,4 +1,4 @@
-const Contratto = require("../../src/domain/Contratto");
+import Contratto from "../../src/domain/Contratto";
 
 const canoneConcordato = {
   durata: 3,
@@ -10,14 +10,23 @@ const canoneLibero = {
   rinnovo: 4,
 };
 
+type CreaContrattoOptions = {
+  tipologia?: {
+    durata: number;
+    rinnovo: number;
+  };
+  canoneMensile?: number;
+  giornoPagamento?: number;
+};
+
 function creaContratto(
-  dal,
+  dal: string,
   {
     tipologia = canoneConcordato,
     canoneMensile = 1000,
     giornoPagamento = 15,
-  } = {},
-) {
+  }: CreaContrattoOptions = {},
+): Contratto {
   return new Contratto({
     dal: new Date(`${dal}T00:00:00.000Z`),
     tipologia,
@@ -25,6 +34,7 @@ function creaContratto(
     giornoPagamento,
   });
 }
+
 
 describe("Contratto.al", () => {
   test("deriva la data finale dalla durata triennale meno un giorno", () => {
