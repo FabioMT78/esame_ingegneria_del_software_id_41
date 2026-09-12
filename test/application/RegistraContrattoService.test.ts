@@ -28,6 +28,9 @@ class BozzaContrattoRepositoryFake implements BozzaContrattoRepository {
 
 class ImmobileRepositoryFake implements ImmobileRepository {
   immobili: Immobile[] = [];
+  duplicatoCatastale: Immobile | null = null;
+  indirizzoDuplicato = false;
+  verificheIndirizzo = 0;
 
   async trovaTutti(): Promise<Immobile[]> {
     return this.immobili;
@@ -40,11 +43,12 @@ class ImmobileRepositoryFake implements ImmobileRepository {
   async trovaPerDatiCatastali(
     _dati: DatiCatastali,
   ): Promise<Immobile | null> {
-    return null;
+    return this.duplicatoCatastale;
   }
 
   async esisteConIndirizzo(_indirizzo: Indirizzo): Promise<boolean> {
-    return false;
+    this.verificheIndirizzo += 1;
+    return this.indirizzoDuplicato;
   }
 }
 
@@ -65,6 +69,49 @@ function creaImmobile(id: number, nome: string, particella: number): Immobile {
       categoria: "A/2",
       consistenza: 5,
       rendita: 1000,
+    }),
+  });
+}
+
+function creaNuovoImmobileSenzaInterno(): Immobile {
+  return new Immobile({
+    nome: "Nuova casa",
+    indirizzo: new Indirizzo({
+      provincia: "RM",
+      comune: "Roma",
+      indirizzo: "Via Nuova",
+      civico: "10",
+    }),
+    datiCatastali: new DatiCatastali({
+      codiceComunale: "H501",
+      foglio: 2,
+      particella: 30,
+      subalterno: 4,
+      categoria: "A/2",
+      consistenza: 4,
+      rendita: 850,
+    }),
+  });
+}
+
+function creaNuovoImmobileConInterno(): Immobile {
+  return new Immobile({
+    nome: "Nuova casa",
+    indirizzo: new Indirizzo({
+      provincia: "RM",
+      comune: "Roma",
+      indirizzo: "Via Nuova",
+      civico: "10",
+      interno: "3",
+    }),
+    datiCatastali: new DatiCatastali({
+      codiceComunale: "H501",
+      foglio: 2,
+      particella: 31,
+      subalterno: 4,
+      categoria: "A/2",
+      consistenza: 4,
+      rendita: 850,
     }),
   });
 }
@@ -189,6 +236,117 @@ describe("RegistraContrattoService.selezionaImmobile", () => {
     expect(bozza.immobile).toBe(immobile);
     expect(bozza.nomeDescrizione).toBe("Contratto esistente");
     expect(bozza.dal).toEqual(dal);
+    expect(bozza.canoneMensile).toBe(900);
+    expect(bozza.giornoPagamento).toBe(10);
+    expect(bozzaRepository.salvataggi).toBe(1);
+  });
+});
+
+describe("RegistraContrattoService.inserisciNuovoImmobile", () => {
+  test("rifiuta un immobile con dati catastali già presenti senza aggiornare la bozza", async () => {
+    const bozzaRepository = new BozzaContrattoRepositoryFake();
+    const immobileRepository = new ImmobileRepositoryFake();
+    const bozzaEsistente = new BozzaContratto({
+      stepCompletato: 3,
+      nomeDescrizione: "Bozza da preservare",
+    });
+
+    bozzaRepository.bozza = bozzaEsistente;
+    immobileRepository.duplicatoCatastale = creaImmobile(
+      10,
+      "Immobile esistente",
+      30,
+    );
+
+    const { service } = creaService(
+      bozzaRepository,
+      immobileRepository,
+    );
+
+    await expect(
+      service.inserisciNuovoImmobile(creaNuovoImmobileSenzaInterno()),
+    ).rejects.toThrow("Dati catastali già associati a un immobile");
+
+    expect(bozzaRepository.bozza).toBe(bozzaEsistente);
+    expect(bozzaRepository.salvataggi).toBe(0);
+    expect(immobileRepository.verificheIndirizzo).toBe(0);
+  });
+
+  test("senza interno non verifica il duplicato dell'indirizzo completo e salva l'immobile nella bozza", async () => {
+    const immobileRepository = new ImmobileRepositoryFake();
+    immobileRepository.indirizzoDuplicato = true;
+
+    const { service, bozzaRepository } = creaService(
+      new BozzaContrattoRepositoryFake(),
+      immobileRepository,
+    );
+    const immobile = creaNuovoImmobileSenzaInterno();
+
+    const bozza = await service.inserisciNuovoImmobile(immobile);
+
+    expect(immobileRepository.verificheIndirizzo).toBe(0);
+    expect(bozza.stepCompletato).toBe(1);
+    expect(bozza.immobile).toBe(immobile);
+    expect(bozzaRepository.bozza).toBe(bozza);
+    expect(bozzaRepository.salvataggi).toBe(1);
+  });
+
+  test("con interno rifiuta un indirizzo completo già presente senza salvare la bozza", async () => {
+    const immobileRepository = new ImmobileRepositoryFake();
+    immobileRepository.indirizzoDuplicato = true;
+
+    const { service, bozzaRepository } = creaService(
+      new BozzaContrattoRepositoryFake(),
+      immobileRepository,
+    );
+
+    await expect(
+      service.inserisciNuovoImmobile(creaNuovoImmobileConInterno()),
+    ).rejects.toThrow("Indirizzo completo già associato a un immobile");
+
+    expect(immobileRepository.verificheIndirizzo).toBe(1);
+    expect(bozzaRepository.bozza).toBeNull();
+    expect(bozzaRepository.salvataggi).toBe(0);
+  });
+
+  test("con interno non duplicato salva il nuovo immobile soltanto nella bozza", async () => {
+    const immobileRepository = new ImmobileRepositoryFake();
+    const { service, bozzaRepository } = creaService(
+      new BozzaContrattoRepositoryFake(),
+      immobileRepository,
+    );
+    const immobile = creaNuovoImmobileConInterno();
+
+    const bozza = await service.inserisciNuovoImmobile(immobile);
+
+    expect(immobileRepository.verificheIndirizzo).toBe(1);
+    expect(bozza.stepCompletato).toBe(1);
+    expect(bozza.immobile).toBe(immobile);
+    expect(bozzaRepository.bozza).toBe(bozza);
+    expect(bozzaRepository.salvataggi).toBe(1);
+    expect(immobile.id).toBeUndefined();
+  });
+
+  test("aggiorna una bozza già avanzata senza perdere gli altri dati né retrocedere lo step", async () => {
+    const bozzaRepository = new BozzaContrattoRepositoryFake();
+    const bozzaEsistente = new BozzaContratto({
+      stepCompletato: 4,
+      nomeDescrizione: "Contratto esistente",
+      dal: new Date("2026-10-01T00:00:00.000Z"),
+      canoneMensile: 900,
+      giornoPagamento: 10,
+    });
+    bozzaRepository.bozza = bozzaEsistente;
+
+    const { service } = creaService(bozzaRepository);
+    const immobile = creaNuovoImmobileSenzaInterno();
+
+    const bozza = await service.inserisciNuovoImmobile(immobile);
+
+    expect(bozza).toBe(bozzaEsistente);
+    expect(bozza.stepCompletato).toBe(4);
+    expect(bozza.immobile).toBe(immobile);
+    expect(bozza.nomeDescrizione).toBe("Contratto esistente");
     expect(bozza.canoneMensile).toBe(900);
     expect(bozza.giornoPagamento).toBe(10);
     expect(bozzaRepository.salvataggi).toBe(1);

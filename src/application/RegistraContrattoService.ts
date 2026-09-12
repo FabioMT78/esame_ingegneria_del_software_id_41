@@ -24,6 +24,40 @@ class RegistraContrattoService {
       throw new Error("Immobile non trovato");
     }
 
+    return this.salvaImmobileInBozza(immobile);
+  }
+
+  async inserisciNuovoImmobile(immobile: Immobile): Promise<BozzaContratto> {
+    const immobileConStessiDatiCatastali =
+      await this.immobileRepository.trovaPerDatiCatastali(
+        immobile.datiCatastali,
+      );
+
+    if (immobileConStessiDatiCatastali !== null) {
+      throw new Error("Dati catastali già associati a un immobile");
+    }
+
+    if (immobile.indirizzo.interno !== undefined) {
+      const indirizzoDuplicato =
+        await this.immobileRepository.esisteConIndirizzo(
+          immobile.indirizzo,
+        );
+
+      if (indirizzoDuplicato) {
+        throw new Error("Indirizzo completo già associato a un immobile");
+      }
+    }
+
+    return this.salvaImmobileInBozza(immobile);
+  }
+
+  async annulla(): Promise<void> {
+    await this.bozzaRepository.elimina();
+  }
+
+  private async salvaImmobileInBozza(
+    immobile: Immobile,
+  ): Promise<BozzaContratto> {
     let bozza = await this.bozzaRepository.recupera();
 
     if (bozza === null) {
@@ -39,10 +73,6 @@ class RegistraContrattoService {
     await this.bozzaRepository.salva(bozza);
 
     return bozza;
-  }
-
-  async annulla(): Promise<void> {
-    await this.bozzaRepository.elimina();
   }
 }
 
