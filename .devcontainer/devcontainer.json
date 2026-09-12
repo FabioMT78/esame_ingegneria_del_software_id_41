@@ -1,0 +1,29 @@
+{
+  "name": "ingsw_25-26_group-41",
+  "dockerComposeFile": [
+    "../docker/compose.yaml"
+  ],
+  "service": "app",
+  "runServices": ["app", "db"],
+  "workspaceFolder": "/workspace",
+  "shutdownAction": "stopCompose",
+  "postCreateCommand": "sh -c 'npm ci'",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "js/ts.tsdk.path": "node_modules/typescript/lib",
+        "js/ts.tsdk.promptToUseWorkspaceVersion": true,
+        "eslint.workingDirectories": [
+          {
+            "mode": "auto",
+            "directory": "."
+          }
+        ]
+      },
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "ms-azuretools.vscode-docker"
+      ]
+    }
+  }
+}
