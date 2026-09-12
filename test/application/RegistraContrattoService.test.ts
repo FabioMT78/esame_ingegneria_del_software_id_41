@@ -3,11 +3,14 @@ import BozzaContratto from "../../src/application/model/BozzaContratto";
 import type BozzaContrattoRepository from "../../src/application/ports/BozzaContrattoRepository";
 import type ImmobileRepository from "../../src/application/ports/ImmobileRepository";
 import type PersonaRepository from "../../src/application/ports/PersonaRepository";
+import type TipologiaContrattualeRepository from "../../src/application/ports/TipologiaContrattualeRepository";
+import Articolo from "../../src/domain/Articolo";
 import DatiCatastali from "../../src/domain/DatiCatastali";
 import DocumentoRiconoscimento from "../../src/domain/DocumentoRiconoscimento";
 import Immobile from "../../src/domain/Immobile";
 import Indirizzo from "../../src/domain/Indirizzo";
 import Persona from "../../src/domain/Persona";
+import TipologiaContrattuale from "../../src/domain/TipologiaContrattuale";
 
 class BozzaContrattoRepositoryFake implements BozzaContrattoRepository {
   bozza: BozzaContratto | null = null;
@@ -66,6 +69,24 @@ class PersonaRepositoryFake implements PersonaRepository {
         (persona) => persona.codiceFiscale === codiceFiscale,
       ) ?? null
     );
+  }
+}
+
+class TipologiaContrattualeRepositoryFake
+  implements TipologiaContrattualeRepository
+{
+  tipologie: TipologiaContrattuale[] = [];
+  ricercheConArticoli = 0;
+
+  async trovaTutte(): Promise<TipologiaContrattuale[]> {
+    return this.tipologie;
+  }
+
+  async trovaPerIdConArticoli(
+    id: number,
+  ): Promise<TipologiaContrattuale | null> {
+    this.ricercheConArticoli += 1;
+    return this.tipologie.find((tipologia) => tipologia.id === id) ?? null;
   }
 }
 
@@ -174,25 +195,70 @@ function creaBozzaConImmobile(stepCompletato = 1): BozzaContratto {
   });
 }
 
+function creaArticolo(
+  id: number,
+  numArticolo: number,
+  numParte: number,
+): Articolo {
+  return new Articolo({
+    id,
+    numArticolo,
+    numParte,
+    titolo: `Articolo ${numArticolo}`,
+    descrizione: `Parte ${numParte}`,
+  });
+}
+
+function creaTipologia(
+  id: number,
+  denominazione = "Canone concordato",
+  durata = 3,
+  rinnovo = 2,
+): TipologiaContrattuale {
+  return new TipologiaContrattuale({
+    id,
+    denominazione,
+    durata,
+    rinnovo,
+    articoli: [
+      creaArticolo(id * 10 + 1, 1, 0),
+      creaArticolo(id * 10 + 2, 1, 1),
+    ],
+  });
+}
+
+function creaBozzaCompletaFinoInquilino(
+  stepCompletato = 3,
+): BozzaContratto {
+  const bozza = creaBozzaConImmobile(stepCompletato);
+  bozza.proprietario = creaPersona("RSSMRA80A10H501U");
+  bozza.inquilino = creaPersona("VRDLGI90B20H501X", true);
+  return bozza;
+}
+
 function creaService(
   bozzaRepository = new BozzaContrattoRepositoryFake(),
   immobileRepository = new ImmobileRepositoryFake(),
   personaRepository = new PersonaRepositoryFake(),
+  tipologiaRepository = new TipologiaContrattualeRepositoryFake(),
 ): {
   service: RegistraContrattoService;
   bozzaRepository: BozzaContrattoRepositoryFake;
   immobileRepository: ImmobileRepositoryFake;
   personaRepository: PersonaRepositoryFake;
+  tipologiaRepository: TipologiaContrattualeRepositoryFake;
 } {
   return {
     service: new RegistraContrattoService(
       bozzaRepository,
       immobileRepository,
       personaRepository,
+      tipologiaRepository,
     ),
     bozzaRepository,
     immobileRepository,
     personaRepository,
+    tipologiaRepository,
   };
 }
 
@@ -585,6 +651,208 @@ describe("RegistraContrattoService.impostaInquilino", () => {
     );
 
     expect(aggiornata.stepCompletato).toBe(4);
+    expect(bozzaRepository.salvataggi).toBe(1);
+  });
+});
+
+describe("RegistraContrattoService.elencaTipologie", () => {
+  test("restituisce le tipologie contrattuali disponibili", async () => {
+    const tipologiaRepository = new TipologiaContrattualeRepositoryFake();
+    const concordato = creaTipologia(1);
+    const libero = creaTipologia(2, "Canone libero", 4, 4);
+    tipologiaRepository.tipologie = [concordato, libero];
+
+    const { service } = creaService(
+      new BozzaContrattoRepositoryFake(),
+      new ImmobileRepositoryFake(),
+      new PersonaRepositoryFake(),
+      tipologiaRepository,
+    );
+
+    await expect(service.elencaTipologie()).resolves.toEqual([
+      concordato,
+      libero,
+    ]);
+  });
+});
+
+describe("RegistraContrattoService.impostaDatiContrattuali", () => {
+  test("rifiuta i dati contrattuali se lo step inquilino non è completato", async () => {
+    const bozzaRepository = new BozzaContrattoRepositoryFake();
+    const bozza = creaBozzaConImmobile(2);
+    bozza.proprietario = creaPersona("RSSMRA80A10H501U");
+    bozzaRepository.bozza = bozza;
+
+    const { service, tipologiaRepository } = creaService(bozzaRepository);
+    tipologiaRepository.tipologie = [creaTipologia(1)];
+
+    await expect(
+      service.impostaDatiContrattuali(
+        "Contratto Rossi",
+        1,
+        new Date("2026-10-01T00:00:00.000Z"),
+        900,
+        10,
+      ),
+    ).rejects.toThrow("Step inquilino non completato");
+
+    expect(bozzaRepository.salvataggi).toBe(0);
+    expect(tipologiaRepository.ricercheConArticoli).toBe(0);
+  });
+
+  test("rifiuta un nome o descrizione vuoto senza modificare la bozza", async () => {
+    const bozzaRepository = new BozzaContrattoRepositoryFake();
+    const bozza = creaBozzaCompletaFinoInquilino();
+    bozzaRepository.bozza = bozza;
+
+    const { service, tipologiaRepository } = creaService(bozzaRepository);
+    tipologiaRepository.tipologie = [creaTipologia(1)];
+
+    await expect(
+      service.impostaDatiContrattuali(
+        "   ",
+        1,
+        new Date("2026-10-01T00:00:00.000Z"),
+        900,
+        10,
+      ),
+    ).rejects.toThrow("Nome o descrizione del contratto obbligatorio");
+
+    expect(bozzaRepository.bozza).toBe(bozza);
+    expect(bozzaRepository.salvataggi).toBe(0);
+    expect(tipologiaRepository.ricercheConArticoli).toBe(0);
+  });
+
+  test.each([0, 29])(
+    "rifiuta il giorno di pagamento non valido %i senza modificare la bozza",
+    async (giornoPagamento) => {
+      const bozzaRepository = new BozzaContrattoRepositoryFake();
+      const bozza = creaBozzaCompletaFinoInquilino();
+      bozzaRepository.bozza = bozza;
+
+      const { service, tipologiaRepository } = creaService(
+        bozzaRepository,
+      );
+      tipologiaRepository.tipologie = [creaTipologia(1)];
+
+      await expect(
+        service.impostaDatiContrattuali(
+          "Contratto Rossi",
+          1,
+          new Date("2026-10-01T00:00:00.000Z"),
+          900,
+          giornoPagamento,
+        ),
+      ).rejects.toThrow(RangeError);
+
+      expect(bozzaRepository.bozza).toBe(bozza);
+      expect(bozzaRepository.salvataggi).toBe(0);
+      expect(tipologiaRepository.ricercheConArticoli).toBe(0);
+    },
+  );
+
+  test("rifiuta una tipologia inesistente senza modificare la bozza", async () => {
+    const bozzaRepository = new BozzaContrattoRepositoryFake();
+    const bozza = creaBozzaCompletaFinoInquilino();
+    bozzaRepository.bozza = bozza;
+
+    const { service, tipologiaRepository } = creaService(bozzaRepository);
+
+    await expect(
+      service.impostaDatiContrattuali(
+        "Contratto Rossi",
+        999,
+        new Date("2026-10-01T00:00:00.000Z"),
+        900,
+        10,
+      ),
+    ).rejects.toThrow("Tipologia contrattuale non trovata");
+
+    expect(tipologiaRepository.ricercheConArticoli).toBe(1);
+    expect(bozzaRepository.bozza).toBe(bozza);
+    expect(bozzaRepository.salvataggi).toBe(0);
+  });
+
+  test.each([1, 28])(
+    "accetta il giorno di pagamento limite %i e completa i dati contrattuali",
+    async (giornoPagamento) => {
+      const bozzaRepository = new BozzaContrattoRepositoryFake();
+      bozzaRepository.bozza = creaBozzaCompletaFinoInquilino();
+
+      const tipologiaRepository =
+        new TipologiaContrattualeRepositoryFake();
+      const tipologia = creaTipologia(1);
+      tipologiaRepository.tipologie = [tipologia];
+
+      const { service } = creaService(
+        bozzaRepository,
+        new ImmobileRepositoryFake(),
+        new PersonaRepositoryFake(),
+        tipologiaRepository,
+      );
+
+      const dal = new Date("2026-10-15T00:00:00.000Z");
+      const bozza = await service.impostaDatiContrattuali(
+        "Contratto Rossi",
+        1,
+        dal,
+        900,
+        giornoPagamento,
+      );
+
+      expect(bozza.stepCompletato).toBe(4);
+      expect(bozza.nomeDescrizione).toBe("Contratto Rossi");
+      expect(bozza.tipologia).toBe(tipologia);
+      expect(bozza.tipologia?.articoli).toHaveLength(2);
+      expect(bozza.dal).toEqual(dal);
+      expect(bozza.dal).not.toBe(dal);
+      expect(bozza.al).toEqual(
+        new Date("2029-10-14T00:00:00.000Z"),
+      );
+      expect(bozza.canoneMensile).toBe(900);
+      expect(bozza.giornoPagamento).toBe(giornoPagamento);
+      expect(bozzaRepository.bozza).toBe(bozza);
+      expect(bozzaRepository.salvataggi).toBe(1);
+    },
+  );
+
+  test("aggiorna i dati contrattuali senza perdere i dati degli step precedenti né retrocedere lo step", async () => {
+    const bozzaRepository = new BozzaContrattoRepositoryFake();
+    const bozzaEsistente = creaBozzaCompletaFinoInquilino(4);
+    const immobile = bozzaEsistente.immobile;
+    const proprietario = bozzaEsistente.proprietario;
+    const inquilino = bozzaEsistente.inquilino;
+    bozzaRepository.bozza = bozzaEsistente;
+
+    const tipologiaRepository =
+      new TipologiaContrattualeRepositoryFake();
+    const libero = creaTipologia(2, "Canone libero", 4, 4);
+    tipologiaRepository.tipologie = [libero];
+
+    const { service } = creaService(
+      bozzaRepository,
+      new ImmobileRepositoryFake(),
+      new PersonaRepositoryFake(),
+      tipologiaRepository,
+    );
+
+    const aggiornata = await service.impostaDatiContrattuali(
+      "Contratto aggiornato",
+      2,
+      new Date("2027-01-01T00:00:00.000Z"),
+      1200,
+      15,
+    );
+
+    expect(aggiornata).toBe(bozzaEsistente);
+    expect(aggiornata.stepCompletato).toBe(4);
+    expect(aggiornata.immobile).toBe(immobile);
+    expect(aggiornata.proprietario).toBe(proprietario);
+    expect(aggiornata.inquilino).toBe(inquilino);
+    expect(aggiornata.tipologia).toBe(libero);
+    expect(aggiornata.al).toEqual(
+      new Date("2030-12-31T00:00:00.000Z"),
+    );
     expect(bozzaRepository.salvataggi).toBe(1);
   });
 });

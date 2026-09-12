@@ -36,6 +36,7 @@ package "application" {
       - dal : date [0..1]
       - canoneMensile : decimal [0..1]
       - giornoPagamento : int [0..1]
+      + /al : date [0..1]
     }
 
     class PagamentoDaRegistrare <<application model>> {
@@ -178,6 +179,7 @@ package "domain" {
     + siSovrapponeA(altro : Contratto) : boolean
     + calcolaImportoCompetenza(anno : int, mese : int) : decimal
     + calcolaScadenzaCompetenza(anno : int, mese : int) : date
+    + {static} validaGiornoPagamento(giornoPagamento : int) : void
     + {static} calcolaDataFine(dal : date, tipologia : TipologiaContrattuale) : date
     + statoAlla(data : date) : string
     + impostaContenuto(contenuto : string) : void

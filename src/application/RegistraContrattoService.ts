@@ -1,17 +1,21 @@
+import Contratto from "../domain/Contratto";
 import DocumentoRiconoscimento from "../domain/DocumentoRiconoscimento";
 import type Immobile from "../domain/Immobile";
 import Indirizzo from "../domain/Indirizzo";
 import Persona from "../domain/Persona";
+import type TipologiaContrattuale from "../domain/TipologiaContrattuale";
 import BozzaContratto from "./model/BozzaContratto";
 import type BozzaContrattoRepository from "./ports/BozzaContrattoRepository";
 import type ImmobileRepository from "./ports/ImmobileRepository";
 import type PersonaRepository from "./ports/PersonaRepository";
+import type TipologiaContrattualeRepository from "./ports/TipologiaContrattualeRepository";
 
 class RegistraContrattoService {
   constructor(
     private readonly bozzaRepository: BozzaContrattoRepository,
     private readonly immobileRepository: ImmobileRepository,
     private readonly personaRepository: PersonaRepository,
+    private readonly tipologiaRepository: TipologiaContrattualeRepository,
   ) {}
 
   async avvia(): Promise<BozzaContratto | null> {
@@ -20,6 +24,10 @@ class RegistraContrattoService {
 
   async elencaImmobili(): Promise<Immobile[]> {
     return this.immobileRepository.trovaTutti();
+  }
+
+  async elencaTipologie(): Promise<TipologiaContrattuale[]> {
+    return this.tipologiaRepository.trovaTutte();
   }
 
   async selezionaImmobile(immobileId: number): Promise<BozzaContratto> {
@@ -97,6 +105,44 @@ class RegistraContrattoService {
 
     bozza.inquilino = persona;
     bozza.stepCompletato = Math.max(bozza.stepCompletato, 3);
+
+    await this.bozzaRepository.salva(bozza);
+
+    return bozza;
+  }
+
+  async impostaDatiContrattuali(
+    nomeDescrizione: string,
+    tipologiaId: number,
+    dal: Date,
+    canoneMensile: number,
+    giornoPagamento: number,
+  ): Promise<BozzaContratto> {
+    const bozza = await this.bozzaRepository.recupera();
+
+    if (bozza === null || bozza.inquilino === undefined) {
+      throw new Error("Step inquilino non completato");
+    }
+
+    if (nomeDescrizione.trim().length === 0) {
+      throw new Error("Nome o descrizione del contratto obbligatorio");
+    }
+
+    Contratto.validaGiornoPagamento(giornoPagamento);
+
+    const tipologia =
+      await this.tipologiaRepository.trovaPerIdConArticoli(tipologiaId);
+
+    if (tipologia === null) {
+      throw new Error("Tipologia contrattuale non trovata");
+    }
+
+    bozza.nomeDescrizione = nomeDescrizione;
+    bozza.tipologia = tipologia;
+    bozza.dal = new Date(dal.getTime());
+    bozza.canoneMensile = canoneMensile;
+    bozza.giornoPagamento = giornoPagamento;
+    bozza.stepCompletato = Math.max(bozza.stepCompletato, 4);
 
     await this.bozzaRepository.salva(bozza);
 

@@ -22,6 +22,15 @@ class Contratto {
     canoneMensile,
     giornoPagamento,
   }: ContrattoParams) {
+    Contratto.validaGiornoPagamento(giornoPagamento);
+
+    this.dal = new Date(dal.getTime());
+    this.tipologia = tipologia;
+    this.canoneMensile = canoneMensile;
+    this.giornoPagamento = giornoPagamento;
+  }
+
+  static validaGiornoPagamento(giornoPagamento: number): void {
     if (
       !Number.isInteger(giornoPagamento) ||
       giornoPagamento < 1 ||
@@ -31,11 +40,6 @@ class Contratto {
         "Il giorno di pagamento deve essere compreso tra 1 e 28",
       );
     }
-
-    this.dal = new Date(dal.getTime());
-    this.tipologia = tipologia;
-    this.canoneMensile = canoneMensile;
-    this.giornoPagamento = giornoPagamento;
   }
 
   static calcolaDataFine(dal: Date, tipologia: TipologiaContrattuale): Date {
