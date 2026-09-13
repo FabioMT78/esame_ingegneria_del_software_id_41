@@ -112,7 +112,7 @@ La versione 1.0 non gestisce storico o pluralità di documenti per la stessa Per
 
 - nome o breve descrizione;
 - data iniziale `dal`;
-- data finale derivata `/al`;
+- data finale `al`;
 - canone mensile;
 - giorno di pagamento;
 - data di registrazione `registratoIl`;
@@ -132,7 +132,7 @@ Per le tipologie supportate nella versione 1.0:
 - canone concordato 3+2: `durata = 3`, `rinnovo = 2`;
 - canone libero 4+4: `durata = 4`, `rinnovo = 4`.
 
-La data `/al` è derivata esclusivamente da `dal` e `TipologiaContrattuale.durata`: corrisponde all'anniversario della decorrenza dopo il numero di anni previsto, meno un giorno. Il valore `rinnovo` descrive la tipologia ma non estende il periodo gestito nella versione 1.0 e non introduce un caso d'uso di rinnovo.
+La data `al` viene determinata automaticamente a partire da `dal` e `TipologiaContrattuale.durata`: corrisponde all'anniversario della decorrenza dopo il numero di anni previsto, meno un giorno. Il calcolo avviene quando i dati contrattuali vengono validati; il valore ottenuto entra nello stato della bozza e, alla conferma, viene conservato nel Contratto registrato come parte del periodo storico. Non viene quindi ricalcolato dalla tipologia a ogni lettura del Contratto. Il valore `rinnovo` descrive la tipologia ma non estende il periodo gestito nella versione 1.0 e non introduce un caso d'uso di rinnovo.
 
 `registratoIl` è valorizzato alla registrazione definitiva. Prima di tale momento non esiste un Contratto registrato incompleto: lo stato temporaneo della procedura è rappresentato separatamente dalla bozza applicativa.
 
@@ -195,9 +195,11 @@ Alla registrazione definitiva del Contratto viene creato il Pagamento della prim
 
 ### 3.7 BozzaContratto e confine del Domain Model
 
-`BozzaContratto` non appartiene al Domain Model. Rappresenta lo stato temporaneo e recuperabile della procedura guidata di UC-01 ed è quindi un application model.
+`BozzaContratto` non appartiene al Domain Model. Rappresenta lo stato temporaneo e recuperabile di una procedura guidata di UC-01 ed è quindi un application model.
 
-Nuovi Immobili, nuove Persone, eventuali modifiche validate a Persone esistenti e dati del DocumentoRiconoscimento rimangono nella bozza fino alla conferma definitiva. L'annullamento della procedura non rende permanenti tali dati.
+Nella versione 1.0 più bozze possono coesistere anche se il sistema è mono-utente: la pluralità serve a sospendere e riprendere preparazioni relative a contratti diversi, non a distinguere utenti. Ogni bozza persistita è identificata tramite `idBozza`, identificatore tecnico del workflow applicativo e non identificatore di dominio. Per uno stesso Immobile già registrato è ammessa al massimo una bozza attiva.
+
+Nuovi Immobili, nuove Persone, eventuali modifiche validate a Persone esistenti e dati del DocumentoRiconoscimento rimangono nella relativa bozza fino alla conferma definitiva. L'annullamento della procedura elimina soltanto la bozza selezionata e non rende permanenti tali dati.
 
 La bozza non rappresenta un Contratto incompleto e non contiene il documento storico o Pagamenti definitivi. Il suo lifecycle e il comportamento di recupero sono rappresentati nei diagrammi dinamici; le decisioni architetturali relative alla sua persistenza appartengono a `docs/architettura.md`.
 
@@ -209,7 +211,7 @@ Il Domain Model rende espliciti i vincoli necessari a comprenderne struttura e s
 - una Persona che assume il ruolo di inquilino deve disporre del DocumentoRiconoscimento richiesto;
 - la combinazione catastale identifica univocamente un Immobile;
 - il giorno di pagamento è compreso tra 1 e 28;
-- la data `/al` è derivata da `dal` e dalla durata iniziale della TipologiaContrattuale;
+- la data `al` viene calcolata da `dal` e dalla durata iniziale della TipologiaContrattuale durante la definizione del periodo e viene poi conservata nel Contratto;
 - il rinnovo della tipologia non estende il periodo gestito nella versione 1.0;
 - i periodi di due Contratti dello stesso Immobile non possono sovrapporsi;
 - ogni TipologiaContrattuale possiede almeno un Articolo template;
@@ -230,12 +232,12 @@ Il Class Diagram conserva i concetti del Domain Model e aggiunge i tipi software
 
 Due differenze rispetto al Domain Model sono intenzionali:
 
-- `BozzaContratto` e `PagamentoDaRegistrare` compaiono come application model perché servono al workflow, ma non sono concetti del dominio;
+- `BozzaContratto` e `PagamentoDaRegistrare` compaiono come application model perché servono al workflow, ma non sono concetti del dominio; `idBozza` identifica esclusivamente una bozza persistita del workflow di UC-01;
 - nel Domain Model un Contratto registrato possiede `contenuto` e almeno un Pagamento, mentre nel Class Diagram tali elementi possono essere temporaneamente assenti durante l'assemblaggio in memoria prima della registrazione definitiva.
 
 `Articolo` resta associato soltanto alla `TipologiaContrattuale`; non esiste un'associazione `Contratto`--`Articolo`. La storia del documento è responsabilità di `Contratto.contenuto`.
 
-`Contratto` espone i comportamenti di dominio necessari ai casi d'uso, fra cui verifica della sovrapposizione, calcolo di importo e scadenza delle competenze, stato temporale, impostazione del contenuto e aggiunta dei Pagamenti.
+`Contratto` espone i comportamenti di dominio necessari ai casi d'uso, fra cui definizione e confronto dei periodi, calcolo di importo e scadenza delle competenze, stato temporale, impostazione del contenuto e aggiunta dei Pagamenti. Il significato della sovrapposizione resta nel dominio; il repository può offrire una ricerca mirata per verificare efficientemente se un periodo sovrapposto esiste nei dati persistiti.
 
 Le responsabilità dei Service, le porte applicative, la Dependency Rule e le scelte di persistenza sono descritte in `docs/architettura.md`.
 
@@ -249,17 +251,19 @@ I diagrammi dinamici usano partecipanti logici per descrivere collaborazioni e f
 
 Il diagramma mette in evidenza in particolare:
 
-- recupero dell'eventuale bozza e distinzione fra bozza riprendibile e bozza residua di una registrazione già completata;
-- aggiornamento della bozza dopo gli step validi, senza persistenza definitiva anticipata dei nuovi dati o delle modifiche;
-- controllo della sovrapposizione prima della registrazione;
-- costruzione del Contratto soltanto alla conferma finale;
+- recupero dell'insieme delle bozze, eliminazione delle eventuali bozze residue e scelta fra ripresa di una bozza e nuova procedura;
+- identificazione esplicita della bozza corrente nelle operazioni successive allo step Immobile;
+- aggiornamento della sola bozza selezionata dopo gli step validi, senza persistenza definitiva anticipata dei nuovi dati o delle modifiche;
+- calcolo e memorizzazione di `al` nella bozza alla validazione dei dati contrattuali;
+- controllo mirato della sovrapposizione prima della registrazione, senza richiedere il caricamento di tutti i Contratti dell'Immobile per tale verifica;
+- costruzione del Contratto soltanto alla conferma finale usando il periodo `dal`--`al` già determinato;
 - generazione del contenuto storico a partire dai template e dai dati finali;
 - creazione del primo Pagamento;
 - registrazione definitiva come operazione logica coerente e atomica;
-- cleanup della bozza successivo al successo, senza invalidare il Contratto in caso di errore di cancellazione;
-- conservazione della bozza in caso di errore della registrazione definitiva.
+- cleanup della sola bozza corrente successivo al successo, senza invalidare il Contratto in caso di errore di cancellazione;
+- conservazione della bozza corrente in caso di errore della registrazione definitiva.
 
-Il confronto usato per riconoscere una bozza residua utilizza, quando tutti disponibili, identificazione catastale dell'Immobile, codice fiscale dell'Inquilino e periodo `dal`--`al`. Solo la coincidenza di tutti e tre gli elementi con un Contratto già registrato consente di eliminarla automaticamente come residua.
+Il confronto usato per riconoscere una bozza residua utilizza, quando tutti disponibili, identificazione catastale dell'Immobile, codice fiscale dell'Inquilino e periodo `dal`--`al`. Solo la coincidenza di tutti e tre gli elementi con un Contratto già registrato consente di eliminarla automaticamente come residua; le altre bozze restano disponibili.
 
 ### 6.2 Activity Diagram UC-01
 
@@ -267,15 +271,16 @@ Il confronto usato per riconoscere una bozza residua utilizza, quando tutti disp
 
 Il diagramma evidenzia:
 
-- ripresa o avvio della procedura;
+- recupero delle bozze non concluse e rimozione delle eventuali residue;
+- scelta fra una bozza riprendibile e una nuova procedura;
 - avanzamento attraverso i sei step;
 - cicli di validazione e correzione prima dell'avanzamento;
 - distinzione tra selezione di dati esistenti e acquisizione di nuovi dati;
-- aggiornamento progressivo della bozza;
+- aggiornamento progressivo della sola bozza corrente;
 - possibilità di annullamento prima della conferma;
 - ritorno alla modifica in presenza di sovrapposizione;
 - registrazione definitiva soltanto dopo conferma valida;
-- cleanup della bozza dopo il completamento positivo.
+- cleanup della sola bozza interessata dopo il completamento positivo.
 
 L'Activity Diagram usa i ruoli `Proprietario` e `Sistema` e non introduce componenti architetturali.
 

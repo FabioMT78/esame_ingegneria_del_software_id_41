@@ -51,7 +51,7 @@ class DatiCatastali {
 class Contratto {
   nomeDescrizione
   dal
-  /al
+  al
   canoneMensile
   giornoPagamento
   registratoIl
@@ -119,7 +119,8 @@ end note
 
 note right of Contratto
   { giornoPagamento in 1..28 }
-  { /al determinato da dal e TipologiaContrattuale.durata }
+  { al calcolato da dal e TipologiaContrattuale.durata
+    durante la definizione del periodo e poi conservato }
   { periodi relativi allo stesso Immobile non sovrapposti }
   { registratoIl valorizzato alla registrazione definitiva }
   { contenuto = copia completa del contratto generato }

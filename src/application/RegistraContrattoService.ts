@@ -27,19 +27,19 @@ class RegistraContrattoService {
     private readonly dataCorrenteProvider: DataCorrenteProvider,
   ) {}
 
-  async avvia(): Promise<BozzaContratto | null> {
-    const bozza = await this.bozzaRepository.recupera();
+  async avvia(): Promise<BozzaContratto[]> {
+    const bozze = await this.bozzaRepository.elenca();
+    const riprendibili: BozzaContratto[] = [];
 
-    if (bozza === null) {
-      return null;
+    for (const bozza of bozze) {
+      if (await this.bozzaCorrispondeAContrattoRegistrato(bozza)) {
+        await this.bozzaRepository.elimina(this.richiediIdBozza(bozza));
+      } else {
+        riprendibili.push(bozza);
+      }
     }
 
-    if (!(await this.bozzaCorrispondeAContrattoRegistrato(bozza))) {
-      return bozza;
-    }
-
-    await this.bozzaRepository.elimina();
-    return null;
+    return riprendibili;
   }
 
   async elencaImmobili(): Promise<Immobile[]> {
@@ -50,17 +50,25 @@ class RegistraContrattoService {
     return this.tipologiaRepository.trovaTutte();
   }
 
-  async selezionaImmobile(immobileId: number): Promise<BozzaContratto> {
+  async selezionaImmobile(
+    immobileId: number,
+    idBozza?: number,
+  ): Promise<BozzaContratto> {
     const immobile = await this.immobileRepository.trovaPerId(immobileId);
 
     if (immobile === null) {
       throw new Error("Immobile non trovato");
     }
 
-    return this.salvaImmobileInBozza(immobile);
+    await this.verificaBozzaImmobileDisponibile(immobileId, idBozza);
+
+    return this.salvaImmobileInBozza(immobile, idBozza);
   }
 
-  async inserisciNuovoImmobile(immobile: Immobile): Promise<BozzaContratto> {
+  async inserisciNuovoImmobile(
+    immobile: Immobile,
+    idBozza?: number,
+  ): Promise<BozzaContratto> {
     const immobileConStessiDatiCatastali =
       await this.immobileRepository.trovaPerDatiCatastali(
         immobile.datiCatastali,
@@ -81,7 +89,7 @@ class RegistraContrattoService {
       }
     }
 
-    return this.salvaImmobileInBozza(immobile);
+    return this.salvaImmobileInBozza(immobile, idBozza);
   }
 
   async cercaPersona(codiceFiscale: string): Promise<Persona | null> {
@@ -95,25 +103,29 @@ class RegistraContrattoService {
     return this.creaWorkingCopyPersona(persona);
   }
 
-  async impostaProprietario(persona: Persona): Promise<BozzaContratto> {
-    const bozza = await this.bozzaRepository.recupera();
+  async impostaProprietario(
+    idBozza: number,
+    persona: Persona,
+  ): Promise<BozzaContratto> {
+    const bozza = await this.recuperaBozza(idBozza);
 
-    if (bozza === null || bozza.immobile === undefined) {
+    if (bozza.immobile === undefined) {
       throw new Error("Step immobile non completato");
     }
 
     bozza.proprietario = persona;
     bozza.stepCompletato = Math.max(bozza.stepCompletato, 2);
 
-    await this.bozzaRepository.salva(bozza);
-
-    return bozza;
+    return this.bozzaRepository.salva(bozza);
   }
 
-  async impostaInquilino(persona: Persona): Promise<BozzaContratto> {
-    const bozza = await this.bozzaRepository.recupera();
+  async impostaInquilino(
+    idBozza: number,
+    persona: Persona,
+  ): Promise<BozzaContratto> {
+    const bozza = await this.recuperaBozza(idBozza);
 
-    if (bozza === null || bozza.proprietario === undefined) {
+    if (bozza.proprietario === undefined) {
       throw new Error("Step proprietario non completato");
     }
 
@@ -126,21 +138,20 @@ class RegistraContrattoService {
     bozza.inquilino = persona;
     bozza.stepCompletato = Math.max(bozza.stepCompletato, 3);
 
-    await this.bozzaRepository.salva(bozza);
-
-    return bozza;
+    return this.bozzaRepository.salva(bozza);
   }
 
   async impostaDatiContrattuali(
+    idBozza: number,
     nomeDescrizione: string,
     tipologiaId: number,
     dal: Date,
     canoneMensile: number,
     giornoPagamento: number,
   ): Promise<BozzaContratto> {
-    const bozza = await this.bozzaRepository.recupera();
+    const bozza = await this.recuperaBozza(idBozza);
 
-    if (bozza === null || bozza.inquilino === undefined) {
+    if (bozza.inquilino === undefined) {
       throw new Error("Step inquilino non completato");
     }
 
@@ -160,21 +171,16 @@ class RegistraContrattoService {
     bozza.nomeDescrizione = nomeDescrizione;
     bozza.tipologia = tipologia;
     bozza.dal = new Date(dal.getTime());
+    bozza.al = Contratto.calcolaDataFine(dal, tipologia);
     bozza.canoneMensile = canoneMensile;
     bozza.giornoPagamento = giornoPagamento;
     bozza.stepCompletato = Math.max(bozza.stepCompletato, 4);
 
-    await this.bozzaRepository.salva(bozza);
-
-    return bozza;
+    return this.bozzaRepository.salva(bozza);
   }
 
-  async conferma(): Promise<void> {
-    const bozza = await this.bozzaRepository.recupera();
-
-    if (bozza === null) {
-      throw new Error("Bozza del contratto non disponibile");
-    }
+  async conferma(idBozza: number): Promise<void> {
+    const bozza = await this.recuperaBozza(idBozza);
 
     const {
       immobile,
@@ -183,6 +189,7 @@ class RegistraContrattoService {
       tipologia,
       nomeDescrizione,
       dal,
+      al,
       canoneMensile,
       giornoPagamento,
     } = bozza;
@@ -197,6 +204,7 @@ class RegistraContrattoService {
       nomeDescrizione === undefined ||
       nomeDescrizione.trim().length === 0 ||
       dal === undefined ||
+      al === undefined ||
       canoneMensile === undefined ||
       giornoPagamento === undefined
     ) {
@@ -205,30 +213,20 @@ class RegistraContrattoService {
 
     Contratto.validaGiornoPagamento(giornoPagamento);
 
-    const al = Contratto.calcolaDataFine(dal, tipologia);
     const immobilePersistito =
       await this.trovaImmobilePersistito(immobile);
 
-    if (immobilePersistito?.id !== undefined) {
-      const contrattiEsistenti =
-        await this.contrattoRepository.trovaPerImmobile(
-          immobilePersistito.id,
-        );
-
-      const sovrapposto = contrattiEsistenti.some((contratto) =>
-        Contratto.periodiSiSovrappongono(
-          dal,
-          al,
-          contratto.dal,
-          contratto.al,
-        ),
+    if (
+      immobilePersistito?.id !== undefined &&
+      (await this.contrattoRepository.esisteSovrapposizione(
+        immobilePersistito.id,
+        dal,
+        al,
+      ))
+    ) {
+      throw new Error(
+        "Il periodo del contratto si sovrappone a un contratto esistente",
       );
-
-      if (sovrapposto) {
-        throw new Error(
-          "Il periodo del contratto si sovrappone a un contratto esistente",
-        );
-      }
     }
 
     const contratto = new Contratto({
@@ -238,6 +236,7 @@ class RegistraContrattoService {
       inquilino,
       tipologia,
       dal,
+      al,
       canoneMensile,
       giornoPagamento,
       registratoIl: this.dataCorrenteProvider.oggi(),
@@ -267,47 +266,81 @@ class RegistraContrattoService {
     );
 
     try {
-      await this.bozzaRepository.elimina();
+      await this.bozzaRepository.elimina(idBozza);
     } catch {
       // La registrazione definitiva è già conclusa.
       // La bozza residua verrà riconosciuta al successivo avvio.
     }
   }
 
-  async annulla(): Promise<void> {
-    await this.bozzaRepository.elimina();
+  async annulla(idBozza: number): Promise<void> {
+    await this.recuperaBozza(idBozza);
+    await this.bozzaRepository.elimina(idBozza);
   }
 
   private async salvaImmobileInBozza(
     immobile: Immobile,
+    idBozza?: number,
   ): Promise<BozzaContratto> {
-    let bozza = await this.bozzaRepository.recupera();
+    let bozza: BozzaContratto;
 
-    if (bozza === null) {
+    if (idBozza === undefined) {
       bozza = new BozzaContratto({
         stepCompletato: 1,
         immobile,
       });
     } else {
+      bozza = await this.recuperaBozza(idBozza);
       bozza.immobile = immobile;
       bozza.stepCompletato = Math.max(bozza.stepCompletato, 1);
     }
 
-    await this.bozzaRepository.salva(bozza);
+    return this.bozzaRepository.salva(bozza);
+  }
+
+  private async recuperaBozza(idBozza: number): Promise<BozzaContratto> {
+    const bozza = await this.bozzaRepository.trovaPerId(idBozza);
+
+    if (bozza === null) {
+      throw new Error("Bozza del contratto non disponibile");
+    }
 
     return bozza;
+  }
+
+  private async verificaBozzaImmobileDisponibile(
+    immobileId: number,
+    idBozza?: number,
+  ): Promise<void> {
+    const bozzaEsistente =
+      await this.bozzaRepository.trovaPerImmobileId(immobileId);
+
+    if (
+      bozzaEsistente !== null &&
+      bozzaEsistente.idBozza !== idBozza
+    ) {
+      throw new Error("Esiste già una bozza per l'immobile selezionato");
+    }
+  }
+
+  private richiediIdBozza(bozza: BozzaContratto): number {
+    if (bozza.idBozza === undefined) {
+      throw new Error("Bozza persistita senza identificatore");
+    }
+
+    return bozza.idBozza;
   }
 
   private async bozzaCorrispondeAContrattoRegistrato(
     bozza: BozzaContratto,
   ): Promise<boolean> {
-    const { immobile, inquilino, dal, tipologia } = bozza;
+    const { immobile, inquilino, dal, al } = bozza;
 
     if (
       immobile === undefined ||
       inquilino === undefined ||
       dal === undefined ||
-      tipologia === undefined
+      al === undefined
     ) {
       return false;
     }
@@ -319,7 +352,6 @@ class RegistraContrattoService {
       return false;
     }
 
-    const al = Contratto.calcolaDataFine(dal, tipologia);
     const contratti =
       await this.contrattoRepository.trovaPerImmobile(
         immobilePersistito.id,

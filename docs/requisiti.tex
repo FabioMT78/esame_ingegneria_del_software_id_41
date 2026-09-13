@@ -114,6 +114,8 @@ autorizzazione restano fuori scope.
     \item Il proprietario inserisce la data iniziale \texttt{dal}; la data finale \texttt{al}
           è determinata automaticamente in base alla durata del periodo iniziale della tipologia
           selezionata. Le date \texttt{dal} e \texttt{al} sono entrambe comprese nel periodo iniziale.
+          Il periodo \texttt{dal}--\texttt{al} determinato durante la procedura viene conservato
+          come parte dei dati del contratto registrato.
     \item Il valore relativo al rinnovo descrive la tipologia contrattuale, ma la versione 1.0 gestisce
           esclusivamente il periodo iniziale del contratto e non esegue operazioni o avvisi relativi
           al rinnovo successivo.
@@ -186,23 +188,28 @@ Il sistema deve consentire al proprietario di registrare un contratto mediante u
 procedura guidata in sei step: immobile -> proprietario -> inquilino -> dati contrattuali ->
 riepilogo -> conferma. I dati obbligatori di uno step devono essere validi prima di
 proseguire e la procedura deve poter essere annullata prima della conferma definitiva.
-Se all'avvio della procedura esiste una bozza, il sistema deve confrontarla progressivamente
-con i contratti già registrati usando, quando disponibili, l'identificazione catastale dell'immobile,
-il codice fiscale dell'inquilino e il periodo \texttt{dal}--\texttt{al}. Se tutti questi dati sono
-presenti nella bozza e coincidono con quelli di un contratto già registrato, la bozza deve essere
-considerata residua, eliminata senza richiedere conferma al proprietario e deve essere avviata una
-nuova procedura; negli altri casi il sistema deve caricare i dati della bozza. \\
+All'avvio della procedura il sistema deve recuperare le bozze non concluse e confrontare
+progressivamente ciascuna di esse con i contratti già registrati usando, quando disponibili,
+l'identificazione catastale dell'immobile, il codice fiscale dell'inquilino e il periodo
+\texttt{dal}--\texttt{al}. Se tutti questi dati sono presenti in una bozza e coincidono con
+quelli di un contratto già registrato, la bozza deve essere considerata residua ed eliminata
+senza richiedere conferma al proprietario. Se, dopo tale verifica, rimangono una o più bozze
+riprendibili, il sistema deve consentire al proprietario di selezionarne una da riprendere
+oppure di avviare una nuova procedura. \\
 
 \req{RF-02} &
-Al completamento del primo step il sistema deve creare una bozza del contratto e aggiornarla
-al completamento di ogni step validato con successo. La bozza deve contenere soltanto i dati
-necessari a completare la procedura e non deve contenere un contratto già generato o la relativa
-copia documentale. Il contratto deve essere generato soltanto alla conferma definitiva. La bozza deve essere cancellata quando
-il proprietario annulla la procedura. Dopo una registrazione definitiva conclusa con successo il
-sistema deve tentare di cancellare la bozza; un eventuale errore di tale cancellazione non deve
-invalidare il contratto già registrato. Una bozza residua che, alla successiva apertura, risulti
-corrispondere a un contratto già registrato secondo il confronto definito in RF-01 deve essere
-eliminata automaticamente. \\
+Al completamento del primo step il sistema deve creare una bozza distinta della procedura e
+aggiornarla al completamento di ogni step validato con successo. Più bozze possono coesistere
+nella versione 1.0, ma per uno stesso immobile già registrato deve esistere al massimo una
+bozza attiva. Ogni aggiornamento, annullamento e cleanup deve riguardare esclusivamente la bozza
+della procedura selezionata. La bozza deve contenere soltanto i dati necessari a completare la
+procedura e non deve contenere un contratto già generato o la relativa copia documentale. Il
+contratto deve essere generato soltanto alla conferma definitiva. La bozza selezionata deve essere
+cancellata quando il proprietario annulla la procedura. Dopo una registrazione definitiva conclusa
+con successo il sistema deve tentare di cancellare la relativa bozza; un eventuale errore di tale
+cancellazione non deve invalidare il contratto già registrato né coinvolgere le altre bozze. Una
+bozza residua che, alla successiva apertura, risulti corrispondere a un contratto già registrato
+secondo il confronto definito in RF-01 deve essere eliminata automaticamente. \\
 
 \req{RF-03} &
 Durante la registrazione del contratto il sistema deve consentire di selezionare un immobile
@@ -330,8 +337,9 @@ pagamento deve essere registrato. \\
 I dati validati negli step completati della registrazione del contratto devono essere
 recuperabili dopo un'interruzione della procedura o una temporanea indisponibilità del
 servizio. Nel contesto mono-utente della versione 1.0, alla riapertura della procedura il
-sistema deve poter recuperare l'eventuale bozza non conclusa senza richiedere un meccanismo
-di identificazione tra utenti diversi. &
+sistema deve poter recuperare le eventuali bozze non concluse, consentire la selezione di
+quella da riprendere e ripristinarne i dati già validati senza richiedere un meccanismo di
+identificazione tra utenti diversi. &
 Affidabilità / recuperabilità \\
 
 \req{RNF-02} &
@@ -468,13 +476,24 @@ successive variazioni degli articoli predefiniti o dei dati sorgente.
 \textbf{allora} nessun nuovo contratto deve essere registrato, nessun nuovo immobile,
 nuova persona o nuovo dato di riconoscimento acquisito esclusivamente nella procedura deve
 essere salvato permanentemente, nessuna modifica apportata a una persona già registrata deve
-diventare definitiva e l'eventuale bozza deve essere cancellata.
+diventare definitiva e deve essere cancellata soltanto la bozza relativa alla procedura annullata.
 
 \paragraph{AC-09 -- Ciclo di vita della bozza}
-\textbf{Dato} che il proprietario completa con successo il primo step della procedura,
-\textbf{quando} passa a uno step successivo validato,
-\textbf{allora} il sistema deve creare o aggiornare la bozza con i dati acquisiti o modificati;
-\textbf{quando} la registrazione definitiva termina con successo, la bozza deve essere cancellata.
+\textbf{Dato} che il proprietario completa con successo il primo step di una nuova procedura,
+\textbf{quando} la bozza viene salvata,
+\textbf{allora} essa deve essere identificabile separatamente dalle altre bozze e deve essere
+aggiornata con i dati acquisiti o modificati nei successivi step validati.
+
+\textbf{Dato} che esistono più bozze riprendibili,
+\textbf{quando} il proprietario avvia UC-01,
+\textbf{allora} il sistema deve consentirgli di scegliere quale bozza riprendere oppure di iniziare
+un nuovo contratto; per uno stesso immobile già registrato non deve essere creata una seconda bozza
+attiva.
+
+\textbf{Dato} che una registrazione definitiva termina con successo,
+\textbf{quando} viene eseguito il cleanup,
+\textbf{allora} deve essere cancellata soltanto la bozza del contratto registrato e le eventuali altre
+bozze devono rimanere disponibili.
 
 \subsection{Acceptance criteria di US-02}
 
@@ -553,13 +572,13 @@ Questi criteri non introducono nuove user stories, ma indicano come verificare i
 trasversali della versione 1.0.
 
 \begin{description}
-    \item[CV-01 -- RNF-01] Dopo aver completato almeno uno step della registrazione del
-    contratto, un'interruzione della procedura deve consentire, nel contesto mono-utente
-    previsto dalla versione 1.0, di riaprire la procedura recuperando l'ultima bozza non
-    conclusa e i dati già acquisiti. Se la bozza residua corrisponde invece a un contratto
-    già registrato per identificazione catastale dell'immobile, codice fiscale dell'inquilino
-    e periodo \texttt{dal}--\texttt{al}, deve essere eliminata automaticamente e non proposta
-    come procedura da riprendere.
+    \item[CV-01 -- RNF-01] Dopo aver completato almeno uno step della registrazione di uno o più
+    contratti, un'interruzione della procedura deve consentire, nel contesto mono-utente previsto
+    dalla versione 1.0, di riaprire UC-01 recuperando le bozze non concluse, scegliere quella da
+    riprendere e ritrovare i dati già acquisiti. Le bozze residue che corrispondono a contratti già
+    registrati per identificazione catastale dell'immobile, codice fiscale dell'inquilino e periodo
+    \texttt{dal}--\texttt{al} devono essere eliminate automaticamente e non proposte; le altre
+    bozze devono rimanere disponibili.
 
     \item[CV-02 -- RNF-02] In condizioni nominali, ciascuna operazione interattiva di
     UC-01 e UC-02 che richiede il server deve completarsi entro 1,5 secondi.
@@ -575,8 +594,8 @@ trasversali della versione 1.0.
     log, non deve lasciare dati definitivi parziali, deve restituire un messaggio utente privo di
     dettagli tecnici e non deve impedire una successiva operazione valida. In particolare, un errore
     durante la cancellazione della bozza successiva alla registrazione definitiva non deve annullare
-    il contratto registrato; alla successiva apertura la bozza residua deve essere riconosciuta tramite il confronto
-    previsto da RF-01 e rimossa automaticamente.
+    il contratto registrato né alterare le altre bozze; alla successiva apertura la bozza residua deve
+    essere riconosciuta tramite il confronto previsto da RF-01 e rimossa automaticamente.
 
     \item[CV-05 -- RNF-05] Durante un'operazione con attesa deve essere mostrato uno stato
     di elaborazione; al termine deve essere comunicato un esito positivo o negativo.

@@ -18,26 +18,45 @@ import Persona from "../../src/domain/Persona";
 import TipologiaContrattuale from "../../src/domain/TipologiaContrattuale";
 
 class BozzaContrattoRepositoryFake implements BozzaContrattoRepository {
-  bozza: BozzaContratto | null = null;
-  eliminazioni = 0;
-  erroreEliminazione = false;
+  bozze: BozzaContratto[] = [];
+  eliminazioni: number[] = [];
+  erroreEliminazioneId: number | null = null;
+  prossimoId = 1;
 
-  async recupera(): Promise<BozzaContratto | null> {
-    return this.bozza;
+  async elenca(): Promise<BozzaContratto[]> {
+    return [...this.bozze];
   }
 
-  async salva(bozza: BozzaContratto): Promise<void> {
-    this.bozza = bozza;
+  async trovaPerId(idBozza: number): Promise<BozzaContratto | null> {
+    return this.bozze.find((bozza) => bozza.idBozza === idBozza) ?? null;
   }
 
-  async elimina(): Promise<void> {
-    this.eliminazioni += 1;
+  async trovaPerImmobileId(
+    immobileId: number,
+  ): Promise<BozzaContratto | null> {
+    return (
+      this.bozze.find((bozza) => bozza.immobile?.id === immobileId) ?? null
+    );
+  }
 
-    if (this.erroreEliminazione) {
+  async salva(bozza: BozzaContratto): Promise<BozzaContratto> {
+    if (bozza.idBozza === undefined) {
+      bozza.idBozza = this.prossimoId;
+      this.prossimoId += 1;
+      this.bozze.push(bozza);
+    }
+
+    return bozza;
+  }
+
+  async elimina(idBozza: number): Promise<void> {
+    this.eliminazioni.push(idBozza);
+
+    if (this.erroreEliminazioneId === idBozza) {
       throw new Error("cleanup fallito");
     }
 
-    this.bozza = null;
+    this.bozze = this.bozze.filter((bozza) => bozza.idBozza !== idBozza);
   }
 }
 
@@ -93,17 +112,40 @@ class TipologiaContrattualeRepositoryFake
   }
 }
 
+type VerificaSovrapposizione = {
+  immobileId: number;
+  dal: Date;
+  al: Date;
+};
+
 class ContrattoRepositoryFake implements ContrattoRepository {
   contratti: Contratto[] = [];
+  sovrapposizione = false;
+  verificheSovrapposizione: VerificaSovrapposizione[] = [];
+  ricerchePerImmobile = 0;
 
   async trovaPerId(id: number): Promise<Contratto | null> {
     return this.contratti.find((contratto) => contratto.id === id) ?? null;
   }
 
   async trovaPerImmobile(immobileId: number): Promise<Contratto[]> {
+    this.ricerchePerImmobile += 1;
     return this.contratti.filter(
       (contratto) => contratto.immobile.id === immobileId,
     );
+  }
+
+  async esisteSovrapposizione(
+    immobileId: number,
+    dal: Date,
+    al: Date,
+  ): Promise<boolean> {
+    this.verificheSovrapposizione.push({
+      immobileId,
+      dal: new Date(dal.getTime()),
+      al: new Date(al.getTime()),
+    });
+    return this.sovrapposizione;
   }
 }
 
@@ -142,7 +184,7 @@ class DataCorrenteProviderFake implements DataCorrenteProvider {
   }
 }
 
-function creaImmobile(id?: number): Immobile {
+function creaImmobile(id?: number, particella = 10): Immobile {
   return new Immobile({
     ...(id !== undefined ? { id } : {}),
     nome: "Casa Roma",
@@ -155,7 +197,7 @@ function creaImmobile(id?: number): Immobile {
     datiCatastali: new DatiCatastali({
       codiceComunale: "H501",
       foglio: 1,
-      particella: 10,
+      particella,
       subalterno: 1,
       categoria: "A/2",
       consistenza: 5,
@@ -215,17 +257,21 @@ function creaTipologia(): TipologiaContrattuale {
 }
 
 function creaBozzaCompleta(
+  idBozza = 1,
   dal = new Date("2026-06-01T00:00:00.000Z"),
   immobile = creaImmobile(1),
 ): BozzaContratto {
+  const tipologia = creaTipologia();
   return new BozzaContratto({
+    idBozza,
     stepCompletato: 4,
     immobile,
     proprietario: creaPersona("RSSMRA80A10H501U"),
     inquilino: creaPersona("VRDLGI90B20H501X", true),
-    tipologia: creaTipologia(),
+    tipologia,
     nomeDescrizione: "Contratto Rossi",
     dal,
+    al: Contratto.calcolaDataFine(dal, tipologia),
     canoneMensile: 1000,
     giornoPagamento: 15,
   });
@@ -236,14 +282,16 @@ function creaContrattoRegistrato(
   immobile = creaImmobile(1),
   codiceFiscaleInquilino = "VRDLGI90B20H501X",
 ): Contratto {
+  const tipologia = creaTipologia();
   return new Contratto({
     id: 10,
     nomeDescrizione: "Contratto registrato",
     immobile,
     proprietario: creaPersona("RSSMRA80A10H501U"),
     inquilino: creaPersona(codiceFiscaleInquilino, true),
-    tipologia: creaTipologia(),
+    tipologia,
     dal,
+    al: Contratto.calcolaDataFine(dal, tipologia),
     canoneMensile: 1000,
     giornoPagamento: 15,
     registratoIl: new Date("2026-05-20T00:00:00.000Z"),
@@ -286,15 +334,25 @@ function creaScenario(): {
   };
 }
 
-describe("RegistraContrattoService.avvia - bozza residua", () => {
-  test("elimina una bozza completa che coincide con un contratto già registrato", async () => {
+describe("RegistraContrattoService.avvia - bozze residue", () => {
+  test("elimina soltanto la bozza residua e restituisce le altre bozze riprendibili", async () => {
     const scenario = creaScenario();
     const immobilePersistito = creaImmobile(1);
-    scenario.immobileRepository.immobili = [immobilePersistito];
-    scenario.bozzaRepository.bozza = creaBozzaCompleta(
+    const residua = creaBozzaCompleta(
+      1,
       new Date("2026-06-01T00:00:00.000Z"),
-      creaImmobile(),
+      immobilePersistito,
     );
+    const riprendibile = new BozzaContratto({
+      idBozza: 2,
+      stepCompletato: 1,
+      immobile: creaImmobile(2, 20),
+    });
+    scenario.immobileRepository.immobili = [
+      immobilePersistito,
+      riprendibile.immobile as Immobile,
+    ];
+    scenario.bozzaRepository.bozze = [residua, riprendibile];
     scenario.contrattoRepository.contratti = [
       creaContrattoRegistrato(
         new Date("2026-06-01T00:00:00.000Z"),
@@ -302,21 +360,18 @@ describe("RegistraContrattoService.avvia - bozza residua", () => {
       ),
     ];
 
-    await expect(scenario.service.avvia()).resolves.toBeNull();
+    await expect(scenario.service.avvia()).resolves.toEqual([riprendibile]);
 
-    expect(scenario.bozzaRepository.eliminazioni).toBe(1);
-    expect(scenario.bozzaRepository.bozza).toBeNull();
+    expect(scenario.bozzaRepository.eliminazioni).toEqual([1]);
+    expect(scenario.bozzaRepository.bozze).toEqual([riprendibile]);
   });
 
-  test("mantiene la bozza quando il codice fiscale dell'inquilino non coincide", async () => {
+  test("mantiene una bozza completa quando l'inquilino non coincide", async () => {
     const scenario = creaScenario();
     const immobilePersistito = creaImmobile(1);
-    const bozza = creaBozzaCompleta(
-      new Date("2026-06-01T00:00:00.000Z"),
-      immobilePersistito,
-    );
+    const bozza = creaBozzaCompleta(1, undefined, immobilePersistito);
     scenario.immobileRepository.immobili = [immobilePersistito];
-    scenario.bozzaRepository.bozza = bozza;
+    scenario.bozzaRepository.bozze = [bozza];
     scenario.contrattoRepository.contratti = [
       creaContrattoRegistrato(
         new Date("2026-06-01T00:00:00.000Z"),
@@ -325,77 +380,92 @@ describe("RegistraContrattoService.avvia - bozza residua", () => {
       ),
     ];
 
-    await expect(scenario.service.avvia()).resolves.toBe(bozza);
-
-    expect(scenario.bozzaRepository.eliminazioni).toBe(0);
+    await expect(scenario.service.avvia()).resolves.toEqual([bozza]);
+    expect(scenario.bozzaRepository.eliminazioni).toEqual([]);
   });
 
-  test("mantiene una bozza ancora incompleta senza interrogare i contratti", async () => {
+  test("mantiene una bozza incompleta senza interrogare i contratti", async () => {
     const scenario = creaScenario();
     const bozza = new BozzaContratto({
+      idBozza: 1,
       stepCompletato: 1,
       immobile: creaImmobile(1),
     });
-    scenario.bozzaRepository.bozza = bozza;
+    scenario.bozzaRepository.bozze = [bozza];
 
-    await expect(scenario.service.avvia()).resolves.toBe(bozza);
-
-    expect(scenario.bozzaRepository.eliminazioni).toBe(0);
+    await expect(scenario.service.avvia()).resolves.toEqual([bozza]);
+    expect(scenario.contrattoRepository.ricerchePerImmobile).toBe(0);
   });
 });
 
 describe("RegistraContrattoService.conferma", () => {
   test("rifiuta una bozza incompleta senza registrare nulla", async () => {
     const scenario = creaScenario();
-    scenario.bozzaRepository.bozza = new BozzaContratto({
-      stepCompletato: 3,
-      immobile: creaImmobile(1),
-    });
+    scenario.bozzaRepository.bozze = [
+      new BozzaContratto({
+        idBozza: 1,
+        stepCompletato: 3,
+        immobile: creaImmobile(1),
+      }),
+    ];
 
-    await expect(scenario.service.conferma()).rejects.toThrow(
+    await expect(scenario.service.conferma(1)).rejects.toThrow(
       "Bozza del contratto incompleta",
     );
 
     expect(scenario.registrazionePort.contrattoRegistrato).toBeNull();
-    expect(scenario.bozzaRepository.eliminazioni).toBe(0);
+    expect(scenario.bozzaRepository.eliminazioni).toEqual([]);
   });
 
-  test("impedisce la registrazione quando il periodo si sovrappone", async () => {
+  test("delega al repository la ricerca efficiente della sovrapposizione usando dal e al memorizzati", async () => {
     const scenario = creaScenario();
     const immobile = creaImmobile(1);
-    scenario.immobileRepository.immobili = [immobile];
-    scenario.bozzaRepository.bozza = creaBozzaCompleta(
+    const bozza = creaBozzaCompleta(
+      1,
       new Date("2027-01-01T00:00:00.000Z"),
       immobile,
     );
-    scenario.contrattoRepository.contratti = [
-      creaContrattoRegistrato(
-        new Date("2026-06-01T00:00:00.000Z"),
-        immobile,
-      ),
-    ];
+    scenario.immobileRepository.immobili = [immobile];
+    scenario.bozzaRepository.bozze = [bozza];
+    scenario.contrattoRepository.sovrapposizione = true;
 
-    await expect(scenario.service.conferma()).rejects.toThrow(
+    await expect(scenario.service.conferma(1)).rejects.toThrow(
       "Il periodo del contratto si sovrappone a un contratto esistente",
     );
 
+    expect(scenario.contrattoRepository.verificheSovrapposizione).toEqual([
+      {
+        immobileId: 1,
+        dal: new Date("2027-01-01T00:00:00.000Z"),
+        al: new Date("2029-12-31T00:00:00.000Z"),
+      },
+    ]);
+    expect(scenario.contrattoRepository.ricerchePerImmobile).toBe(0);
     expect(scenario.registrazionePort.contrattoRegistrato).toBeNull();
-    expect(scenario.bozzaRepository.eliminazioni).toBe(0);
   });
 
-  test("registra il contratto definitivo, genera il contenuto e crea la prima mensilità", async () => {
+  test("registra il contratto con al storico, contenuto e prima mensilità ed elimina solo la bozza confermata", async () => {
     const scenario = creaScenario();
     const immobile = creaImmobile(1);
-    scenario.immobileRepository.immobili = [immobile];
-    scenario.bozzaRepository.bozza = creaBozzaCompleta(
+    const bozza = creaBozzaCompleta(
+      1,
       new Date("2026-06-01T00:00:00.000Z"),
       immobile,
     );
+    const altraBozza = new BozzaContratto({
+      idBozza: 2,
+      stepCompletato: 1,
+      immobile: creaImmobile(2, 20),
+    });
+    scenario.immobileRepository.immobili = [immobile];
+    scenario.bozzaRepository.bozze = [bozza, altraBozza];
 
-    await scenario.service.conferma();
+    await scenario.service.conferma(1);
 
     const contratto = scenario.registrazionePort.contrattoRegistrato;
     expect(contratto).not.toBeNull();
+    expect(contratto?.dal).toEqual(new Date("2026-06-01T00:00:00.000Z"));
+    expect(contratto?.al).toEqual(new Date("2029-05-31T00:00:00.000Z"));
     expect(contratto?.registratoIl).toEqual(scenario.dataProvider.data);
     expect(contratto?.contenuto).toBe(
       "<article>Documento definitivo</article>",
@@ -408,62 +478,57 @@ describe("RegistraContrattoService.conferma", () => {
       new Date("2026-06-01T00:00:00.000Z"),
     );
     expect(contratto?.pagamenti[0]?.importo).toBe(1000);
-    expect(scenario.bozzaRepository.bozza).toBeNull();
+    expect(scenario.bozzaRepository.eliminazioni).toEqual([1]);
+    expect(scenario.bozzaRepository.bozze).toEqual([altraBozza]);
   });
 
   test("calcola in pro-rata la prima mensilità quando la decorrenza è a mese iniziato", async () => {
     const scenario = creaScenario();
     const immobile = creaImmobile(1);
     scenario.immobileRepository.immobili = [immobile];
-    scenario.bozzaRepository.bozza = creaBozzaCompleta(
-      new Date("2026-06-15T00:00:00.000Z"),
-      immobile,
-    );
+    scenario.bozzaRepository.bozze = [
+      creaBozzaCompleta(
+        1,
+        new Date("2026-06-15T00:00:00.000Z"),
+        immobile,
+      ),
+    ];
 
-    await scenario.service.conferma();
+    await scenario.service.conferma(1);
 
     expect(
-      scenario.registrazionePort.contrattoRegistrato?.pagamenti[0]
-        ?.importo,
+      scenario.registrazionePort.contrattoRegistrato?.pagamenti[0]?.importo,
     ).toBe(533.33);
   });
 
-  test("mantiene la bozza quando la registrazione definitiva fallisce", async () => {
+  test("mantiene la bozza specifica quando la registrazione definitiva fallisce", async () => {
     const scenario = creaScenario();
     const immobile = creaImmobile(1);
-    const bozza = creaBozzaCompleta(
-      new Date("2026-06-01T00:00:00.000Z"),
-      immobile,
-    );
+    const bozza = creaBozzaCompleta(1, undefined, immobile);
     scenario.immobileRepository.immobili = [immobile];
-    scenario.bozzaRepository.bozza = bozza;
-    scenario.registrazionePort.errore = new Error(
+    scenario.bozzaRepository.bozze = [bozza];
+    scenario.registrazionePort.errore = new Error("registrazione fallita");
+
+    await expect(scenario.service.conferma(1)).rejects.toThrow(
       "registrazione fallita",
     );
 
-    await expect(scenario.service.conferma()).rejects.toThrow(
-      "registrazione fallita",
-    );
-
-    expect(scenario.bozzaRepository.bozza).toBe(bozza);
-    expect(scenario.bozzaRepository.eliminazioni).toBe(0);
+    expect(scenario.bozzaRepository.bozze).toEqual([bozza]);
+    expect(scenario.bozzaRepository.eliminazioni).toEqual([]);
   });
 
-  test("considera riuscita la conferma anche se il cleanup della bozza fallisce", async () => {
+  test("considera riuscita la conferma anche se il cleanup della bozza specifica fallisce", async () => {
     const scenario = creaScenario();
     const immobile = creaImmobile(1);
-    const bozza = creaBozzaCompleta(
-      new Date("2026-06-01T00:00:00.000Z"),
-      immobile,
-    );
+    const bozza = creaBozzaCompleta(1, undefined, immobile);
     scenario.immobileRepository.immobili = [immobile];
-    scenario.bozzaRepository.bozza = bozza;
-    scenario.bozzaRepository.erroreEliminazione = true;
+    scenario.bozzaRepository.bozze = [bozza];
+    scenario.bozzaRepository.erroreEliminazioneId = 1;
 
-    await expect(scenario.service.conferma()).resolves.toBeUndefined();
+    await expect(scenario.service.conferma(1)).resolves.toBeUndefined();
 
     expect(scenario.registrazionePort.contrattoRegistrato).not.toBeNull();
-    expect(scenario.bozzaRepository.bozza).toBe(bozza);
-    expect(scenario.bozzaRepository.eliminazioni).toBe(1);
+    expect(scenario.bozzaRepository.bozze).toEqual([bozza]);
+    expect(scenario.bozzaRepository.eliminazioni).toEqual([1]);
   });
 });

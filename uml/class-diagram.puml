@@ -9,17 +9,17 @@ hide empty members
 
 package "application" {
   class RegistraContrattoService <<service>> {
-    + avvia(): Promise<BozzaContratto | null>
+    + avvia(): Promise<List<BozzaContratto>>
     + elencaImmobili(): Promise<List<Immobile>>
     + elencaTipologie(): Promise<List<TipologiaContrattuale>>
-    + selezionaImmobile(immobileId : int): Promise<BozzaContratto>
-    + inserisciNuovoImmobile(immobile : Immobile): Promise<BozzaContratto>
+    + selezionaImmobile(immobileId : int, idBozza : int [0..1]): Promise<BozzaContratto>
+    + inserisciNuovoImmobile(immobile : Immobile, idBozza : int [0..1]): Promise<BozzaContratto>
     + cercaPersona(codiceFiscale : string): Promise<Persona | null>
-    + impostaProprietario(persona : Persona): Promise<BozzaContratto>
-    + impostaInquilino(persona : Persona): Promise<BozzaContratto>
-    + impostaDatiContrattuali(nomeDescrizione : string, tipologiaId : int, dal : date, canoneMensile : decimal, giornoPagamento : int): Promise<BozzaContratto>
-    + conferma(): Promise<void>
-    + annulla(): Promise<void>
+    + impostaProprietario(idBozza : int, persona : Persona): Promise<BozzaContratto>
+    + impostaInquilino(idBozza : int, persona : Persona): Promise<BozzaContratto>
+    + impostaDatiContrattuali(idBozza : int, nomeDescrizione : string, tipologiaId : int, dal : date, canoneMensile : decimal, giornoPagamento : int): Promise<BozzaContratto>
+    + conferma(idBozza : int): Promise<void>
+    + annulla(idBozza : int): Promise<void>
   }
 
   class RegistraPagamentoService <<service>> {
@@ -31,12 +31,13 @@ package "application" {
 
   package "model" {
     class BozzaContratto <<application model>> {
+      - idBozza : int [0..1]
       - stepCompletato : int
       - nomeDescrizione : string [0..1]
       - dal : date [0..1]
+      - al : date [0..1]
       - canoneMensile : decimal [0..1]
       - giornoPagamento : int [0..1]
-      + /al : date [0..1]
     }
 
     class PagamentoDaRegistrare <<application model>> {
@@ -56,9 +57,11 @@ package "application" {
 
   package "ports" {
     interface BozzaContrattoRepository {
-      + recupera(): Promise<BozzaContratto | null>
-      + salva(bozza: BozzaContratto): Promise<void>
-      + elimina(): Promise<void>
+      + elenca(): Promise<List<BozzaContratto>>
+      + trovaPerId(idBozza : int): Promise<BozzaContratto | null>
+      + trovaPerImmobileId(immobileId : int): Promise<BozzaContratto | null>
+      + salva(bozza : BozzaContratto): Promise<BozzaContratto>
+      + elimina(idBozza : int): Promise<void>
     }
 
     interface ImmobileRepository {
@@ -80,6 +83,7 @@ package "application" {
     interface ContrattoRepository {
       + trovaPerId(id : int): Promise<Contratto | null>
       + trovaPerImmobile(immobileId : int): Promise<List<Contratto>>
+      + esisteSovrapposizione(immobileId : int, dal : date, al : date): Promise<boolean>
     }
 
     interface PagamentoRepository {
@@ -171,7 +175,7 @@ package "domain" {
     - id : int [0..1]
     - nomeDescrizione : string
     - dal : date
-    - /al : date
+    - al : date
     - canoneMensile : decimal
     - giornoPagamento : int
     - registratoIl : date
@@ -248,10 +252,12 @@ note right of RegistrazioneContrattoPort
 end note
 
 note bottom of BozzaContratto
-  Application model temporaneo, senza idBozza.
-  Conserva soltanto i dati necessari a riprendere la procedura.
-  Non contiene Contratto generato, documento HTML,
-  copie di Articolo o Pagamenti definitivi.
+  Application model temporaneo identificato da idBozza.
+  Più bozze possono coesistere nella v1.0 mono-utente;
+  per un Immobile già registrato è ammessa al massimo
+  una bozza attiva. Conserva soltanto i dati necessari
+  a riprendere la procedura e non contiene Contratto
+  generato, documento HTML, copie di Articolo o Pagamenti definitivi.
 end note
 
 note bottom of Articolo
@@ -262,7 +268,8 @@ end note
 
 note bottom of Contratto
   { giornoPagamento in 1..28 }
-  { /al derivato da dal e tipologia.durata }
+  { al calcolato da dal e tipologia.durata prima della registrazione
+    e poi conservato come parte del periodo storico }
   { dal e al inclusivi }
   { registratoIl assegnato alla conferma tramite DataCorrenteProvider }
   Durante l'assemblaggio il contenuto può essere assente.

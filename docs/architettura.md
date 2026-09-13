@@ -13,6 +13,7 @@ Le decisioni architetturali sono guidate soprattutto da questi vincoli:
 
 - separare orchestrazione applicativa, regole di dominio, interazione HTTP e persistenza;
 - rendere recuperabile lo stato temporaneo della procedura guidata di UC-01;
+- consentire la presenza di più bozze di UC-01 senza confonderne il lifecycle;
 - garantire coerenza e atomicità dei dati definitivi registrati da UC-01;
 - mantenere il server autorevole per validazione, data corrente e dati persistiti;
 - rendere testabili i casi d'uso senza richiedere database, filesystem o orologio reale nei test unitari;
@@ -129,7 +130,9 @@ Il `domain` non dipende dalla persistenza. L'`application` dipende dalle astrazi
 
 Ha la responsabilità principale di orchestrare UC-01.
 
-Coordina la procedura guidata, il recupero dei dati necessari, la gestione della bozza, l'invocazione delle regole del `Contratto`, il controllo della sovrapposizione, l'acquisizione della data corrente, la generazione del contenuto storico e la registrazione definitiva.
+Coordina la procedura guidata, il recupero dei dati necessari, la gestione delle bozze, l'invocazione delle regole del `Contratto`, il controllo della sovrapposizione, l'acquisizione della data corrente, la generazione del contenuto storico e la registrazione definitiva.
+
+Più bozze possono coesistere nella versione 1.0. Ogni operazione che modifica, conferma o annulla una procedura già iniziata identifica esplicitamente la relativa bozza, evitando che un'operazione su un contratto in preparazione modifichi lo stato temporaneo di un altro. All'avvio il Service individua le bozze riprendibili ed elimina soltanto quelle riconosciute come residue di una registrazione già completata.
 
 Il `Contratto` viene costruito soltanto alla conferma finale. Persistenza, generazione HTML, data corrente e regole di dominio sono delegate ai rispettivi collaboratori; il Service non contiene query, serializzazione, rendering concreto o formule economiche duplicate.
 
@@ -147,7 +150,7 @@ La data corrente viene ottenuta tramite `DataCorrenteProvider` e non viene forni
 
 `BozzaContratto` e `PagamentoDaRegistrare` appartengono all'application layer e non al Domain Model.
 
-`BozzaContratto` rappresenta lo stato temporaneo e recuperabile di UC-01. Non è un `Contratto` incompleto e non contiene il documento storico o Pagamenti definitivi. Il dettaglio delle informazioni necessarie alla ripresa del workflow è rappresentato nel Class Diagram e nei diagrammi dinamici.
+`BozzaContratto` rappresenta lo stato temporaneo e recuperabile di una singola procedura di UC-01. Non è un `Contratto` incompleto e non contiene il documento storico o Pagamenti definitivi. Possiede un `idBozza` tecnico che consente di distinguere più workflow temporanei dello stesso utente; l'identificatore non introduce un nuovo concetto del dominio degli affitti.
 
 `PagamentoDaRegistrare` rappresenta i dati necessari alla preview di UC-02. Non costituisce una fonte autorevole alla conferma: i dati persistiti vengono ricaricati e ricalcolati dal server.
 
@@ -157,11 +160,11 @@ Le porte sono orientate ai bisogni dei casi d'uso e non alle singole tabelle del
 
 ### Porte di persistenza
 
-- `BozzaContrattoRepository` isola il salvataggio, il recupero e l'eliminazione della bozza di UC-01.
+- `BozzaContrattoRepository` isola elenco, recupero, salvataggio ed eliminazione delle bozze di UC-01 e consente di verificare se esiste già una bozza relativa a un Immobile registrato.
 - `ImmobileRepository` consente selezione e recupero degli immobili e supporta i controlli sui dati persistiti necessari ai casi d'uso.
 - `PersonaRepository` consente l'identificazione e il recupero delle Persone registrate.
 - `TipologiaContrattualeRepository` fornisce tipologie contrattuali e relativi articoli template; non viene introdotto un `ArticoloRepository` autonomo perché gli articoli sono sempre letti nel contesto della tipologia.
-- `ContrattoRepository` fornisce i Contratti necessari ai due casi d'uso; il significato delle regole di dominio resta nel `Contratto`.
+- `ContrattoRepository` fornisce i Contratti necessari ai due casi d'uso e offre, per UC-01, una verifica mirata dell'esistenza di una sovrapposizione per Immobile e intervallo. Il significato della sovrapposizione resta una regola del dominio; il repository evita soltanto di caricare tutti i Contratti quando è sufficiente una ricerca di esistenza sui dati persistiti.
 - `PagamentoRepository` isola lettura e scrittura dei Pagamenti di UC-02. Prima della persistenza il nuovo pagamento viene sottoposto alle invarianti del `Contratto`.
 - `RegistrazioneContrattoPort` rappresenta l'operazione di scrittura definitiva e atomica di UC-01.
 
@@ -189,7 +192,17 @@ La bozza è l'unica struttura persistita come documento JSONB. Questa scelta è 
 
 La serializzazione è responsabilità dell'infrastruttura e usa mapping esplicito tra `BozzaContratto` e plain JSON, senza serializzare automaticamente il grafo interno degli oggetti applicativi e di dominio.
 
-La versione 1.0 è mono-utente e ammette una sola bozza attiva; non viene quindi introdotto un identificatore di dominio dedicato alla bozza.
+La versione 1.0 è mono-utente ma può mantenere più bozze attive. Il requisito mono-utente evita la necessità di associare le bozze a identità o sessioni di utenti diversi, ma non implica che possa esistere un solo contratto in preparazione. `idBozza` è quindi un identificatore tecnico del workflow temporaneo.
+
+Per un Immobile già registrato può esistere al massimo una bozza attiva, così da non mantenere due procedure concorrenti riferite allo stesso bene. Una bozza relativa a un Immobile nuovo può invece esistere prima che tale Immobile possieda un identificatore persistente: i dati del nuovo bene rimangono nel JSONB fino alla conferma definitiva.
+
+### Periodo del `Contratto`
+
+La data `al` viene determinata automaticamente dalla regola di dominio a partire da `dal` e dalla durata iniziale della `TipologiaContrattuale` quando i dati contrattuali vengono validati. Da quel momento il periodo `dal`--`al` fa parte dello stato della bozza e, alla registrazione, dello stato storico del `Contratto`.
+
+Entrambe le date vengono conservate nella persistenza relazionale. Pur essendo `al` un valore calcolato all'origine, conservarlo evita di ricostruire il periodo da dati configurabili della tipologia durante le letture e rende dirette le ricerche per intervallo o scadenza. Lo stato temporale futuro / in essere / scaduto resta invece derivato dal periodo e dalla data corrente e non viene persistito come flag.
+
+La regola secondo cui due periodi relativi allo stesso Immobile non possono sovrapporsi resta nel dominio. Per verificare la registrabilità di un nuovo periodo, l'application layer richiede al `ContrattoRepository` una ricerca mirata di esistenza sulla tripla Immobile, `dal`, `al`, anziché caricare tutti i Contratti dell'Immobile e filtrarli in memoria. Non viene introdotto un vincolo PostgreSQL avanzato specifico per gli intervalli: nello scope mono-utente della versione 1.0 la query mirata mantiene la soluzione semplice e la regola esplicita nel dominio. Il trade-off accettato è che un eventuale scenario futuro con scritture realmente concorrenti richiederebbe rivalutare anche la protezione a livello di persistenza.
 
 ### Articoli template e contenuto storico
 
@@ -199,13 +212,11 @@ Il `Contratto` conserva direttamente la propria copia storica completa tramite `
 
 Nella versione 1.0 `contenuto` è HTML persistito come `TEXT`. Il contenuto viene generato lato server alla conferma definitiva e non viene ricostruito in seguito dai template o dai dati sorgente: questo ne preserva il significato storico. Un'eventuale futura esportazione PDF può essere aggiunta senza modificare questa responsabilità.
 
-Lo stato futuro, in essere o scaduto del Contratto non viene persistito come flag: dipende dal periodo e dalla data corrente e viene quindi derivato al momento dell'uso.
-
 ## 7. Confine transazionale di UC-01
 
 ### Problema
 
-Alla conferma di UC-01 devono diventare persistenti in modo coerente più dati collegati. Un errore non deve lasciare stato definitivo parziale, mentre un eventuale errore successivo nella cancellazione della bozza non deve invalidare una registrazione già completata.
+Alla conferma di UC-01 devono diventare persistenti in modo coerente più dati collegati. Un errore non deve lasciare stato definitivo parziale, mentre un eventuale errore successivo nella cancellazione della bozza non deve invalidare una registrazione già completata né coinvolgere bozze appartenenti ad altre procedure.
 
 ### Scelta
 
@@ -223,7 +234,7 @@ COMMIT
 
 A qualsiasi errore prima del commit viene eseguito `ROLLBACK`.
 
-La cancellazione della bozza viene tentata **solo dopo** il commit e non appartiene alla transazione dei dati definitivi. Se la registrazione fallisce, la bozza resta disponibile; se il commit riesce ma il cleanup della bozza fallisce, il Contratto rimane valido.
+La cancellazione della specifica bozza confermata viene tentata **solo dopo** il commit e non appartiene alla transazione dei dati definitivi. Se la registrazione fallisce, quella bozza resta disponibile; se il commit riesce ma il cleanup fallisce, il Contratto rimane valido. Le altre bozze non sono coinvolte.
 
 ### Alternative considerate
 
@@ -260,7 +271,7 @@ Il generatore del documento è invece dietro una porta perché il formato di out
 
 Le dipendenze invertite permettono di testare i Service sostituendo repository, generatore del documento e provider temporale con stub, fake o mock. Le regole del dominio possono essere testate indipendentemente dall'infrastruttura.
 
-I test di integrazione vengono riservati ai comportamenti che dipendono realmente da PostgreSQL, come mapping, query e confine transazionale. Il dettaglio dei test presenti e il comando operativo di esecuzione appartengono al README, agli script del progetto e alla suite di test.
+I test unitari di UC-01 verificano anche l'isolamento fra bozze, il cleanup selettivo, la memorizzazione del periodo calcolato e la delega della ricerca di sovrapposizione alla porta di persistenza. I test di integrazione vengono riservati ai comportamenti che dipendono realmente da PostgreSQL, come mapping, query e confine transazionale. Il dettaglio dei test presenti e il comando operativo di esecuzione appartengono al README, agli script del progetto e alla suite di test.
 
 ## 9. Stack e ambiente tecnico
 

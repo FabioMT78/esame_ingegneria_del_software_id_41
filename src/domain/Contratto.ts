@@ -11,6 +11,7 @@ type ContrattoParams = {
   inquilino: Persona;
   tipologia: TipologiaContrattuale;
   dal: Date;
+  al: Date;
   canoneMensile: number;
   giornoPagamento: number;
   registratoIl: Date;
@@ -24,6 +25,7 @@ class Contratto {
   inquilino: Persona;
   tipologia: TipologiaContrattuale;
   dal: Date;
+  al: Date;
   canoneMensile: number;
   giornoPagamento: number;
   registratoIl: Date;
@@ -38,11 +40,18 @@ class Contratto {
     inquilino,
     tipologia,
     dal,
+    al,
     canoneMensile,
     giornoPagamento,
     registratoIl,
   }: ContrattoParams) {
     Contratto.validaGiornoPagamento(giornoPagamento);
+
+    if (al < dal) {
+      throw new RangeError(
+        "La data finale del contratto non può precedere la data iniziale",
+      );
+    }
 
     if (id !== undefined) {
       this.id = id;
@@ -54,6 +63,7 @@ class Contratto {
     this.inquilino = inquilino;
     this.tipologia = tipologia;
     this.dal = new Date(dal.getTime());
+    this.al = new Date(al.getTime());
     this.canoneMensile = canoneMensile;
     this.giornoPagamento = giornoPagamento;
     this.registratoIl = new Date(registratoIl.getTime());
@@ -71,7 +81,10 @@ class Contratto {
     }
   }
 
-  static calcolaDataFine(dal: Date, tipologia: Pick<TipologiaContrattuale, "durata">): Date {
+  static calcolaDataFine(
+    dal: Date,
+    tipologia: Pick<TipologiaContrattuale, "durata">,
+  ): Date {
     const anniversario = new Date(dal.getTime());
 
     anniversario.setUTCFullYear(
@@ -90,10 +103,6 @@ class Contratto {
     altroAl: Date,
   ): boolean {
     return dal <= altroAl && altroDal <= al;
-  }
-
-  get al(): Date {
-    return Contratto.calcolaDataFine(this.dal, this.tipologia);
   }
 
   siSovrapponeA(altro: Contratto): boolean {

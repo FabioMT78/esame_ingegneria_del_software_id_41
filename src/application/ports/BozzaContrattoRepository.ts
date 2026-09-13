@@ -1,9 +1,11 @@
 import type BozzaContratto from "../model/BozzaContratto";
 
 interface BozzaContrattoRepository {
-    recupera(): Promise<BozzaContratto | null>;
-    salva(bozza: BozzaContratto): Promise<void>;
-    elimina(): Promise<void>;
+  elenca(): Promise<BozzaContratto[]>;
+  trovaPerId(idBozza: number): Promise<BozzaContratto | null>;
+  trovaPerImmobileId(immobileId: number): Promise<BozzaContratto | null>;
+  salva(bozza: BozzaContratto): Promise<BozzaContratto>;
+  elimina(idBozza: number): Promise<void>;
 }
 
 export = BozzaContrattoRepository;

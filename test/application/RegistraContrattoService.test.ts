@@ -18,22 +18,53 @@ import Persona from "../../src/domain/Persona";
 import TipologiaContrattuale from "../../src/domain/TipologiaContrattuale";
 
 class BozzaContrattoRepositoryFake implements BozzaContrattoRepository {
-  bozza: BozzaContratto | null = null;
-  eliminata = false;
+  bozze: BozzaContratto[] = [];
+  eliminazioni: number[] = [];
   salvataggi = 0;
+  prossimoId = 1;
 
-  async recupera(): Promise<BozzaContratto | null> {
-    return this.bozza;
+  async elenca(): Promise<BozzaContratto[]> {
+    return [...this.bozze];
   }
 
-  async salva(bozza: BozzaContratto): Promise<void> {
+  async trovaPerId(idBozza: number): Promise<BozzaContratto | null> {
+    return this.bozze.find((bozza) => bozza.idBozza === idBozza) ?? null;
+  }
+
+  async trovaPerImmobileId(
+    immobileId: number,
+  ): Promise<BozzaContratto | null> {
+    return (
+      this.bozze.find((bozza) => bozza.immobile?.id === immobileId) ?? null
+    );
+  }
+
+  async salva(bozza: BozzaContratto): Promise<BozzaContratto> {
     this.salvataggi += 1;
-    this.bozza = bozza;
+
+    if (bozza.idBozza === undefined) {
+      bozza.idBozza = this.prossimoId;
+      this.prossimoId += 1;
+      this.bozze.push(bozza);
+      return bozza;
+    }
+
+    const indice = this.bozze.findIndex(
+      (esistente) => esistente.idBozza === bozza.idBozza,
+    );
+
+    if (indice === -1) {
+      this.bozze.push(bozza);
+    } else {
+      this.bozze[indice] = bozza;
+    }
+
+    return bozza;
   }
 
-  async elimina(): Promise<void> {
-    this.eliminata = true;
-    this.bozza = null;
+  async elimina(idBozza: number): Promise<void> {
+    this.eliminazioni.push(idBozza);
+    this.bozze = this.bozze.filter((bozza) => bozza.idBozza !== idBozza);
   }
 }
 
@@ -102,6 +133,14 @@ class ContrattoRepositoryFake implements ContrattoRepository {
 
   async trovaPerImmobile(_immobileId: number): Promise<Contratto[]> {
     return [];
+  }
+
+  async esisteSovrapposizione(
+    _immobileId: number,
+    _dal: Date,
+    _al: Date,
+  ): Promise<boolean> {
+    return false;
   }
 }
 
@@ -223,13 +262,6 @@ function creaPersona(
   return persona;
 }
 
-function creaBozzaConImmobile(stepCompletato = 1): BozzaContratto {
-  return new BozzaContratto({
-    stepCompletato,
-    immobile: creaImmobile(1, "Casa Roma", 10),
-  });
-}
-
 function creaArticolo(
   id: number,
   numArticolo: number,
@@ -262,10 +294,22 @@ function creaTipologia(
   });
 }
 
+function creaBozzaConImmobile(
+  idBozza = 1,
+  stepCompletato = 1,
+): BozzaContratto {
+  return new BozzaContratto({
+    idBozza,
+    stepCompletato,
+    immobile: creaImmobile(1, "Casa Roma", 10),
+  });
+}
+
 function creaBozzaCompletaFinoInquilino(
+  idBozza = 1,
   stepCompletato = 3,
 ): BozzaContratto {
-  const bozza = creaBozzaConImmobile(stepCompletato);
+  const bozza = creaBozzaConImmobile(idBozza, stepCompletato);
   bozza.proprietario = creaPersona("RSSMRA80A10H501U");
   bozza.inquilino = creaPersona("VRDLGI90B20H501X", true);
   return bozza;
@@ -302,24 +346,31 @@ function creaService(
 }
 
 describe("RegistraContrattoService.avvia", () => {
-  test("restituisce null quando non esiste una bozza", async () => {
+  test("restituisce un elenco vuoto quando non esistono bozze", async () => {
     const { service } = creaService();
 
-    await expect(service.avvia()).resolves.toBeNull();
+    await expect(service.avvia()).resolves.toEqual([]);
   });
 
-  test("restituisce la bozza esistente", async () => {
+  test("restituisce tutte le bozze riprendibili", async () => {
     const bozzaRepository = new BozzaContrattoRepositoryFake();
-    const bozza = new BozzaContratto({
-      stepCompletato: 2,
-      nomeDescrizione: "Contratto Rossi",
+    const prima = new BozzaContratto({
+      idBozza: 1,
+      stepCompletato: 1,
+      immobile: creaImmobile(1, "Casa Roma", 10),
     });
-
-    bozzaRepository.bozza = bozza;
+    const seconda = new BozzaContratto({
+      idBozza: 2,
+      stepCompletato: 2,
+      immobile: creaImmobile(2, "Casa Milano", 20),
+      proprietario: creaPersona("RSSMRA80A10H501U"),
+    });
+    bozzaRepository.bozze = [prima, seconda];
 
     const { service } = creaService(bozzaRepository);
 
-    await expect(service.avvia()).resolves.toBe(bozza);
+    await expect(service.avvia()).resolves.toEqual([prima, seconda]);
+    expect(bozzaRepository.eliminazioni).toEqual([]);
   });
 });
 
@@ -328,7 +379,6 @@ describe("RegistraContrattoService.elencaImmobili", () => {
     const immobileRepository = new ImmobileRepositoryFake();
     const primo = creaImmobile(1, "Casa Roma", 10);
     const secondo = creaImmobile(2, "Casa Roma", 20);
-
     immobileRepository.immobili = [primo, secondo];
 
     const { service } = creaService(
@@ -336,20 +386,15 @@ describe("RegistraContrattoService.elencaImmobili", () => {
       immobileRepository,
     );
 
-    await expect(service.elencaImmobili()).resolves.toEqual([
-      primo,
-      secondo,
-    ]);
+    await expect(service.elencaImmobili()).resolves.toEqual([primo, secondo]);
   });
 });
 
 describe("RegistraContrattoService.selezionaImmobile", () => {
-  test("seleziona tramite id l'immobile corretto anche quando il nome non è univoco", async () => {
+  test("crea una nuova bozza identificata per l'immobile selezionato", async () => {
     const immobileRepository = new ImmobileRepositoryFake();
-    const primo = creaImmobile(1, "Casa Roma", 10);
-    const secondo = creaImmobile(2, "Casa Roma", 20);
-
-    immobileRepository.immobili = [primo, secondo];
+    const immobile = creaImmobile(2, "Casa Roma", 20);
+    immobileRepository.immobili = [immobile];
 
     const { service, bozzaRepository } = creaService(
       new BozzaContrattoRepositoryFake(),
@@ -358,91 +403,87 @@ describe("RegistraContrattoService.selezionaImmobile", () => {
 
     const bozza = await service.selezionaImmobile(2);
 
+    expect(bozza.idBozza).toBe(1);
     expect(bozza.stepCompletato).toBe(1);
-    expect(bozza.immobile).toBe(secondo);
-    expect(bozzaRepository.bozza).toBe(bozza);
+    expect(bozza.immobile).toBe(immobile);
+    expect(bozzaRepository.bozze).toEqual([bozza]);
     expect(bozzaRepository.salvataggi).toBe(1);
   });
 
-  test("rifiuta un id inesistente senza salvare una bozza", async () => {
+  test("rifiuta un id immobile inesistente senza creare bozze", async () => {
     const { service, bozzaRepository } = creaService();
 
     await expect(service.selezionaImmobile(999)).rejects.toThrow(
       "Immobile non trovato",
     );
 
-    expect(bozzaRepository.bozza).toBeNull();
+    expect(bozzaRepository.bozze).toEqual([]);
     expect(bozzaRepository.salvataggi).toBe(0);
   });
 
-  test("aggiorna una bozza esistente senza perdere i dati già acquisiti né retrocedere lo step", async () => {
+  test("impedisce una seconda bozza per lo stesso immobile registrato", async () => {
     const bozzaRepository = new BozzaContrattoRepositoryFake();
     const immobileRepository = new ImmobileRepositoryFake();
     const immobile = creaImmobile(1, "Casa Roma", 10);
-    const dal = new Date("2026-10-01T00:00:00.000Z");
-
+    const esistente = creaBozzaConImmobile(7);
+    bozzaRepository.bozze = [esistente];
+    bozzaRepository.prossimoId = 8;
     immobileRepository.immobili = [immobile];
-    bozzaRepository.bozza = new BozzaContratto({
-      stepCompletato: 4,
-      nomeDescrizione: "Contratto esistente",
-      dal,
-      canoneMensile: 900,
-      giornoPagamento: 10,
-    });
 
-    const bozzaPrecedente = bozzaRepository.bozza;
-    const { service } = creaService(
-      bozzaRepository,
-      immobileRepository,
+    const { service } = creaService(bozzaRepository, immobileRepository);
+
+    await expect(service.selezionaImmobile(1)).rejects.toThrow(
+      "Esiste già una bozza per l'immobile selezionato",
     );
+    expect(bozzaRepository.salvataggi).toBe(0);
+  });
 
-    const bozza = await service.selezionaImmobile(1);
+  test("consente di mantenere lo stesso immobile quando si modifica la relativa bozza", async () => {
+    const bozzaRepository = new BozzaContrattoRepositoryFake();
+    const immobileRepository = new ImmobileRepositoryFake();
+    const immobile = creaImmobile(1, "Casa Roma", 10);
+    const esistente = creaBozzaConImmobile(7, 4);
+    esistente.nomeDescrizione = "Contratto esistente";
+    bozzaRepository.bozze = [esistente];
+    immobileRepository.immobili = [immobile];
 
-    expect(bozza).toBe(bozzaPrecedente);
-    expect(bozza.stepCompletato).toBe(4);
-    expect(bozza.immobile).toBe(immobile);
-    expect(bozza.nomeDescrizione).toBe("Contratto esistente");
-    expect(bozza.dal).toEqual(dal);
-    expect(bozza.canoneMensile).toBe(900);
-    expect(bozza.giornoPagamento).toBe(10);
-    expect(bozzaRepository.salvataggi).toBe(1);
+    const { service } = creaService(bozzaRepository, immobileRepository);
+
+    const aggiornata = await service.selezionaImmobile(1, 7);
+
+    expect(aggiornata).toBe(esistente);
+    expect(aggiornata.stepCompletato).toBe(4);
+    expect(aggiornata.nomeDescrizione).toBe("Contratto esistente");
+    expect(bozzaRepository.bozze).toEqual([esistente]);
   });
 });
 
 describe("RegistraContrattoService.inserisciNuovoImmobile", () => {
-  test("rifiuta un immobile con dati catastali già presenti senza aggiornare la bozza", async () => {
+  test("rifiuta dati catastali già presenti senza modificare la bozza indicata", async () => {
     const bozzaRepository = new BozzaContrattoRepositoryFake();
+    const bozza = creaBozzaConImmobile(3, 3);
+    bozzaRepository.bozze = [bozza];
     const immobileRepository = new ImmobileRepositoryFake();
-    const bozzaEsistente = new BozzaContratto({
-      stepCompletato: 3,
-      nomeDescrizione: "Bozza da preservare",
-    });
-
-    bozzaRepository.bozza = bozzaEsistente;
     immobileRepository.duplicatoCatastale = creaImmobile(
       10,
       "Immobile esistente",
       30,
     );
 
-    const { service } = creaService(
-      bozzaRepository,
-      immobileRepository,
-    );
+    const { service } = creaService(bozzaRepository, immobileRepository);
 
     await expect(
-      service.inserisciNuovoImmobile(creaNuovoImmobileSenzaInterno()),
+      service.inserisciNuovoImmobile(creaNuovoImmobileSenzaInterno(), 3),
     ).rejects.toThrow("Dati catastali già associati a un immobile");
 
-    expect(bozzaRepository.bozza).toBe(bozzaEsistente);
+    expect(bozzaRepository.bozze).toEqual([bozza]);
     expect(bozzaRepository.salvataggi).toBe(0);
     expect(immobileRepository.verificheIndirizzo).toBe(0);
   });
 
-  test("senza interno non verifica il duplicato dell'indirizzo completo e salva l'immobile nella bozza", async () => {
+  test("senza interno non verifica il duplicato dell'indirizzo e crea una bozza", async () => {
     const immobileRepository = new ImmobileRepositoryFake();
     immobileRepository.indirizzoDuplicato = true;
-
     const { service, bozzaRepository } = creaService(
       new BozzaContrattoRepositoryFake(),
       immobileRepository,
@@ -452,16 +493,15 @@ describe("RegistraContrattoService.inserisciNuovoImmobile", () => {
     const bozza = await service.inserisciNuovoImmobile(immobile);
 
     expect(immobileRepository.verificheIndirizzo).toBe(0);
-    expect(bozza.stepCompletato).toBe(1);
+    expect(bozza.idBozza).toBe(1);
     expect(bozza.immobile).toBe(immobile);
-    expect(bozzaRepository.bozza).toBe(bozza);
-    expect(bozzaRepository.salvataggi).toBe(1);
+    expect(immobile.id).toBeUndefined();
+    expect(bozzaRepository.bozze).toEqual([bozza]);
   });
 
-  test("con interno rifiuta un indirizzo completo già presente senza salvare la bozza", async () => {
+  test("con interno rifiuta un indirizzo completo già presente", async () => {
     const immobileRepository = new ImmobileRepositoryFake();
     immobileRepository.indirizzoDuplicato = true;
-
     const { service, bozzaRepository } = creaService(
       new BozzaContrattoRepositoryFake(),
       immobileRepository,
@@ -472,51 +512,7 @@ describe("RegistraContrattoService.inserisciNuovoImmobile", () => {
     ).rejects.toThrow("Indirizzo completo già associato a un immobile");
 
     expect(immobileRepository.verificheIndirizzo).toBe(1);
-    expect(bozzaRepository.bozza).toBeNull();
-    expect(bozzaRepository.salvataggi).toBe(0);
-  });
-
-  test("con interno non duplicato salva il nuovo immobile soltanto nella bozza", async () => {
-    const immobileRepository = new ImmobileRepositoryFake();
-    const { service, bozzaRepository } = creaService(
-      new BozzaContrattoRepositoryFake(),
-      immobileRepository,
-    );
-    const immobile = creaNuovoImmobileConInterno();
-
-    const bozza = await service.inserisciNuovoImmobile(immobile);
-
-    expect(immobileRepository.verificheIndirizzo).toBe(1);
-    expect(bozza.stepCompletato).toBe(1);
-    expect(bozza.immobile).toBe(immobile);
-    expect(bozzaRepository.bozza).toBe(bozza);
-    expect(bozzaRepository.salvataggi).toBe(1);
-    expect(immobile.id).toBeUndefined();
-  });
-
-  test("aggiorna una bozza già avanzata senza perdere gli altri dati né retrocedere lo step", async () => {
-    const bozzaRepository = new BozzaContrattoRepositoryFake();
-    const bozzaEsistente = new BozzaContratto({
-      stepCompletato: 4,
-      nomeDescrizione: "Contratto esistente",
-      dal: new Date("2026-10-01T00:00:00.000Z"),
-      canoneMensile: 900,
-      giornoPagamento: 10,
-    });
-    bozzaRepository.bozza = bozzaEsistente;
-
-    const { service } = creaService(bozzaRepository);
-    const immobile = creaNuovoImmobileSenzaInterno();
-
-    const bozza = await service.inserisciNuovoImmobile(immobile);
-
-    expect(bozza).toBe(bozzaEsistente);
-    expect(bozza.stepCompletato).toBe(4);
-    expect(bozza.immobile).toBe(immobile);
-    expect(bozza.nomeDescrizione).toBe("Contratto esistente");
-    expect(bozza.canoneMensile).toBe(900);
-    expect(bozza.giornoPagamento).toBe(10);
-    expect(bozzaRepository.salvataggi).toBe(1);
+    expect(bozzaRepository.bozze).toEqual([]);
   });
 });
 
@@ -524,29 +520,20 @@ describe("RegistraContrattoService.cercaPersona", () => {
   test("restituisce null quando il codice fiscale non è registrato", async () => {
     const { service } = creaService();
 
-    await expect(
-      service.cercaPersona("RSSMRA80A10H501U"),
-    ).resolves.toBeNull();
+    await expect(service.cercaPersona("RSSMRA80A10H501U")).resolves.toBeNull();
   });
 
-  test("restituisce una working copy indipendente mantenendo invariati id e codice fiscale", async () => {
+  test("restituisce una working copy indipendente mantenendo id e codice fiscale", async () => {
     const personaRepository = new PersonaRepositoryFake();
-    const registrata = creaPersona(
-      "RSSMRA80A10H501U",
-      true,
-      12,
-    );
+    const registrata = creaPersona("RSSMRA80A10H501U", true, 12);
     personaRepository.persone = [registrata];
-
     const { service } = creaService(
       new BozzaContrattoRepositoryFake(),
       new ImmobileRepositoryFake(),
       personaRepository,
     );
 
-    const workingCopy = await service.cercaPersona(
-      "RSSMRA80A10H501U",
-    );
+    const workingCopy = await service.cercaPersona("RSSMRA80A10H501U");
 
     expect(workingCopy).not.toBeNull();
     expect(workingCopy).not.toBe(registrata);
@@ -554,143 +541,69 @@ describe("RegistraContrattoService.cercaPersona", () => {
     expect(workingCopy?.codiceFiscale).toBe("RSSMRA80A10H501U");
     expect(workingCopy?.residenza).not.toBe(registrata.residenza);
     expect(workingCopy?.documento).not.toBe(registrata.documento);
-
-    workingCopy?.aggiornaDatiAnagrafici(
-      "Mario",
-      "Rossi",
-      "Milano",
-      new Date("1980-01-10T00:00:00.000Z"),
-    );
-    workingCopy?.cambiaResidenza(
-      new Indirizzo({
-        provincia: "MI",
-        comune: "Milano",
-        indirizzo: "Via Modificata",
-      }),
-    );
-
-    expect(registrata.luogoNascita).toBe("Roma");
-    expect(registrata.residenza.comune).toBe("Roma");
   });
 });
 
 describe("RegistraContrattoService.impostaProprietario", () => {
-  test("salva il proprietario nella bozza e completa lo step 2 senza richiedere un documento", async () => {
+  test("aggiorna soltanto la bozza indicata", async () => {
     const bozzaRepository = new BozzaContrattoRepositoryFake();
-    bozzaRepository.bozza = creaBozzaConImmobile();
-
+    const prima = creaBozzaConImmobile(1);
+    const seconda = new BozzaContratto({
+      idBozza: 2,
+      stepCompletato: 1,
+      immobile: creaImmobile(2, "Casa Milano", 20),
+    });
+    bozzaRepository.bozze = [prima, seconda];
     const { service } = creaService(bozzaRepository);
     const proprietario = creaPersona("RSSMRA80A10H501U");
 
-    const bozza = await service.impostaProprietario(proprietario);
+    const aggiornata = await service.impostaProprietario(2, proprietario);
 
-    expect(bozza.stepCompletato).toBe(2);
-    expect(bozza.proprietario).toBe(proprietario);
-    expect(bozzaRepository.bozza).toBe(bozza);
-    expect(bozzaRepository.salvataggi).toBe(1);
+    expect(aggiornata.idBozza).toBe(2);
+    expect(aggiornata.proprietario).toBe(proprietario);
+    expect(aggiornata.stepCompletato).toBe(2);
+    expect(prima.proprietario).toBeUndefined();
   });
 
-  test("rifiuta il proprietario se lo step immobile non è completato", async () => {
-    const bozzaRepository = new BozzaContrattoRepositoryFake();
-    const { service } = creaService(bozzaRepository);
+  test("rifiuta un identificatore di bozza inesistente", async () => {
+    const { service } = creaService();
 
     await expect(
-      service.impostaProprietario(
-        creaPersona("RSSMRA80A10H501U"),
-      ),
-    ).rejects.toThrow("Step immobile non completato");
-
-    expect(bozzaRepository.salvataggi).toBe(0);
-  });
-
-  test("non fa retrocedere una bozza già avanzata", async () => {
-    const bozzaRepository = new BozzaContrattoRepositoryFake();
-    bozzaRepository.bozza = creaBozzaConImmobile(4);
-
-    const { service } = creaService(bozzaRepository);
-
-    const bozza = await service.impostaProprietario(
-      creaPersona("RSSMRA80A10H501U"),
-    );
-
-    expect(bozza.stepCompletato).toBe(4);
-    expect(bozzaRepository.salvataggi).toBe(1);
+      service.impostaProprietario(999, creaPersona("RSSMRA80A10H501U")),
+    ).rejects.toThrow("Bozza del contratto non disponibile");
   });
 });
 
 describe("RegistraContrattoService.impostaInquilino", () => {
-  test("rifiuta l'inquilino se lo step proprietario non è completato", async () => {
-    const bozzaRepository = new BozzaContrattoRepositoryFake();
-    bozzaRepository.bozza = creaBozzaConImmobile();
-
-    const { service } = creaService(bozzaRepository);
-
-    await expect(
-      service.impostaInquilino(
-        creaPersona("VRDLGI90B20H501X", true),
-      ),
-    ).rejects.toThrow("Step proprietario non completato");
-
-    expect(bozzaRepository.salvataggi).toBe(0);
-  });
-
   test("rifiuta un inquilino senza documento lasciando invariata la bozza", async () => {
     const bozzaRepository = new BozzaContrattoRepositoryFake();
-    const bozza = creaBozzaConImmobile(2);
-    const proprietario = creaPersona("RSSMRA80A10H501U");
-    bozza.proprietario = proprietario;
-    bozzaRepository.bozza = bozza;
-
+    const bozza = creaBozzaConImmobile(1, 2);
+    bozza.proprietario = creaPersona("RSSMRA80A10H501U");
+    bozzaRepository.bozze = [bozza];
     const { service } = creaService(bozzaRepository);
 
     await expect(
-      service.impostaInquilino(
-        creaPersona("VRDLGI90B20H501X"),
-      ),
+      service.impostaInquilino(1, creaPersona("VRDLGI90B20H501X")),
     ).rejects.toThrow(
       "Documento di riconoscimento obbligatorio per l'inquilino",
     );
 
-    expect(bozzaRepository.bozza).toBe(bozza);
-    expect(bozzaRepository.bozza?.proprietario).toBe(proprietario);
-    expect(bozzaRepository.bozza?.inquilino).toBeUndefined();
+    expect(bozza.inquilino).toBeUndefined();
     expect(bozzaRepository.salvataggi).toBe(0);
   });
 
-  test("salva l'inquilino con documento e completa lo step 3", async () => {
+  test("salva l'inquilino con documento nella bozza indicata", async () => {
     const bozzaRepository = new BozzaContrattoRepositoryFake();
-    const bozza = creaBozzaConImmobile(2);
+    const bozza = creaBozzaConImmobile(1, 2);
     bozza.proprietario = creaPersona("RSSMRA80A10H501U");
-    bozzaRepository.bozza = bozza;
-
+    bozzaRepository.bozze = [bozza];
     const { service } = creaService(bozzaRepository);
-    const inquilino = creaPersona(
-      "VRDLGI90B20H501X",
-      true,
-    );
+    const inquilino = creaPersona("VRDLGI90B20H501X", true);
 
-    const aggiornata = await service.impostaInquilino(inquilino);
+    const aggiornata = await service.impostaInquilino(1, inquilino);
 
     expect(aggiornata.stepCompletato).toBe(3);
     expect(aggiornata.inquilino).toBe(inquilino);
-    expect(bozzaRepository.bozza).toBe(aggiornata);
-    expect(bozzaRepository.salvataggi).toBe(1);
-  });
-
-  test("non fa retrocedere una bozza già avanzata", async () => {
-    const bozzaRepository = new BozzaContrattoRepositoryFake();
-    const bozza = creaBozzaConImmobile(4);
-    bozza.proprietario = creaPersona("RSSMRA80A10H501U");
-    bozzaRepository.bozza = bozza;
-
-    const { service } = creaService(bozzaRepository);
-
-    const aggiornata = await service.impostaInquilino(
-      creaPersona("VRDLGI90B20H501X", true),
-    );
-
-    expect(aggiornata.stepCompletato).toBe(4);
-    expect(bozzaRepository.salvataggi).toBe(1);
   });
 });
 
@@ -700,7 +613,6 @@ describe("RegistraContrattoService.elencaTipologie", () => {
     const concordato = creaTipologia(1);
     const libero = creaTipologia(2, "Canone libero", 4, 4);
     tipologiaRepository.tipologie = [concordato, libero];
-
     const { service } = creaService(
       new BozzaContrattoRepositoryFake(),
       new ImmobileRepositoryFake(),
@@ -716,158 +628,46 @@ describe("RegistraContrattoService.elencaTipologie", () => {
 });
 
 describe("RegistraContrattoService.impostaDatiContrattuali", () => {
-  test("rifiuta i dati contrattuali se lo step inquilino non è completato", async () => {
+  test("calcola e memorizza al nella bozza", async () => {
     const bozzaRepository = new BozzaContrattoRepositoryFake();
-    const bozza = creaBozzaConImmobile(2);
-    bozza.proprietario = creaPersona("RSSMRA80A10H501U");
-    bozzaRepository.bozza = bozza;
+    bozzaRepository.bozze = [creaBozzaCompletaFinoInquilino(1)];
+    const tipologiaRepository = new TipologiaContrattualeRepositoryFake();
+    const tipologia = creaTipologia(1);
+    tipologiaRepository.tipologie = [tipologia];
+    const { service } = creaService(
+      bozzaRepository,
+      new ImmobileRepositoryFake(),
+      new PersonaRepositoryFake(),
+      tipologiaRepository,
+    );
+    const dal = new Date("2026-10-15T00:00:00.000Z");
 
-    const { service, tipologiaRepository } = creaService(bozzaRepository);
-    tipologiaRepository.tipologie = [creaTipologia(1)];
+    const bozza = await service.impostaDatiContrattuali(
+      1,
+      "Contratto Rossi",
+      1,
+      dal,
+      900,
+      10,
+    );
 
-    await expect(
-      service.impostaDatiContrattuali(
-        "Contratto Rossi",
-        1,
-        new Date("2026-10-01T00:00:00.000Z"),
-        900,
-        10,
-      ),
-    ).rejects.toThrow("Step inquilino non completato");
-
-    expect(bozzaRepository.salvataggi).toBe(0);
-    expect(tipologiaRepository.ricercheConArticoli).toBe(0);
+    expect(bozza.stepCompletato).toBe(4);
+    expect(bozza.dal).toEqual(dal);
+    expect(bozza.dal).not.toBe(dal);
+    expect(bozza.al).toEqual(new Date("2029-10-14T00:00:00.000Z"));
+    expect(bozza.nomeDescrizione).toBe("Contratto Rossi");
+    expect(bozza.tipologia).toBe(tipologia);
   });
 
-  test("rifiuta un nome o descrizione vuoto senza modificare la bozza", async () => {
+  test("ricalcola al quando cambiano tipologia o decorrenza", async () => {
     const bozzaRepository = new BozzaContrattoRepositoryFake();
-    const bozza = creaBozzaCompletaFinoInquilino();
-    bozzaRepository.bozza = bozza;
-
-    const { service, tipologiaRepository } = creaService(bozzaRepository);
-    tipologiaRepository.tipologie = [creaTipologia(1)];
-
-    await expect(
-      service.impostaDatiContrattuali(
-        "   ",
-        1,
-        new Date("2026-10-01T00:00:00.000Z"),
-        900,
-        10,
-      ),
-    ).rejects.toThrow("Nome o descrizione del contratto obbligatorio");
-
-    expect(bozzaRepository.bozza).toBe(bozza);
-    expect(bozzaRepository.salvataggi).toBe(0);
-    expect(tipologiaRepository.ricercheConArticoli).toBe(0);
-  });
-
-  test.each([0, 29])(
-    "rifiuta il giorno di pagamento non valido %i senza modificare la bozza",
-    async (giornoPagamento) => {
-      const bozzaRepository = new BozzaContrattoRepositoryFake();
-      const bozza = creaBozzaCompletaFinoInquilino();
-      bozzaRepository.bozza = bozza;
-
-      const { service, tipologiaRepository } = creaService(
-        bozzaRepository,
-      );
-      tipologiaRepository.tipologie = [creaTipologia(1)];
-
-      await expect(
-        service.impostaDatiContrattuali(
-          "Contratto Rossi",
-          1,
-          new Date("2026-10-01T00:00:00.000Z"),
-          900,
-          giornoPagamento,
-        ),
-      ).rejects.toThrow(RangeError);
-
-      expect(bozzaRepository.bozza).toBe(bozza);
-      expect(bozzaRepository.salvataggi).toBe(0);
-      expect(tipologiaRepository.ricercheConArticoli).toBe(0);
-    },
-  );
-
-  test("rifiuta una tipologia inesistente senza modificare la bozza", async () => {
-    const bozzaRepository = new BozzaContrattoRepositoryFake();
-    const bozza = creaBozzaCompletaFinoInquilino();
-    bozzaRepository.bozza = bozza;
-
-    const { service, tipologiaRepository } = creaService(bozzaRepository);
-
-    await expect(
-      service.impostaDatiContrattuali(
-        "Contratto Rossi",
-        999,
-        new Date("2026-10-01T00:00:00.000Z"),
-        900,
-        10,
-      ),
-    ).rejects.toThrow("Tipologia contrattuale non trovata");
-
-    expect(tipologiaRepository.ricercheConArticoli).toBe(1);
-    expect(bozzaRepository.bozza).toBe(bozza);
-    expect(bozzaRepository.salvataggi).toBe(0);
-  });
-
-  test.each([1, 28])(
-    "accetta il giorno di pagamento limite %i e completa i dati contrattuali",
-    async (giornoPagamento) => {
-      const bozzaRepository = new BozzaContrattoRepositoryFake();
-      bozzaRepository.bozza = creaBozzaCompletaFinoInquilino();
-
-      const tipologiaRepository =
-        new TipologiaContrattualeRepositoryFake();
-      const tipologia = creaTipologia(1);
-      tipologiaRepository.tipologie = [tipologia];
-
-      const { service } = creaService(
-        bozzaRepository,
-        new ImmobileRepositoryFake(),
-        new PersonaRepositoryFake(),
-        tipologiaRepository,
-      );
-
-      const dal = new Date("2026-10-15T00:00:00.000Z");
-      const bozza = await service.impostaDatiContrattuali(
-        "Contratto Rossi",
-        1,
-        dal,
-        900,
-        giornoPagamento,
-      );
-
-      expect(bozza.stepCompletato).toBe(4);
-      expect(bozza.nomeDescrizione).toBe("Contratto Rossi");
-      expect(bozza.tipologia).toBe(tipologia);
-      expect(bozza.tipologia?.articoli).toHaveLength(2);
-      expect(bozza.dal).toEqual(dal);
-      expect(bozza.dal).not.toBe(dal);
-      expect(bozza.al).toEqual(
-        new Date("2029-10-14T00:00:00.000Z"),
-      );
-      expect(bozza.canoneMensile).toBe(900);
-      expect(bozza.giornoPagamento).toBe(giornoPagamento);
-      expect(bozzaRepository.bozza).toBe(bozza);
-      expect(bozzaRepository.salvataggi).toBe(1);
-    },
-  );
-
-  test("aggiorna i dati contrattuali senza perdere i dati degli step precedenti né retrocedere lo step", async () => {
-    const bozzaRepository = new BozzaContrattoRepositoryFake();
-    const bozzaEsistente = creaBozzaCompletaFinoInquilino(4);
-    const immobile = bozzaEsistente.immobile;
-    const proprietario = bozzaEsistente.proprietario;
-    const inquilino = bozzaEsistente.inquilino;
-    bozzaRepository.bozza = bozzaEsistente;
-
-    const tipologiaRepository =
-      new TipologiaContrattualeRepositoryFake();
+    const bozza = creaBozzaCompletaFinoInquilino(1, 4);
+    bozza.dal = new Date("2026-01-01T00:00:00.000Z");
+    bozza.al = new Date("2028-12-31T00:00:00.000Z");
+    bozzaRepository.bozze = [bozza];
+    const tipologiaRepository = new TipologiaContrattualeRepositoryFake();
     const libero = creaTipologia(2, "Canone libero", 4, 4);
     tipologiaRepository.tipologie = [libero];
-
     const { service } = creaService(
       bozzaRepository,
       new ImmobileRepositoryFake(),
@@ -876,6 +676,7 @@ describe("RegistraContrattoService.impostaDatiContrattuali", () => {
     );
 
     const aggiornata = await service.impostaDatiContrattuali(
+      1,
       "Contratto aggiornato",
       2,
       new Date("2027-01-01T00:00:00.000Z"),
@@ -883,31 +684,67 @@ describe("RegistraContrattoService.impostaDatiContrattuali", () => {
       15,
     );
 
-    expect(aggiornata).toBe(bozzaEsistente);
+    expect(aggiornata.al).toEqual(new Date("2030-12-31T00:00:00.000Z"));
     expect(aggiornata.stepCompletato).toBe(4);
-    expect(aggiornata.immobile).toBe(immobile);
-    expect(aggiornata.proprietario).toBe(proprietario);
-    expect(aggiornata.inquilino).toBe(inquilino);
-    expect(aggiornata.tipologia).toBe(libero);
-    expect(aggiornata.al).toEqual(
-      new Date("2030-12-31T00:00:00.000Z"),
-    );
-    expect(bozzaRepository.salvataggi).toBe(1);
   });
+
+  test("rifiuta dati contrattuali se lo step inquilino non è completato", async () => {
+    const bozzaRepository = new BozzaContrattoRepositoryFake();
+    const bozza = creaBozzaConImmobile(1, 2);
+    bozza.proprietario = creaPersona("RSSMRA80A10H501U");
+    bozzaRepository.bozze = [bozza];
+    const { service, tipologiaRepository } = creaService(bozzaRepository);
+    tipologiaRepository.tipologie = [creaTipologia(1)];
+
+    await expect(
+      service.impostaDatiContrattuali(
+        1,
+        "Contratto Rossi",
+        1,
+        new Date("2026-10-01T00:00:00.000Z"),
+        900,
+        10,
+      ),
+    ).rejects.toThrow("Step inquilino non completato");
+  });
+
+  test.each([0, 29])(
+    "rifiuta il giorno di pagamento non valido %i",
+    async (giornoPagamento) => {
+      const bozzaRepository = new BozzaContrattoRepositoryFake();
+      bozzaRepository.bozze = [creaBozzaCompletaFinoInquilino(1)];
+      const { service, tipologiaRepository } = creaService(bozzaRepository);
+      tipologiaRepository.tipologie = [creaTipologia(1)];
+
+      await expect(
+        service.impostaDatiContrattuali(
+          1,
+          "Contratto Rossi",
+          1,
+          new Date("2026-10-01T00:00:00.000Z"),
+          900,
+          giornoPagamento,
+        ),
+      ).rejects.toThrow(RangeError);
+    },
+  );
 });
 
 describe("RegistraContrattoService.annulla", () => {
-  test("elimina la bozza esistente", async () => {
+  test("elimina soltanto la bozza indicata", async () => {
     const bozzaRepository = new BozzaContrattoRepositoryFake();
-    bozzaRepository.bozza = new BozzaContratto({
-      stepCompletato: 2,
+    const prima = creaBozzaConImmobile(1);
+    const seconda = new BozzaContratto({
+      idBozza: 2,
+      stepCompletato: 1,
+      immobile: creaImmobile(2, "Casa Milano", 20),
     });
-
+    bozzaRepository.bozze = [prima, seconda];
     const { service } = creaService(bozzaRepository);
 
-    await service.annulla();
+    await service.annulla(1);
 
-    expect(bozzaRepository.eliminata).toBe(true);
-    expect(bozzaRepository.bozza).toBeNull();
+    expect(bozzaRepository.eliminazioni).toEqual([1]);
+    expect(bozzaRepository.bozze).toEqual([seconda]);
   });
 });
