@@ -105,6 +105,12 @@ package "application" {
   }
 }
 
+package "web" {
+  class RegistraContrattoController <<controller>> {
+    + router : Router
+  }
+}
+
 package "domain" {
   class Persona {
     - id : int [0..1]
@@ -231,6 +237,8 @@ BozzaContratto "1" --> "0..1" Persona : proprietario
 BozzaContratto "1" --> "0..1" Persona : inquilino
 BozzaContratto "1" --> "0..1" TipologiaContrattuale : tipologia
 
+RegistraContrattoController ..> RegistraContrattoService
+
 RegistraContrattoService ..> BozzaContrattoRepository
 RegistraContrattoService ..> ImmobileRepository
 RegistraContrattoService ..> PersonaRepository
@@ -260,6 +268,13 @@ PostgresRegistrazioneContratto ..> PostgresValueMapper
 
 RegistrazioneContrattoPort ..> Contratto
 GeneratoreDocumentoContratto ..> Contratto
+
+note right of RegistraContrattoController
+  Confine HTTP di UC-01: traduce JSON in input applicativi,
+  invoca il Service e serializza le risposte.
+  Le date di calendario attraversano HTTP come YYYY-MM-DD.
+  Non contiene regole di dominio o query SQL.
+end note
 
 note right of Persona
   In UC-01 id e codiceFiscale non vengono modificati.
@@ -326,6 +341,6 @@ note bottom of PagamentoDaRegistrare
   e i valori vengono ricalcolati lato server.
 end note
 
-note "Le operazioni dei Service che attraversano porte di persistenza sono asincrone.\nLe porte di persistenza restituiscono Promise perché le implementazioni concrete usano pg.\nGeneratoreDocumentoContratto e DataCorrenteProvider restano sincroni: nella v1.0 non richiedono I/O asincrono.\nGli id del design sono interi e vengono assegnati dalla persistenza PostgreSQL.\nIl contenuto storico del Contratto è una stringa HTML nella v1.0.\nLe implementazioni PostgreSQL realizzano le porte dell'application layer senza introdurre dipendenze da pg nei Service o nel dominio." as NDesign
+note "Le operazioni dei Service che attraversano porte di persistenza sono asincrone.\nLe porte di persistenza restituiscono Promise perché le implementazioni concrete usano pg.\nGeneratoreDocumentoContratto e DataCorrenteProvider restano sincroni: nella v1.0 non richiedono I/O asincrono.\nGli id del design sono interi e vengono assegnati dalla persistenza PostgreSQL.\nIl contenuto storico del Contratto è una stringa HTML nella v1.0.\nIl confine HTTP riceve RegistraContrattoService per dependency injection e non costruisce dipendenze infrastrutturali.\nLe implementazioni PostgreSQL realizzano le porte dell'application layer senza introdurre dipendenze da pg nei Service o nel dominio." as NDesign
 
 @enduml

@@ -5,6 +5,11 @@ import Indirizzo from "../domain/Indirizzo";
 import Pagamento from "../domain/Pagamento";
 import Persona from "../domain/Persona";
 import type TipologiaContrattuale from "../domain/TipologiaContrattuale";
+import {
+  ConflittoApplicativo,
+  ErroreValidazione,
+  RisorsaNonTrovata,
+} from "./errors/ApplicationError";
 import BozzaContratto from "./model/BozzaContratto";
 import type BozzaContrattoRepository from "./ports/BozzaContrattoRepository";
 import type ContrattoRepository from "./ports/ContrattoRepository";
@@ -57,7 +62,7 @@ class RegistraContrattoService {
     const immobile = await this.immobileRepository.trovaPerId(immobileId);
 
     if (immobile === null) {
-      throw new Error("Immobile non trovato");
+      throw new RisorsaNonTrovata("Immobile non trovato");
     }
 
     await this.verificaBozzaImmobileDisponibile(immobileId, idBozza);
@@ -75,7 +80,9 @@ class RegistraContrattoService {
       );
 
     if (immobileConStessiDatiCatastali !== null) {
-      throw new Error("Dati catastali già associati a un immobile");
+      throw new ConflittoApplicativo(
+        "Dati catastali già associati a un immobile",
+      );
     }
 
     if (immobile.indirizzo.interno !== undefined) {
@@ -85,7 +92,9 @@ class RegistraContrattoService {
         );
 
       if (indirizzoDuplicato) {
-        throw new Error("Indirizzo completo già associato a un immobile");
+        throw new ConflittoApplicativo(
+          "Indirizzo completo già associato a un immobile",
+        );
       }
     }
 
@@ -110,7 +119,7 @@ class RegistraContrattoService {
     const bozza = await this.recuperaBozza(idBozza);
 
     if (bozza.immobile === undefined) {
-      throw new Error("Step immobile non completato");
+      throw new ErroreValidazione("Step immobile non completato");
     }
 
     bozza.proprietario = persona;
@@ -126,11 +135,11 @@ class RegistraContrattoService {
     const bozza = await this.recuperaBozza(idBozza);
 
     if (bozza.proprietario === undefined) {
-      throw new Error("Step proprietario non completato");
+      throw new ErroreValidazione("Step proprietario non completato");
     }
 
     if (persona.documento === undefined) {
-      throw new Error(
+      throw new ErroreValidazione(
         "Documento di riconoscimento obbligatorio per l'inquilino",
       );
     }
@@ -152,11 +161,13 @@ class RegistraContrattoService {
     const bozza = await this.recuperaBozza(idBozza);
 
     if (bozza.inquilino === undefined) {
-      throw new Error("Step inquilino non completato");
+      throw new ErroreValidazione("Step inquilino non completato");
     }
 
     if (nomeDescrizione.trim().length === 0) {
-      throw new Error("Nome o descrizione del contratto obbligatorio");
+      throw new ErroreValidazione(
+        "Nome o descrizione del contratto obbligatorio",
+      );
     }
 
     Contratto.validaGiornoPagamento(giornoPagamento);
@@ -165,7 +176,7 @@ class RegistraContrattoService {
       await this.tipologiaRepository.trovaPerIdConArticoli(tipologiaId);
 
     if (tipologia === null) {
-      throw new Error("Tipologia contrattuale non trovata");
+      throw new RisorsaNonTrovata("Tipologia contrattuale non trovata");
     }
 
     bozza.nomeDescrizione = nomeDescrizione;
@@ -208,7 +219,7 @@ class RegistraContrattoService {
       canoneMensile === undefined ||
       giornoPagamento === undefined
     ) {
-      throw new Error("Bozza del contratto incompleta");
+      throw new ErroreValidazione("Bozza del contratto incompleta");
     }
 
     Contratto.validaGiornoPagamento(giornoPagamento);
@@ -224,7 +235,7 @@ class RegistraContrattoService {
         al,
       ))
     ) {
-      throw new Error(
+      throw new ConflittoApplicativo(
         "Il periodo del contratto si sovrappone a un contratto esistente",
       );
     }
@@ -302,7 +313,7 @@ class RegistraContrattoService {
     const bozza = await this.bozzaRepository.trovaPerId(idBozza);
 
     if (bozza === null) {
-      throw new Error("Bozza del contratto non disponibile");
+      throw new RisorsaNonTrovata("Bozza del contratto non disponibile");
     }
 
     return bozza;
@@ -319,7 +330,9 @@ class RegistraContrattoService {
       bozzaEsistente !== null &&
       bozzaEsistente.idBozza !== idBozza
     ) {
-      throw new Error("Esiste già una bozza per l'immobile selezionato");
+      throw new ConflittoApplicativo(
+        "Esiste già una bozza per l'immobile selezionato",
+      );
     }
   }
 

@@ -1,12 +1,35 @@
-import express from "express";
+import express, { type Express } from "express";
+import {
+  RegistraContrattoController,
+  type RegistraContrattoHttpService,
+} from "./RegistraContrattoController";
+import { gestisciErroreHttp } from "./HttpErrorHandler";
 
-const app = express();
+type CreaAppOptions = {
+  registraContrattoService?: RegistraContrattoHttpService;
+};
 
-app.use(express.json());
-app.use(express.static("public"));
+function creaApp(options: CreaAppOptions = {}): Express {
+  const app = express();
 
-app.get("/health", (_req, res) => {
-  res.status(200).json({ status: "ok" });
-});
+  app.use(express.json());
+  app.use(express.static("public"));
 
-export default app;
+  app.get("/health", (_req, res) => {
+    res.status(200).json({ status: "ok" });
+  });
+
+  if (options.registraContrattoService !== undefined) {
+    const controller = new RegistraContrattoController(
+      options.registraContrattoService,
+    );
+    app.use("/api", controller.router);
+  }
+
+  app.use(gestisciErroreHttp);
+
+  return app;
+}
+
+export { creaApp };
+export type { CreaAppOptions };
