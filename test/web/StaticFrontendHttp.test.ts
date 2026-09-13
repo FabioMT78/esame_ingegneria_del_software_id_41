@@ -12,7 +12,7 @@ describe("asset statici frontend UC-01", () => {
     await server.chiudi();
   });
 
-  test("serve la pagina principale", async () => {
+  test("serve la pagina principale con tutti i sei step di UC-01", async () => {
     const response = await fetch(`${server.baseUrl}/`);
     const body = await response.text();
 
@@ -22,6 +22,11 @@ describe("asset statici frontend UC-01", () => {
     expect(body).toContain('id="step1-panel"');
     expect(body).toContain('id="step2-panel"');
     expect(body).toContain('id="step3-panel"');
+    expect(body).toContain('id="step4-panel"');
+    expect(body).toContain('id="step5-panel"');
+    expect(body).toContain('id="step6-panel"');
+    expect(body).toContain('id="annulla-bozza"');
+    expect(body).toContain('id="conferma-contratto"');
   });
 
   test.each([

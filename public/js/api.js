@@ -41,6 +41,10 @@ function caricaImmobili() {
   return richiestaJson("/api/immobili");
 }
 
+function caricaTipologie() {
+  return richiestaJson("/api/tipologie-contrattuali");
+}
+
 function salvaImmobileEsistente(immobileId, idBozza) {
   return richiestaJson("/api/contratti/bozze/immobile-esistente", {
     method: "POST",
@@ -91,10 +95,38 @@ function salvaInquilino(idBozza, persona) {
   );
 }
 
+function salvaDatiContrattuali(idBozza, dati) {
+  return richiestaJson(
+    `/api/contratti/bozze/${idBozza}/dati-contrattuali`,
+    {
+      method: "PUT",
+      body: JSON.stringify(dati),
+    },
+  );
+}
+
+function confermaContratto(idBozza) {
+  return richiestaJson(
+    `/api/contratti/bozze/${idBozza}/conferma`,
+    { method: "POST" },
+  );
+}
+
+function annullaBozza(idBozza) {
+  return richiestaJson(
+    `/api/contratti/bozze/${idBozza}`,
+    { method: "DELETE" },
+  );
+}
+
 export {
+  annullaBozza,
   caricaBozze,
   caricaImmobili,
+  caricaTipologie,
   cercaPersona,
+  confermaContratto,
+  salvaDatiContrattuali,
   salvaImmobileEsistente,
   salvaInquilino,
   salvaNuovoImmobile,

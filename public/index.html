@@ -29,6 +29,15 @@
 
     <div id="status" class="status" role="status" aria-live="polite" hidden></div>
 
+    <div id="procedura-toolbar" class="procedure-toolbar" hidden>
+      <button id="torna-riepilogo" class="button secondary" type="button" hidden>
+        Torna al riepilogo
+      </button>
+      <button id="annulla-bozza" class="button danger" type="button">
+        Annulla bozza
+      </button>
+    </div>
+
     <section id="avvio-panel" class="card" aria-labelledby="avvio-title" hidden>
       <div class="section-heading">
         <div>
@@ -421,6 +430,148 @@
           <button class="button primary" type="submit">Salva e continua</button>
         </div>
       </form>
+    </section>
+
+    <section id="step4-panel" class="card" aria-labelledby="step4-title" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Step 4 di 6</p>
+          <h2 id="step4-title">Dati contrattuali</h2>
+        </div>
+        <div id="bozza-badge-step4" class="badge" hidden></div>
+      </div>
+
+      <p class="muted">
+        Inserisci i dati del rapporto. La data finale viene calcolata dal server usando la durata della tipologia selezionata.
+      </p>
+
+      <form id="form-dati-contrattuali">
+        <div class="form-grid">
+          <div class="field wide">
+            <label for="contratto-nome-descrizione">Nome o breve descrizione</label>
+            <input
+              id="contratto-nome-descrizione"
+              name="nomeDescrizione"
+              type="text"
+              required
+            >
+          </div>
+
+          <div class="field">
+            <label for="contratto-tipologia">Tipologia contrattuale</label>
+            <select id="contratto-tipologia" name="tipologiaId" required>
+              <option value="">Seleziona una tipologia</option>
+            </select>
+            <p id="tipologia-dettaglio" class="field-help"></p>
+          </div>
+
+          <div class="field">
+            <label for="contratto-dal">Decorrenza</label>
+            <input id="contratto-dal" name="dal" type="date" required>
+          </div>
+
+          <div class="field">
+            <label for="contratto-al">Data finale</label>
+            <input id="contratto-al" name="al" type="date" readonly>
+            <p class="field-help">Calcolata dal server dopo il salvataggio.</p>
+          </div>
+
+          <div class="field">
+            <label for="contratto-canone">Canone mensile</label>
+            <input id="contratto-canone" name="canoneMensile" type="number" step="0.01" required>
+          </div>
+
+          <div class="field">
+            <label for="contratto-giorno-pagamento">Giorno di pagamento</label>
+            <input
+              id="contratto-giorno-pagamento"
+              name="giornoPagamento"
+              type="number"
+              min="1"
+              max="28"
+              step="1"
+              required
+            >
+          </div>
+        </div>
+
+        <section id="tipologia-articoli" class="template-section" aria-labelledby="tipologia-articoli-title" hidden>
+          <h3 id="tipologia-articoli-title">Articoli template disponibili</h3>
+          <p class="muted">
+            Il documento definitivo sarà generato soltanto alla conferma usando i dati finali validati.
+          </p>
+          <div id="tipologia-articoli-list" class="template-list"></div>
+        </section>
+
+        <div class="actions split">
+          <button id="dati-contrattuali-indietro" class="button secondary" type="button">
+            Indietro
+          </button>
+          <button class="button primary" type="submit">Salva e continua</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="step5-panel" class="card" aria-labelledby="step5-title" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Step 5 di 6</p>
+          <h2 id="step5-title">Riepilogo</h2>
+        </div>
+        <div id="bozza-badge-step5" class="badge" hidden></div>
+      </div>
+
+      <p class="muted">
+        Verifica i dati prima della conferma. Puoi tornare a qualunque sezione per modificarla.
+      </p>
+
+      <div id="riepilogo-contenuto" class="summary-grid"></div>
+
+      <div class="actions split">
+        <button id="riepilogo-indietro" class="button secondary" type="button">
+          Indietro
+        </button>
+        <button id="vai-conferma" class="button primary" type="button">
+          Continua alla conferma
+        </button>
+      </div>
+    </section>
+
+    <section id="step6-panel" class="card" aria-labelledby="step6-title" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Step 6 di 6</p>
+          <h2 id="step6-title">Conferma</h2>
+        </div>
+        <div id="bozza-badge-step6" class="badge" hidden></div>
+      </div>
+
+      <div id="conferma-content">
+        <div class="confirmation-box">
+          <p id="conferma-dettaglio"></p>
+          <p>
+            La conferma registra definitivamente il contratto, rende permanenti i dati della bozza,
+            genera la copia storica del documento e registra la prima mensilità.
+          </p>
+        </div>
+
+        <div class="actions split">
+          <button id="conferma-indietro" class="button secondary" type="button">
+            Torna al riepilogo
+          </button>
+          <button id="conferma-contratto" class="button primary" type="button">
+            Conferma e registra
+          </button>
+        </div>
+      </div>
+
+      <div id="conferma-successo" class="success-panel" hidden>
+        <h3>Contratto registrato</h3>
+        <p id="conferma-successo-testo"></p>
+        <button id="nuova-procedura-dopo-conferma" class="button primary" type="button">
+          Registra un altro contratto
+        </button>
+      </div>
     </section>
   </main>
 
