@@ -207,6 +207,9 @@ package "infrastructure" {
     class PostgresPersonaRepository <<repository>>
     class PostgresTipologiaContrattualeRepository <<repository>>
     class PostgresContrattoRepository <<repository>>
+    class PostgresRegistrazioneContratto <<transactional adapter>> {
+      + registraDefinitivamente(contratto : Contratto): Promise<void>
+    }
     class BozzaContrattoJsonMapper <<mapper>>
     class PostgresValueMapper <<mapper>>
   }
@@ -248,10 +251,12 @@ PostgresImmobileRepository ..|> ImmobileRepository
 PostgresPersonaRepository ..|> PersonaRepository
 PostgresTipologiaContrattualeRepository ..|> TipologiaContrattualeRepository
 PostgresContrattoRepository ..|> ContrattoRepository
+PostgresRegistrazioneContratto ..|> RegistrazioneContrattoPort
 PostgresBozzaContrattoRepository ..> BozzaContrattoJsonMapper
 PostgresContrattoRepository ..> PostgresValueMapper
 PostgresImmobileRepository ..> PostgresValueMapper
 PostgresPersonaRepository ..> PostgresValueMapper
+PostgresRegistrazioneContratto ..> PostgresValueMapper
 
 RegistrazioneContrattoPort ..> Contratto
 GeneratoreDocumentoContratto ..> Contratto
@@ -271,6 +276,14 @@ end note
 note right of RegistrazioneContrattoPort
   { pre: il Contratto da registrare possiede
   contenuto completo e almeno 1 Pagamento }
+end note
+
+note right of PostgresRegistrazioneContratto
+  Implementa il confine transazionale di UC-01.
+  Usa una singola connessione PostgreSQL:
+  BEGIN -> dati definitivi collegati -> Contratto
+  -> Pagamenti -> COMMIT; in caso di errore ROLLBACK.
+  Il cleanup della Bozza resta esterno alla transazione.
 end note
 
 note bottom of BozzaContratto
