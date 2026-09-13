@@ -8,21 +8,21 @@
       "numParte": 0,
       "titolo": "Articolo 1",
       "sottotitolo": "(Durata della locazione. Disdetta e Rinnovo)",
-      "descrizione": "Il contratto è stipulato per la durata di anni quattro, a partire dal {{decorrenza_dal}} fino al {{decorrenza_al}} e si intenderà rinnovato per altri quattro anni nel caso in cui il Locatore non comunichi al Conduttore disdetta motivata ai sensi dell’art. 3, comma 1, legge 431/98 mediante raccomandata, almeno sei mesi prima della scadenza. Al termine dell’eventuale periodo di proroga ciascuna delle parti avrà diritto di attivare la procedura per un nuovo contratto, comunicando la propria intenzione via raccomandata entro 60 giorni, in mancanza di risposta il contratto s’intenderà concluso. Qualora ricorrano gravi motivi il Conduttore potrà recedere anticipatamente del contratto dando un prevviso di sei mesi. A suo carico saranno le tasse di rescissione anticipata e il risarcimento del danno qualora non si rispettino i sei mesi di preavviso."
+      "descrizione": "Il contratto è stipulato per la durata di anni quattro, a partire dal {{contratto.dal}} fino al {{contratto.al}} e si intenderà rinnovato per altri quattro anni nel caso in cui il Locatore non comunichi al Conduttore disdetta motivata ai sensi dell’art. 3, comma 1, legge 431/98 mediante raccomandata, almeno sei mesi prima della scadenza. Al termine dell’eventuale periodo di proroga ciascuna delle parti avrà diritto di attivare la procedura per un nuovo contratto, comunicando la propria intenzione via raccomandata entro 60 giorni, in mancanza di risposta il contratto s’intenderà concluso. Qualora ricorrano gravi motivi il Conduttore potrà recedere anticipatamente del contratto dando un prevviso di sei mesi. A suo carico saranno le tasse di rescissione anticipata e il risarcimento del danno qualora non si rispettino i sei mesi di preavviso."
     },
     {
       "numArticolo": 2,
       "numParte": 0,
       "titolo": "Articolo 2",
       "sottotitolo": "(Canone)",
-      "descrizione": "Il canone annuo di locazione è di {{canone_annuo}} euro ({{canone_annuo_text}}/00) che il Conduttore obbliga a corrispondere al domicilio, mediante bonifico bancario, del Locatore in 12 rate uguali anticipate di {{canone_mensile_num}} euro ({{canone_mensile_text}}/00) ciascuna, scadente il {{giorno_pagamento}} di ogni mese. Il canone sarà aggiornato ogni anno nella misura del 100% della variazione ISTAT."
+      "descrizione": "Il canone annuo di locazione è di {{contratto.canoneAnnuale}} euro ({{contratto.canoneAnnualeText}}/00) che il Conduttore obbliga a corrispondere al domicilio, mediante bonifico bancario, del Locatore in 12 rate uguali anticipate di {{contratto.canoneMensile}} euro ({{contratto.canoneMensileText}}/00) ciascuna, scadente il {{contratto.giornoPagamento}} di ogni mese. Il canone sarà aggiornato ogni anno nella misura del 100% della variazione ISTAT."
     },
     {
       "numArticolo": 3,
       "numParte": 0,
       "titolo": "Articolo 3",
       "sottotitolo": "(Deposito cauzionale)",
-      "descrizione": "A garanzia delle obbligazioni assunte col presente contratto, il Conduttore versa al Locatore (che con la firma del contratto ne rilascia, in caso, quietanza) una somma di {{deposito_cauzionale_num}} euro ({{deposito_cauzionale_text}}/00) non imputabile in conto canoni e produttiva/non produttiva di interessi legali. Il deposito cauzionale così costituito viene reso al termine della locazione previa verifica dello stato dell'unità immobiliare e dell'osservanza di ogni obbligazione contrattuale."
+      "descrizione": "A garanzia delle obbligazioni assunte col presente contratto, il Conduttore versa al Locatore (che con la firma del contratto ne rilascia, in caso, quietanza) una somma di {{contratto.depositoCauzionale}} euro ({{contratto.depositoCauzionaleText}}/00) non imputabile in conto canoni e produttiva/non produttiva di interessi legali. Il deposito cauzionale così costituito viene reso al termine della locazione previa verifica dello stato dell'unità immobiliare e dell'osservanza di ogni obbligazione contrattuale."
     },
     {
       "numArticolo": 4,
