@@ -110,6 +110,8 @@ Gli attributi concettuali sono:
 - numero del documento.
 
 Una `Persona` può avere `0..1` DocumentoRiconoscimento e ogni DocumentoRiconoscimento appartiene a una sola Persona. Quando una Persona assume il ruolo di inquilino in un Contratto, il documento deve essere presente.
+Per essere utilizzabile in UC-01, la data di scadenza del documento dell'inquilino deve
+essere strettamente successiva alla data corrente fornita dal server.
 
 La versione 1.0 non gestisce storico o pluralità di documenti per la stessa Persona.
 
@@ -218,6 +220,7 @@ Il Domain Model rende espliciti i vincoli necessari a comprenderne struttura e s
 - in UC-01 la data di nascita deve corrispondere a un'età compresa tra 18 e 150 anni rispetto alla data corrente del server;
 - proprietario e inquilino dello stesso Contratto devono avere codici fiscali differenti;
 - una Persona che assume il ruolo di inquilino deve disporre del DocumentoRiconoscimento richiesto;
+- il DocumentoRiconoscimento dell'inquilino deve avere data di scadenza successiva alla data corrente del server;
 - la combinazione catastale identifica univocamente un Immobile;
 - il giorno di pagamento è compreso tra 1 e 28;
 - la data `al` viene calcolata da `dal` e dalla durata iniziale della TipologiaContrattuale durante la definizione del periodo e viene poi conservata nel Contratto;

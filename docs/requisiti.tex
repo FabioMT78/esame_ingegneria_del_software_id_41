@@ -243,6 +243,8 @@ acquisiti quando disponibili senza essere obbligatori.
 Per la persona che assume il ruolo di inquilino il sistema deve inoltre acquisire o consentire
 di aggiornare, quando necessario, tipo di documento di riconoscimento (carta d'identità o
 passaporto), organo emittente, data di rilascio, data di scadenza e numero del documento.
+La data di scadenza del documento usato dall'inquilino deve essere strettamente successiva
+alla data corrente del server.
 Le eventuali nuove persone e le modifiche apportate a persone già registrate devono rimanere
 nella bozza fino alla conferma definitiva. Gli eventuali nuovi immobili, le nuove persone, le
 modifiche validate alle persone esistenti e i dati di riconoscimento acquisiti o aggiornati
@@ -447,6 +449,12 @@ quando disponibili senza essere obbligatori.
 (carta d'identità o passaporto), organo emittente, data di rilascio,
 data di scadenza e numero del documento; le modifiche devono restare nella bozza fino alla
 conferma definitiva.
+
+\textbf{Dato} il documento di riconoscimento dell'inquilino,
+\textbf{quando} la data di scadenza è uguale o antecedente alla data corrente del server,
+\textbf{allora} il sistema deve impedire il completamento dello step e, se una bozza già
+salvata contiene nel frattempo un documento scaduto, deve impedire anche la conferma
+definitiva finché il documento non viene aggiornato.
 
 \paragraph{AC-04 -- Validazione progressiva}
 \textbf{Dato} uno qualsiasi dei primi quattro step,

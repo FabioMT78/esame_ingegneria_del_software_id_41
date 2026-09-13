@@ -399,6 +399,32 @@ describe("RegistraContrattoService.avvia - bozze residue", () => {
 });
 
 describe("RegistraContrattoService.conferma", () => {
+  test("rifiuta alla conferma una bozza il cui documento è nel frattempo scaduto", async () => {
+    const scenario = creaScenario();
+    const immobile = creaImmobile(1);
+    const bozza = creaBozzaCompleta(
+      1,
+      new Date("2026-06-01T00:00:00.000Z"),
+      immobile,
+    );
+
+    if (bozza.inquilino?.documento === undefined) {
+      throw new Error("Documento di test non disponibile");
+    }
+
+    bozza.inquilino.documento.dataScadenza =
+      new Date("2026-09-12T00:00:00.000Z");
+    scenario.immobileRepository.immobili = [immobile];
+    scenario.bozzaRepository.bozze = [bozza];
+
+    await expect(scenario.service.conferma(1)).rejects.toThrow(
+      "La data di scadenza del documento deve essere successiva alla data corrente",
+    );
+
+    expect(scenario.registrazionePort.contrattoRegistrato).toBeNull();
+    expect(scenario.bozzaRepository.eliminazioni).toEqual([]);
+  });
+
   test("rifiuta una bozza incompleta senza registrare nulla", async () => {
     const scenario = creaScenario();
     scenario.bozzaRepository.bozze = [
