@@ -20,6 +20,8 @@ import type PersonaRepository from "./ports/PersonaRepository";
 import type RegistrazioneContrattoPort from "./ports/RegistrazioneContrattoPort";
 import type TipologiaContrattualeRepository from "./ports/TipologiaContrattualeRepository";
 
+type RuoloPersona = "proprietario" | "inquilino";
+
 class RegistraContrattoService {
   constructor(
     private readonly bozzaRepository: BozzaContrattoRepository,
@@ -102,14 +104,47 @@ class RegistraContrattoService {
   }
 
   async cercaPersona(codiceFiscale: string): Promise<Persona | null> {
+    const codiceNormalizzato =
+      Persona.normalizzaCodiceFiscale(codiceFiscale);
     const persona =
-      await this.personaRepository.trovaPerCodiceFiscale(codiceFiscale);
+      await this.personaRepository.trovaPerCodiceFiscale(
+        codiceNormalizzato,
+      );
 
     if (persona === null) {
       return null;
     }
 
     return this.creaWorkingCopyPersona(persona);
+  }
+
+  async cercaPersonaPerBozza(
+    idBozza: number,
+    ruolo: RuoloPersona,
+    codiceFiscale: string,
+  ): Promise<Persona | null> {
+    const bozza = await this.recuperaBozza(idBozza);
+    const codiceNormalizzato =
+      Persona.normalizzaCodiceFiscale(codiceFiscale);
+
+    const personaStessoRuolo =
+      ruolo === "proprietario" ? bozza.proprietario : bozza.inquilino;
+    const personaRuoloOpposto =
+      ruolo === "proprietario" ? bozza.inquilino : bozza.proprietario;
+
+    if (
+      personaRuoloOpposto?.codiceFiscale === codiceNormalizzato
+    ) {
+      throw new ConflittoApplicativo(
+        "Proprietario e inquilino devono essere persone distinte",
+      );
+    }
+
+    if (personaStessoRuolo?.codiceFiscale === codiceNormalizzato) {
+      return this.creaWorkingCopyPersona(personaStessoRuolo);
+    }
+
+    return this.cercaPersona(codiceNormalizzato);
   }
 
   async impostaProprietario(
@@ -120,6 +155,14 @@ class RegistraContrattoService {
 
     if (bozza.immobile === undefined) {
       throw new ErroreValidazione("Step immobile non completato");
+    }
+
+    this.validaPersona(persona);
+
+    if (bozza.inquilino?.codiceFiscale === persona.codiceFiscale) {
+      throw new ConflittoApplicativo(
+        "Proprietario e inquilino devono essere persone distinte",
+      );
     }
 
     bozza.proprietario = persona;
@@ -136,6 +179,14 @@ class RegistraContrattoService {
 
     if (bozza.proprietario === undefined) {
       throw new ErroreValidazione("Step proprietario non completato");
+    }
+
+    this.validaPersona(persona);
+
+    if (bozza.proprietario.codiceFiscale === persona.codiceFiscale) {
+      throw new ConflittoApplicativo(
+        "Proprietario e inquilino devono essere persone distinte",
+      );
     }
 
     if (persona.documento === undefined) {
@@ -222,6 +273,16 @@ class RegistraContrattoService {
       throw new ErroreValidazione("Bozza del contratto incompleta");
     }
 
+    const oggi = this.dataCorrenteProvider.oggi();
+    Persona.validaDataNascita(proprietario.dataNascita, oggi);
+    Persona.validaDataNascita(inquilino.dataNascita, oggi);
+
+    if (proprietario.codiceFiscale === inquilino.codiceFiscale) {
+      throw new ConflittoApplicativo(
+        "Proprietario e inquilino devono essere persone distinte",
+      );
+    }
+
     Contratto.validaGiornoPagamento(giornoPagamento);
 
     const immobilePersistito =
@@ -250,7 +311,7 @@ class RegistraContrattoService {
       al,
       canoneMensile,
       giornoPagamento,
-      registratoIl: this.dataCorrenteProvider.oggi(),
+      registratoIl: oggi,
     });
 
     contratto.impostaContenuto(
@@ -317,6 +378,13 @@ class RegistraContrattoService {
     }
 
     return bozza;
+  }
+
+  private validaPersona(persona: Persona): void {
+    Persona.validaDataNascita(
+      persona.dataNascita,
+      this.dataCorrenteProvider.oggi(),
+    );
   }
 
   private async verificaBozzaImmobileDisponibile(

@@ -52,8 +52,15 @@ Il modello usa quindi due associazioni nominate fra `Persona` e `Contratto`:
 - `inquilino`.
 
 La stessa Persona può partecipare a più contratti nel tempo e assumere ruoli differenti in rapporti contrattuali diversi.
+Nello stesso Contratto, invece, proprietario e inquilino devono essere Persone distinte:
+i rispettivi codici fiscali non possono coincidere.
 
-Il codice fiscale identifica una Persona registrata. I dati anagrafici richiesti comprendono nome, cognome, luogo e data di nascita, codice fiscale e residenza.
+Il codice fiscale identifica una Persona registrata. La versione 1.0 ne valida e normalizza
+la struttura di 16 caratteri, ammettendo nelle posizioni normalmente numeriche le sostituzioni
+previste per l'omocodia, senza introdurre una verifica anagrafica esterna dell'effettiva
+attribuzione del codice. I dati anagrafici richiesti comprendono nome, cognome, luogo e data
+di nascita, codice fiscale e residenza. In UC-01 la data di nascita deve corrispondere,
+rispetto alla data corrente del server, a un'età compresa tra 18 e 150 anni inclusi.
 
 La residenza non è modellata come un gruppo di attributi interno a `Persona`: viene riutilizzato il concetto `Indirizzo` tramite l'associazione `residenza`. Ogni Persona ha un solo indirizzo di residenza, mentre più Persone possono condividere lo stesso Indirizzo.
 
@@ -207,7 +214,9 @@ La bozza non rappresenta un Contratto incompleto e non contiene il documento sto
 
 Il Domain Model rende espliciti i vincoli necessari a comprenderne struttura e significato:
 
-- il codice fiscale identifica una Persona registrata;
+- il codice fiscale identifica una Persona registrata ed è sottoposto al controllo strutturale previsto;
+- in UC-01 la data di nascita deve corrispondere a un'età compresa tra 18 e 150 anni rispetto alla data corrente del server;
+- proprietario e inquilino dello stesso Contratto devono avere codici fiscali differenti;
 - una Persona che assume il ruolo di inquilino deve disporre del DocumentoRiconoscimento richiesto;
 - la combinazione catastale identifica univocamente un Immobile;
 - il giorno di pagamento è compreso tra 1 e 28;

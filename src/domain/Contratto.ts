@@ -47,6 +47,12 @@ class Contratto {
   }: ContrattoParams) {
     Contratto.validaGiornoPagamento(giornoPagamento);
 
+    if (proprietario.codiceFiscale === inquilino.codiceFiscale) {
+      throw new RangeError(
+        "Proprietario e inquilino devono essere persone distinte",
+      );
+    }
+
     if (al < dal) {
       throw new RangeError(
         "La data finale del contratto non può precedere la data iniziale",

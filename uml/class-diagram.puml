@@ -15,6 +15,7 @@ package "application" {
     + selezionaImmobile(immobileId : int, idBozza : int [0..1]): Promise<BozzaContratto>
     + inserisciNuovoImmobile(immobile : Immobile, idBozza : int [0..1]): Promise<BozzaContratto>
     + cercaPersona(codiceFiscale : string): Promise<Persona | null>
+    + cercaPersonaPerBozza(idBozza : int, ruolo : string, codiceFiscale : string): Promise<Persona | null>
     + impostaProprietario(idBozza : int, persona : Persona): Promise<BozzaContratto>
     + impostaInquilino(idBozza : int, persona : Persona): Promise<BozzaContratto>
     + impostaDatiContrattuali(idBozza : int, nomeDescrizione : string, tipologiaId : int, dal : date, canoneMensile : decimal, giornoPagamento : int): Promise<BozzaContratto>
@@ -123,6 +124,8 @@ package "domain" {
     - luogoNascita : string
     - dataNascita : date
     - codiceFiscale : string
+    + {static} normalizzaCodiceFiscale(codiceFiscale : string) : string
+    + {static} validaDataNascita(dataNascita : date, oggi : date) : void
     + aggiornaDatiAnagrafici(nome : string, cognome : string, luogoNascita : string, dataNascita : date) : void
     + cambiaResidenza(residenza : Indirizzo) : void
     + impostaDocumentoRiconoscimento(documento : DocumentoRiconoscimento) : void
@@ -324,6 +327,10 @@ end note
 
 note right of Persona
   In UC-01 id e codiceFiscale non vengono modificati.
+  Il codice fiscale viene normalizzato e validato
+  strutturalmente, ammettendo l'omocodia.
+  La data di nascita deve corrispondere a un'età
+  compresa tra 18 e 150 anni rispetto alla data server.
   I dati recuperati sono una working copy verificabile
   e modificabile prima della conferma definitiva.
 end note
@@ -366,6 +373,7 @@ note bottom of Articolo
 end note
 
 note bottom of Contratto
+  { proprietario.codiceFiscale <> inquilino.codiceFiscale }
   { giornoPagamento in 1..28 }
   { al calcolato da dal e tipologia.durata prima della registrazione
     e poi conservato come parte del periodo storico }

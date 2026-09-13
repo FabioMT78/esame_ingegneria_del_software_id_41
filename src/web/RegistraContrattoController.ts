@@ -23,6 +23,7 @@ type RegistraContrattoHttpService = Pick<
   | "selezionaImmobile"
   | "inserisciNuovoImmobile"
   | "cercaPersona"
+  | "cercaPersonaPerBozza"
   | "impostaProprietario"
   | "impostaInquilino"
   | "impostaDatiContrattuali"
@@ -62,6 +63,44 @@ class RegistraContrattoController {
       const persona = await this.service.cercaPersona(codiceFiscale);
       res.status(200).json(persona === null ? null : serializzaPersona(persona));
     });
+
+    this.router.get(
+      "/contratti/bozze/:idBozza/proprietario/:codiceFiscale",
+      async (req, res) => {
+        const idBozza = leggiIdParametro(req.params.idBozza, "idBozza");
+        const codiceFiscale = leggiStringaParametro(
+          req.params.codiceFiscale,
+          "codiceFiscale",
+        );
+        const persona = await this.service.cercaPersonaPerBozza(
+          idBozza,
+          "proprietario",
+          codiceFiscale,
+        );
+        res
+          .status(200)
+          .json(persona === null ? null : serializzaPersona(persona));
+      },
+    );
+
+    this.router.get(
+      "/contratti/bozze/:idBozza/inquilino/:codiceFiscale",
+      async (req, res) => {
+        const idBozza = leggiIdParametro(req.params.idBozza, "idBozza");
+        const codiceFiscale = leggiStringaParametro(
+          req.params.codiceFiscale,
+          "codiceFiscale",
+        );
+        const persona = await this.service.cercaPersonaPerBozza(
+          idBozza,
+          "inquilino",
+          codiceFiscale,
+        );
+        res
+          .status(200)
+          .json(persona === null ? null : serializzaPersona(persona));
+      },
+    );
 
     this.router.post(
       "/contratti/bozze/immobile-esistente",

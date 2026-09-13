@@ -1,18 +1,25 @@
 import {
   caricaBozze,
   caricaImmobili,
+  cercaPersona,
   salvaImmobileEsistente,
+  salvaInquilino,
   salvaNuovoImmobile,
+  salvaProprietario,
 } from "./api.js";
+import { creaGestorePersona } from "./personaForm.js";
 
 const stato = {
   bozze: [],
   immobili: [],
   bozzaCorrente: null,
   occupato: false,
+  stepVisualizzato: 1,
 };
 
 const elementi = {};
+let proprietarioForm;
+let inquilinoForm;
 
 function richiesto(id) {
   const elemento = document.getElementById(id);
@@ -31,7 +38,8 @@ function inizializzaElementi() {
   elementi.bozzeList = richiesto("bozze-list");
   elementi.nuovoContratto = richiesto("nuovo-contratto");
   elementi.step1Panel = richiesto("step1-panel");
-  elementi.bozzaBadge = richiesto("bozza-badge");
+  elementi.step2Panel = richiesto("step2-panel");
+  elementi.step3Panel = richiesto("step3-panel");
   elementi.formEsistente = richiesto("form-immobile-esistente");
   elementi.formNuovo = richiesto("form-immobile-nuovo");
   elementi.immobileId = richiesto("immobile-id");
@@ -62,6 +70,16 @@ function impostaOccupato(occupato, messaggio = "Operazione in corso…") {
   }
 }
 
+function idBozzaCorrente() {
+  const idBozza = stato.bozzaCorrente?.idBozza;
+
+  if (!Number.isInteger(idBozza) || idBozza < 1) {
+    throw new Error("La bozza corrente non ha un identificatore valido");
+  }
+
+  return idBozza;
+}
+
 function descrizioneImmobile(immobile) {
   const dati = immobile.datiCatastali;
   const indirizzo = immobile.indirizzo;
@@ -83,18 +101,34 @@ function descrizioneBozza(bozza) {
 
 function aggiornaStepper() {
   const completati = stato.bozzaCorrente?.stepCompletato ?? 0;
-  const prossimo = Math.min(completati + 1, 6);
 
   elementi.stepper.querySelectorAll("[data-step]").forEach((voce) => {
     const numero = Number(voce.dataset.step);
     voce.classList.toggle("completed", numero <= completati);
-    voce.classList.toggle("active", numero === prossimo);
+    voce.classList.toggle("active", numero === stato.stepVisualizzato);
   });
+}
 
-  if (completati === 0) {
-    const primo = elementi.stepper.querySelector('[data-step="1"]');
-    primo?.classList.add("active");
-  }
+function aggiornaBadge() {
+  [1, 2, 3].forEach((step) => {
+    const badge = richiesto(`bozza-badge-step${step}`);
+    const idBozza = stato.bozzaCorrente?.idBozza;
+
+    if (Number.isInteger(idBozza)) {
+      badge.hidden = false;
+      badge.textContent = `Bozza #${idBozza}`;
+    } else {
+      badge.hidden = true;
+      badge.textContent = "";
+    }
+  });
+}
+
+function nascondiPannelli() {
+  elementi.avvioPanel.hidden = true;
+  elementi.step1Panel.hidden = true;
+  elementi.step2Panel.hidden = true;
+  elementi.step3Panel.hidden = true;
 }
 
 function renderBozze() {
@@ -139,7 +173,11 @@ function renderImmobili() {
   stato.immobili.forEach((immobile) => {
     const option = document.createElement("option");
     option.value = String(immobile.id);
-    option.textContent = `${immobile.nome} — ${immobile.indirizzo.comune} — foglio ${immobile.datiCatastali.foglio}, particella ${immobile.datiCatastali.particella}, sub ${immobile.datiCatastali.subalterno}`;
+    option.textContent =
+      `${immobile.nome} — ${immobile.indirizzo.comune} — ` +
+      `foglio ${immobile.datiCatastali.foglio}, ` +
+      `particella ${immobile.datiCatastali.particella}, ` +
+      `sub ${immobile.datiCatastali.subalterno}`;
     elementi.immobileId.append(option);
   });
 }
@@ -196,16 +234,9 @@ function aggiornaDettaglioImmobile() {
 function preparaStep1() {
   const immobile = stato.bozzaCorrente?.immobile ?? null;
 
-  if (stato.bozzaCorrente?.idBozza !== undefined) {
-    elementi.bozzaBadge.hidden = false;
-    elementi.bozzaBadge.textContent = `Bozza #${stato.bozzaCorrente.idBozza}`;
-  } else {
-    elementi.bozzaBadge.hidden = true;
-    elementi.bozzaBadge.textContent = "";
-  }
-
   if (immobile === null) {
     elementi.immobileId.value = "";
+    elementi.immobileDetail.textContent = "";
     svuotaFormNuovo();
     impostaModalita("esistente");
   } else if (immobile.id !== null) {
@@ -217,20 +248,38 @@ function preparaStep1() {
     compilaFormNuovo(immobile);
     impostaModalita("nuovo");
   }
-
-  aggiornaStepper();
 }
 
-function mostraStep1() {
-  elementi.avvioPanel.hidden = true;
-  elementi.step1Panel.hidden = false;
-  preparaStep1();
+function mostraStep(step) {
+  nascondiPannelli();
+  stato.stepVisualizzato = step;
+  aggiornaBadge();
+
+  if (step === 1) {
+    preparaStep1();
+    elementi.step1Panel.hidden = false;
+  } else if (step === 2) {
+    proprietarioForm.caricaDaBozza(stato.bozzaCorrente?.proprietario);
+    elementi.step2Panel.hidden = false;
+  } else {
+    inquilinoForm.caricaDaBozza(stato.bozzaCorrente?.inquilino);
+    elementi.step3Panel.hidden = false;
+  }
+
+  aggiornaStepper();
 }
 
 function selezionaBozza(bozza) {
   stato.bozzaCorrente = bozza;
   nascondiStato();
-  mostraStep1();
+
+  if (bozza.stepCompletato < 1) {
+    mostraStep(1);
+  } else if (bozza.stepCompletato === 1) {
+    mostraStep(2);
+  } else {
+    mostraStep(3);
+  }
 }
 
 function nuovaProcedura() {
@@ -239,7 +288,7 @@ function nuovaProcedura() {
   elementi.immobileDetail.textContent = "";
   svuotaFormNuovo();
   nascondiStato();
-  mostraStep1();
+  mostraStep(1);
 }
 
 function leggiTestoForm(formData, campo) {
@@ -307,7 +356,7 @@ async function salvaEsistente(evento) {
     impostaOccupato(true, "Salvataggio dell'immobile in corso…");
     const bozza = await salvaImmobileEsistente(immobileId, idBozza);
     stato.bozzaCorrente = bozza;
-    preparaStep1();
+    mostraStep(2);
     mostraStato(
       `Step 1 salvato nella bozza #${bozza.idBozza}.`,
       "success",
@@ -336,7 +385,7 @@ async function salvaNuovo(evento) {
     impostaOccupato(true, "Validazione e salvataggio dell'immobile in corso…");
     const bozza = await salvaNuovoImmobile(immobile, idBozza);
     stato.bozzaCorrente = bozza;
-    preparaStep1();
+    mostraStep(2);
     mostraStato(
       `Step 1 salvato nella bozza #${bozza.idBozza}.`,
       "success",
@@ -349,6 +398,98 @@ async function salvaNuovo(evento) {
   } finally {
     impostaOccupato(false);
   }
+}
+
+async function cercaPersonaConFeedback(codiceFiscale, ruolo) {
+  const descrizione =
+    ruolo === "proprietario" ? "del proprietario" : "dell'inquilino";
+
+  try {
+    impostaOccupato(true, `Ricerca ${descrizione} in corso…`);
+    const persona = await cercaPersona(
+      idBozzaCorrente(),
+      ruolo,
+      codiceFiscale,
+    );
+    nascondiStato();
+    return persona;
+  } catch (errore) {
+    mostraStato(
+      errore instanceof Error ? errore.message : "Errore durante la ricerca",
+      "error",
+    );
+    throw errore;
+  } finally {
+    impostaOccupato(false);
+  }
+}
+
+async function salvaProprietarioCorrente(persona) {
+  try {
+    impostaOccupato(true, "Salvataggio del proprietario in corso…");
+    const bozza = await salvaProprietario(idBozzaCorrente(), persona);
+    stato.bozzaCorrente = bozza;
+    mostraStep(3);
+    mostraStato(
+      `Step 2 salvato nella bozza #${bozza.idBozza}.`,
+      "success",
+    );
+  } catch (errore) {
+    mostraStato(
+      errore instanceof Error ? errore.message : "Errore durante il salvataggio",
+      "error",
+    );
+    throw errore;
+  } finally {
+    impostaOccupato(false);
+  }
+}
+
+async function salvaInquilinoCorrente(persona) {
+  try {
+    impostaOccupato(true, "Salvataggio dell'inquilino in corso…");
+    const bozza = await salvaInquilino(idBozzaCorrente(), persona);
+    stato.bozzaCorrente = bozza;
+    mostraStep(3);
+    mostraStato(
+      `Step 3 salvato nella bozza #${bozza.idBozza}. I dati di proprietario e inquilino sono completi.`,
+      "success",
+    );
+  } catch (errore) {
+    mostraStato(
+      errore instanceof Error ? errore.message : "Errore durante il salvataggio",
+      "error",
+    );
+    throw errore;
+  } finally {
+    impostaOccupato(false);
+  }
+}
+
+function inizializzaFormPersone() {
+  proprietarioForm = creaGestorePersona({
+    prefix: "proprietario",
+    richiedeDocumento: false,
+    onCerca: (codiceFiscale) =>
+      cercaPersonaConFeedback(codiceFiscale, "proprietario"),
+    onSalva: salvaProprietarioCorrente,
+    onIndietro: () => {
+      nascondiStato();
+      mostraStep(1);
+    },
+  });
+
+  inquilinoForm = creaGestorePersona({
+    prefix: "inquilino",
+    richiedeDocumento: true,
+    onCerca: (codiceFiscale) =>
+      cercaPersonaConFeedback(codiceFiscale, "inquilino"),
+    onSalva: salvaInquilinoCorrente,
+    onIndietro: () => {
+      nascondiStato();
+      mostraStep(2);
+    },
+  });
 }
 
 function registraEventi() {
@@ -373,6 +514,7 @@ function registraEventi() {
 
 async function avvia() {
   inizializzaElementi();
+  inizializzaFormPersone();
   registraEventi();
   aggiornaStepper();
 
@@ -389,8 +531,8 @@ async function avvia() {
 
     if (bozze.length > 0) {
       renderBozze();
+      nascondiPannelli();
       elementi.avvioPanel.hidden = false;
-      elementi.step1Panel.hidden = true;
       mostraStato(
         `${bozze.length} ${bozze.length === 1 ? "bozza recuperabile" : "bozze recuperabili"}.`,
         "success",
@@ -399,8 +541,7 @@ async function avvia() {
       nuovaProcedura();
     }
   } catch (errore) {
-    elementi.avvioPanel.hidden = true;
-    elementi.step1Panel.hidden = true;
+    nascondiPannelli();
     mostraStato(
       errore instanceof Error
         ? errore.message

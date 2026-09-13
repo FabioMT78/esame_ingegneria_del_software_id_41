@@ -118,17 +118,30 @@ end
 
 loop per ruolo [proprietario, inquilino]
     Proprietario -> UI : inserisce codice fiscale
-    UI -> UC : cercaPersona(codiceFiscale)
-    UC -> Store : trovaPerCodiceFiscale(codiceFiscale)
+    UI -> UC : cercaPersonaPerBozza(idBozza, ruolo, codiceFiscale)
+    UC -> Draft : trovaPerId(idBozza)
+    Draft --> UC : BozzaContratto
+    UC -> UC : normalizza e valida struttura del codice fiscale
 
-    alt Persona già registrata
-        Store --> UC : Persona
-        UC --> UI : mostra working copy precompilata
-        Proprietario -> UI : verifica / modifica dati consentiti
-    else Persona non registrata
-        Store --> UC : null
-        UC --> UI : richiede dati Persona
-        Proprietario -> UI : inserisce dati Persona
+    alt codice fiscale già usato nel ruolo opposto
+        UC --> UI : segnala conflitto proprietario / inquilino
+    else codice fiscale distinto
+        alt Persona dello stesso ruolo già presente nella bozza
+            UC --> UI : mostra working copy della bozza
+            Proprietario -> UI : verifica / modifica dati consentiti
+        else Persona assente dalla bozza
+            UC -> Store : trovaPerCodiceFiscale(codiceFiscale)
+
+            alt Persona già registrata
+                Store --> UC : Persona
+                UC --> UI : mostra working copy precompilata
+                Proprietario -> UI : verifica / modifica dati consentiti
+            else Persona non registrata
+                Store --> UC : null
+                UC --> UI : richiede dati Persona
+                Proprietario -> UI : inserisce dati Persona
+            end
+        end
     end
 
     opt ruolo = inquilino e documento assente o da correggere
@@ -144,7 +157,7 @@ loop per ruolo [proprietario, inquilino]
 
     UC -> Draft : trovaPerId(idBozza)
     Draft --> UC : BozzaContratto
-    UC -> UC : valida step e dati del ruolo
+    UC -> UC : valida step, CF, età 18..150 anni\ne distinzione fra proprietario e inquilino
 
     alt dati non validi
         UC --> UI : mostra errori
@@ -191,6 +204,7 @@ else proprietario conferma
     UI -> UC : conferma(idBozza)
     UC -> Draft : trovaPerId(idBozza)
     Draft --> UC : BozzaContratto con dal e al
+    UC -> UC : rivalida età delle Parti e\nCF differenti fra proprietario e inquilino
 
     opt Immobile già persistito
         UC -> Store : esisteSovrapposizione(immobileId, dal, al)

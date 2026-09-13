@@ -226,6 +226,13 @@ Quando l'indirizzo comprende anche l'interno, il sistema deve inoltre rifiutare 
 di un immobile con lo stesso indirizzo completo di un immobile già registrato.
 Un immobile già registrato viene soltanto selezionato e non può essere modificato nell'ambito di UC-01.
 Proprietario e inquilino devono essere riconosciuti tramite codice fiscale.
+Il codice fiscale deve essere normalizzato in maiuscolo e rispettare la struttura
+alfanumerica di 16 caratteri prevista per la persona fisica; nelle posizioni normalmente
+numeriche il controllo strutturale deve ammettere anche le sostituzioni previste per
+l'omocodia. La data di nascita deve corrispondere, rispetto alla data corrente del server,
+a un'età compresa tra 18 e 150 anni inclusi. Nella stessa procedura di registrazione
+proprietario e inquilino devono essere persone distinte e non possono quindi avere lo
+stesso codice fiscale.
 Se il codice fiscale corrisponde a una persona già registrata, il sistema deve recuperarne e
 mostrare i dati affinché il proprietario possa verificarli ed eventualmente modificarli prima
 di completare lo step. Nell'ambito di UC-01 il codice fiscale della persona già registrata non
@@ -412,6 +419,20 @@ risulta una sovrapposizione con un contratto esistente.
 \textbf{allora} il sistema deve recuperarne e mostrare i dati disponibili, consentendo al
 proprietario di verificarli e modificarli prima di completare lo step, mantenendo invariato
 il codice fiscale della persona.
+
+\textbf{Dato} l'inserimento del codice fiscale del proprietario o dell'inquilino,
+\textbf{quando} il valore non rispetta la struttura alfanumerica prevista,
+\textbf{allora} il sistema deve rifiutare il dato sia nel client sia nel backend.
+
+\textbf{Dato} l'inserimento o la modifica della data di nascita,
+\textbf{quando} alla data corrente del server la persona ha meno di 18 anni oppure
+la data è antecedente di oltre 150 anni,
+\textbf{allora} il sistema deve impedire il completamento dello step.
+
+\textbf{Dato} che nella bozza è già stato impostato il proprietario o l'inquilino,
+\textbf{quando} per il ruolo opposto viene ricercato o inviato lo stesso codice fiscale,
+\textbf{allora} il sistema deve segnalare il conflitto e impedire che la stessa Persona
+assuma entrambi i ruoli nello stesso contratto.
 
 \textbf{Dato} l'inserimento del codice fiscale del proprietario o dell'inquilino,
 \textbf{quando} il soggetto non è ancora registrato,

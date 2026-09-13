@@ -20,12 +20,15 @@ describe("asset statici frontend UC-01", () => {
     expect(response.headers.get("content-type")).toContain("text/html");
     expect(body).toContain("Registrazione contratto di locazione");
     expect(body).toContain('id="step1-panel"');
+    expect(body).toContain('id="step2-panel"');
+    expect(body).toContain('id="step3-panel"');
   });
 
   test.each([
     ["/css/app.css", "text/css"],
     ["/js/app.js", "text/javascript"],
     ["/js/api.js", "text/javascript"],
+    ["/js/personaForm.js", "text/javascript"],
   ])("serve %s", async (path, contentType) => {
     const response = await fetch(`${server.baseUrl}${path}`);
 

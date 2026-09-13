@@ -96,7 +96,10 @@ TipologiaContrattuale "1" -- "1..*" Articolo : articoli predefiniti
 Contratto "1" -- "1..*" Pagamento : pagamenti
 
 note right of Persona
-  { codiceFiscale univoco }
+  { codiceFiscale univoco e strutturalmente valido }
+  { posizioni numeriche del codice fiscale:
+    ammesse anche le sostituzioni per omocodia }
+  { in UC-01, età alla data corrente in 18..150 anni }
   { se assume il ruolo di inquilino,
     DocumentoRiconoscimento presente }
 end note
@@ -118,6 +121,7 @@ note bottom of Indirizzo
 end note
 
 note right of Contratto
+  { proprietario.codiceFiscale <> inquilino.codiceFiscale }
   { giornoPagamento in 1..28 }
   { al calcolato da dal e TipologiaContrattuale.durata
     durante la definizione del periodo e poi conservato }

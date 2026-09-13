@@ -61,9 +61,42 @@ function salvaNuovoImmobile(immobile, idBozza) {
   });
 }
 
+function cercaPersona(idBozza, ruolo, codiceFiscale) {
+  if (ruolo !== "proprietario" && ruolo !== "inquilino") {
+    throw new Error("Ruolo persona non valido");
+  }
+
+  return richiestaJson(
+    `/api/contratti/bozze/${idBozza}/${ruolo}/${encodeURIComponent(codiceFiscale)}`,
+  );
+}
+
+function salvaProprietario(idBozza, persona) {
+  return richiestaJson(
+    `/api/contratti/bozze/${idBozza}/proprietario`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ persona }),
+    },
+  );
+}
+
+function salvaInquilino(idBozza, persona) {
+  return richiestaJson(
+    `/api/contratti/bozze/${idBozza}/inquilino`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ persona }),
+    },
+  );
+}
+
 export {
   caricaBozze,
   caricaImmobili,
+  cercaPersona,
   salvaImmobileEsistente,
+  salvaInquilino,
   salvaNuovoImmobile,
+  salvaProprietario,
 };
