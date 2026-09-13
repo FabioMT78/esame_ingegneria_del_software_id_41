@@ -8,7 +8,7 @@
       "numParte": 0,
       "titolo": "Articoli 1",
       "sottotitolo": "(durata locazione)",
-      "descrizione": "Il contratto è stipulato per la durata di anni 3 con decorrenza dal"
+      "descrizione": "Il contratto è stipulato per la durata di anni 3 con decorrenza dal {{decorrenza_dal}} e scadenza il {{decorrenza_al}}."
     },
     {
       "numArticolo": 2,
