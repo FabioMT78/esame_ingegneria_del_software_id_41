@@ -74,6 +74,12 @@ function applicaLimitiDataNascita(elemento) {
   elemento.max = dataIsoLocale(sottraiAnniConLimite(oggi, 18));
 }
 
+function applicaLimiteScadenzaDocumento(elemento) {
+  const domani = new Date();
+  domani.setDate(domani.getDate() + 1);
+  elemento.min = dataIsoLocale(domani);
+}
+
 function creaGestorePersona({
   prefix,
   richiedeDocumento,
@@ -93,6 +99,12 @@ function creaGestorePersona({
   };
 
   applicaLimitiDataNascita(elementi.dataNascita);
+
+  if (richiedeDocumento) {
+    applicaLimiteScadenzaDocumento(
+      richiesto(`${prefix}-documento-scadenza`),
+    );
+  }
 
   elementi.cfRicerca.addEventListener("input", () => {
     elementi.cfRicerca.value = elementi.cfRicerca.value.toUpperCase();

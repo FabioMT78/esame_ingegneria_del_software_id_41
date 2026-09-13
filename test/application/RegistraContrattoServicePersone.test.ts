@@ -271,6 +271,37 @@ describe("RegistraContrattoService - persone nella bozza", () => {
     expect(bozzaRepository.salvataggi).toBe(0);
   });
 
+  test("rifiuta un inquilino con documento scaduto alla data corrente", async () => {
+    const proprietario = creaPersona("RSSMRA80A10H501U");
+    const bozza = new BozzaContratto({
+      idBozza: 7,
+      stepCompletato: 2,
+      immobile: creaImmobile(),
+      proprietario,
+    });
+    const { service, bozzaRepository } = creaService(bozza);
+    const inquilino = creaPersona(
+      "VRDLGI90B20H501X",
+      "1980-01-10T00:00:00.000Z",
+      true,
+    );
+
+    if (inquilino.documento === undefined) {
+      throw new Error("Documento di test non disponibile");
+    }
+
+    inquilino.documento.dataScadenza =
+      new Date("2026-09-13T00:00:00.000Z");
+
+    await expect(
+      service.impostaInquilino(7, inquilino),
+    ).rejects.toThrow(
+      "La data di scadenza del documento deve essere successiva alla data corrente",
+    );
+
+    expect(bozzaRepository.salvataggi).toBe(0);
+  });
+
   test("rifiuta una persona che non ha ancora compiuto 18 anni", async () => {
     const bozza = new BozzaContratto({
       idBozza: 7,

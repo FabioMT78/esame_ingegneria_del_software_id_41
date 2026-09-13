@@ -106,6 +106,7 @@ end note
 
 note right of DocumentoRiconoscimento
   { tipo = carta d'identità oppure passaporto }
+  { per l'inquilino, dataScadenza > data corrente }
 end note
 
 note bottom of DatiCatastali

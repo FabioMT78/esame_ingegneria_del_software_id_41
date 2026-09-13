@@ -150,6 +150,7 @@ package "domain" {
     - dataRilascio : date
     - dataScadenza : date
     - numero : string
+    + validaScadenzaAlla(oggi : date) : void
   }
 
   class Immobile {
@@ -333,6 +334,13 @@ note right of Persona
   compresa tra 18 e 150 anni rispetto alla data server.
   I dati recuperati sono una working copy verificabile
   e modificabile prima della conferma definitiva.
+end note
+
+note right of DocumentoRiconoscimento
+  In UC-01 il documento usato dall'inquilino
+  deve avere dataScadenza strettamente successiva
+  alla data corrente fornita dal DataCorrenteProvider.
+  La validazione viene ripetuta alla conferma definitiva.
 end note
 
 note right of Indirizzo

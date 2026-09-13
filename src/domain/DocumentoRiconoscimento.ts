@@ -33,6 +33,21 @@ class DocumentoRiconoscimento {
     this.dataScadenza = new Date(dataScadenza.getTime());
     this.numero = numero;
   }
+
+  validaScadenzaAlla(oggi: Date): void {
+    if (Number.isNaN(oggi.getTime())) {
+      throw new RangeError("Data corrente non valida");
+    }
+
+    if (
+      Number.isNaN(this.dataScadenza.getTime()) ||
+      this.dataScadenza <= oggi
+    ) {
+      throw new RangeError(
+        "La data di scadenza del documento deve essere successiva alla data corrente",
+      );
+    }
+  }
 }
 
 export = DocumentoRiconoscimento;

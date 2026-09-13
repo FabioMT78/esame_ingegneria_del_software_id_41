@@ -195,6 +195,10 @@ class RegistraContrattoService {
       );
     }
 
+    persona.documento.validaScadenzaAlla(
+      this.dataCorrenteProvider.oggi(),
+    );
+
     bozza.inquilino = persona;
     bozza.stepCompletato = Math.max(bozza.stepCompletato, 3);
 
@@ -276,6 +280,7 @@ class RegistraContrattoService {
     const oggi = this.dataCorrenteProvider.oggi();
     Persona.validaDataNascita(proprietario.dataNascita, oggi);
     Persona.validaDataNascita(inquilino.dataNascita, oggi);
+    inquilino.documento.validaScadenzaAlla(oggi);
 
     if (proprietario.codiceFiscale === inquilino.codiceFiscale) {
       throw new ConflittoApplicativo(
