@@ -200,6 +200,18 @@ package "domain" {
   }
 }
 
+package "infrastructure" {
+  package "persistence.postgres" {
+    class PostgresBozzaContrattoRepository <<repository>>
+    class PostgresImmobileRepository <<repository>>
+    class PostgresPersonaRepository <<repository>>
+    class PostgresTipologiaContrattualeRepository <<repository>>
+    class PostgresContrattoRepository <<repository>>
+    class BozzaContrattoJsonMapper <<mapper>>
+    class PostgresValueMapper <<mapper>>
+  }
+}
+
 Persona "0..*" -- "1" Indirizzo : residenza
 Persona "1" -- "0..1" DocumentoRiconoscimento : documento
 Immobile "0..*" -- "1" Indirizzo : ubicazione
@@ -231,6 +243,16 @@ RegistraPagamentoService ..> PagamentoRepository
 RegistraPagamentoService ..> DataCorrenteProvider
 RegistraPagamentoService ..> PagamentoDaRegistrare
 
+PostgresBozzaContrattoRepository ..|> BozzaContrattoRepository
+PostgresImmobileRepository ..|> ImmobileRepository
+PostgresPersonaRepository ..|> PersonaRepository
+PostgresTipologiaContrattualeRepository ..|> TipologiaContrattualeRepository
+PostgresContrattoRepository ..|> ContrattoRepository
+PostgresBozzaContrattoRepository ..> BozzaContrattoJsonMapper
+PostgresContrattoRepository ..> PostgresValueMapper
+PostgresImmobileRepository ..> PostgresValueMapper
+PostgresPersonaRepository ..> PostgresValueMapper
+
 RegistrazioneContrattoPort ..> Contratto
 GeneratoreDocumentoContratto ..> Contratto
 
@@ -256,8 +278,9 @@ note bottom of BozzaContratto
   Più bozze possono coesistere nella v1.0 mono-utente;
   per un Immobile già registrato è ammessa al massimo
   una bozza attiva. Conserva soltanto i dati necessari
-  a riprendere la procedura e non contiene Contratto
-  generato, documento HTML, copie di Articolo o Pagamenti definitivi.
+  a riprendere la procedura. Conserva la tipologia selezionata
+  con i template necessari alla ripresa, ma non contiene Contratto
+  generato, documento HTML o Pagamenti definitivi.
 end note
 
 note bottom of Articolo
@@ -290,6 +313,6 @@ note bottom of PagamentoDaRegistrare
   e i valori vengono ricalcolati lato server.
 end note
 
-note "Le operazioni dei Service che attraversano porte di persistenza sono asincrone.\nLe porte di persistenza restituiscono Promise perché le implementazioni concrete useranno pg.\nGeneratoreDocumentoContratto e DataCorrenteProvider restano sincroni: nella v1.0 non richiedono I/O asincrono.\nGli id del design sono interi e vengono assegnati dalla persistenza PostgreSQL.\nIl contenuto storico del Contratto è una stringa HTML nella v1.0.\nLe implementazioni concrete delle porte appartengono a infrastructure e non sono mostrate." as NDesign
+note "Le operazioni dei Service che attraversano porte di persistenza sono asincrone.\nLe porte di persistenza restituiscono Promise perché le implementazioni concrete usano pg.\nGeneratoreDocumentoContratto e DataCorrenteProvider restano sincroni: nella v1.0 non richiedono I/O asincrono.\nGli id del design sono interi e vengono assegnati dalla persistenza PostgreSQL.\nIl contenuto storico del Contratto è una stringa HTML nella v1.0.\nLe implementazioni PostgreSQL realizzano le porte dell'application layer senza introdurre dipendenze da pg nei Service o nel dominio." as NDesign
 
 @enduml
