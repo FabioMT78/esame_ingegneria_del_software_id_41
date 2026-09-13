@@ -109,6 +109,10 @@ package "web" {
   class RegistraContrattoController <<controller>> {
     + router : Router
   }
+
+  class compositionRoot <<module>> {
+    + creaApplicazioneProduzione(): ApplicazioneProduzione
+  }
 }
 
 package "domain" {
@@ -219,6 +223,18 @@ package "infrastructure" {
     class BozzaContrattoJsonMapper <<mapper>>
     class PostgresValueMapper <<mapper>>
   }
+
+  package "document" {
+    class GeneratoreDocumentoHtmlContratto <<generator>> {
+      + genera(contratto : Contratto): string
+    }
+  }
+
+  package "time" {
+    class DataCorrenteSistemaProvider <<provider>> {
+      + oggi(): date
+    }
+  }
 }
 
 Persona "0..*" -- "1" Indirizzo : residenza
@@ -238,6 +254,15 @@ BozzaContratto "1" --> "0..1" Persona : inquilino
 BozzaContratto "1" --> "0..1" TipologiaContrattuale : tipologia
 
 RegistraContrattoController ..> RegistraContrattoService
+compositionRoot ..> RegistraContrattoService
+compositionRoot ..> PostgresBozzaContrattoRepository
+compositionRoot ..> PostgresImmobileRepository
+compositionRoot ..> PostgresPersonaRepository
+compositionRoot ..> PostgresTipologiaContrattualeRepository
+compositionRoot ..> PostgresContrattoRepository
+compositionRoot ..> PostgresRegistrazioneContratto
+compositionRoot ..> GeneratoreDocumentoHtmlContratto
+compositionRoot ..> DataCorrenteSistemaProvider
 
 RegistraContrattoService ..> BozzaContrattoRepository
 RegistraContrattoService ..> ImmobileRepository
@@ -260,6 +285,9 @@ PostgresPersonaRepository ..|> PersonaRepository
 PostgresTipologiaContrattualeRepository ..|> TipologiaContrattualeRepository
 PostgresContrattoRepository ..|> ContrattoRepository
 PostgresRegistrazioneContratto ..|> RegistrazioneContrattoPort
+GeneratoreDocumentoHtmlContratto ..|> GeneratoreDocumentoContratto
+DataCorrenteSistemaProvider ..|> DataCorrenteProvider
+
 PostgresBozzaContrattoRepository ..> BozzaContrattoJsonMapper
 PostgresContrattoRepository ..> PostgresValueMapper
 PostgresImmobileRepository ..> PostgresValueMapper
@@ -274,6 +302,24 @@ note right of RegistraContrattoController
   invoca il Service e serializza le risposte.
   Le date di calendario attraversano HTTP come YYYY-MM-DD.
   Non contiene regole di dominio o query SQL.
+end note
+
+note right of compositionRoot
+  Unico punto di assemblaggio delle dipendenze concrete.
+  Costruisce pool, repository, adapter e provider
+  e li inietta nel RegistraContrattoService.
+end note
+
+note right of GeneratoreDocumentoHtmlContratto
+  I template sono testo con placeholder espliciti {{...}}.
+  I placeholder supportati sono una lista chiusa;
+  valori e template vengono HTML-escaped.
+  numArticolo e numParte determinano soltanto l'ordine.
+end note
+
+note right of DataCorrenteSistemaProvider
+  Usa la data di calendario dell'orologio del processo
+  e la normalizza a mezzanotte UTC per il modello date-only.
 end note
 
 note right of Persona
@@ -315,6 +361,8 @@ note bottom of Articolo
   Template della tipologia contrattuale.
   numArticolo identifica l'articolo logico;
   numParte ordina eventuali frammenti dello stesso articolo.
+  I dati dinamici sono richiesti tramite placeholder {{...}}
+  nel testo, non tramite convenzioni sui numeri degli articoli.
 end note
 
 note bottom of Contratto
@@ -341,6 +389,6 @@ note bottom of PagamentoDaRegistrare
   e i valori vengono ricalcolati lato server.
 end note
 
-note "Le operazioni dei Service che attraversano porte di persistenza sono asincrone.\nLe porte di persistenza restituiscono Promise perché le implementazioni concrete usano pg.\nGeneratoreDocumentoContratto e DataCorrenteProvider restano sincroni: nella v1.0 non richiedono I/O asincrono.\nGli id del design sono interi e vengono assegnati dalla persistenza PostgreSQL.\nIl contenuto storico del Contratto è una stringa HTML nella v1.0.\nIl confine HTTP riceve RegistraContrattoService per dependency injection e non costruisce dipendenze infrastrutturali.\nLe implementazioni PostgreSQL realizzano le porte dell'application layer senza introdurre dipendenze da pg nei Service o nel dominio." as NDesign
+note "Le operazioni dei Service che attraversano porte di persistenza sono asincrone.\nLe porte di persistenza restituiscono Promise perché le implementazioni concrete usano pg.\nGeneratoreDocumentoContratto e DataCorrenteProvider restano sincroni: nella v1.0 non richiedono I/O asincrono.\nGli id del design sono interi e vengono assegnati dalla persistenza PostgreSQL.\nIl contenuto storico del Contratto è una stringa HTML nella v1.0.\nIl confine HTTP riceve RegistraContrattoService per dependency injection e non costruisce dipendenze infrastrutturali.\nIl composition root è l'unico punto che conosce insieme web, application e implementazioni concrete dell'infrastruttura.\nLe implementazioni PostgreSQL realizzano le porte dell'application layer senza introdurre dipendenze da pg nei Service o nel dominio." as NDesign
 
 @enduml

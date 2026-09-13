@@ -124,6 +124,8 @@ application ─────→ port / repository
 
 Il `domain` non dipende dalla persistenza. L'`application` dipende dalle astrazioni richieste dai casi d'uso; le implementazioni concrete dell'infrastruttura dipendono dagli stessi contratti applicativi.
 
+Il composition root è confinato in `src/web/compositionRoot.ts`: è il punto in cui il processo costruisce il pool PostgreSQL, le implementazioni concrete delle porte, i provider infrastrutturali e `RegistraContrattoService`, per poi passarli al confine Express. Non contiene regole applicative; la sua responsabilità è esclusivamente assemblare il grafo delle dipendenze. `server.ts` resta invece il bootstrap del processo e gestisce ascolto HTTP e chiusura ordinata delle risorse.
+
 ## 4. Componenti applicativi e responsabilità
 
 ### `RegistraContrattoService`
@@ -207,6 +209,10 @@ La regola secondo cui due periodi relativi allo stesso Immobile non possono sovr
 ### Articoli template e contenuto storico
 
 `Articolo` rappresenta esclusivamente il template della `TipologiaContrattuale`. La suddivisione di un articolo logico in parti ordinate permette al generatore di inserire i valori dinamici senza creare copie valorizzate degli articoli associate al Contratto.
+
+Nella versione 1.0 i punti di inserimento dei dati dinamici sono dichiarati direttamente nel testo del template tramite placeholder espliciti con forma `{{nome}}`, usando nomi qualificati come `{{contratto.canoneMensile}}`, `{{contratto.dal}}`, `{{proprietario.codiceFiscale}}` o `{{inquilino.documento.numero}}`. Il generatore mantiene una lista chiusa di placeholder supportati: un placeholder sconosciuto rende la generazione non valida invece di produrre silenziosamente un documento incompleto. I numeri di articolo e parte determinano esclusivamente ordine e raggruppamento e non vengono usati come convenzione implicita per decidere quale valore inserire.
+
+Il testo dei template è trattato come testo e non come HTML arbitrario. `GeneratoreDocumentoHtmlContratto` esegue l'escaping sia dei template sia dei valori dinamici prima di produrre l'HTML, evitando che dati provenienti dal workflow vengano interpretati come markup. Le date di calendario vengono rese nel documento nel formato stabile `YYYY-MM-DD`; il formato appartiene al rendering e non modifica la rappresentazione `Date` usata da dominio e application layer.
 
 Il `Contratto` conserva direttamente la propria copia storica completa tramite `registratoIl` e `contenuto`. Non viene mantenuta una classe separata `ContrattoRegistrato`, perché non possiede un lifecycle o un comportamento autonomo che giustifichi una relazione 1:1 distinta.
 
