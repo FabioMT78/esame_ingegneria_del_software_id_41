@@ -66,6 +66,30 @@ node:24.21.0-alpine3.24
 postgres:16.15-alpine3.24
 ```
 
+#### 4. Inizializzare lo schema PostgreSQL
+
+Avviare PostgreSQL e attendere che sia pronto:
+
+```bash
+docker compose \
+  --env-file docker/.env \
+  -f docker/compose.yaml \
+  up -d --wait db
+```
+
+Applicare la migration iniziale al database di sviluppo:
+
+```bash
+docker compose \
+  --env-file docker/.env \
+  -f docker/compose.yaml \
+  exec -T db \
+  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+  < db/migrations/001_initial_schema.sql
+```
+
+La migration iniziale è versionata e deve essere applicata una sola volta a un database vuoto. I test di integrazione non riutilizzano né svuotano lo schema di sviluppo: creano uno schema temporaneo isolato, applicano la stessa migration e lo eliminano al termine.
+
 ## Avvio dell'applicazione
 
 Avviare i servizi:
@@ -108,10 +132,19 @@ Esegue, nell'ordine:
 build
 → type-check di sorgenti e test
 → lint
-→ test
+→ test unitari e di integrazione
 ```
 
-Poiché l'ambiente di riferimento è Docker, dall'host il comando equivalente è:
+I test di integrazione PostgreSQL richiedono un database raggiungibile tramite le variabili definite in `docker/.env`. Dall'host avviare prima il database:
+
+```bash
+docker compose \
+  --env-file docker/.env \
+  -f docker/compose.yaml \
+  up -d --wait db
+```
+
+Quindi eseguire il quality gate nel container applicativo:
 
 ```bash
 docker compose \
@@ -121,7 +154,7 @@ docker compose \
   npm run verify
 ```
 
-Per una verifica riproducibile a partire dal `package-lock.json`, equivalente al setup usato dalla CI, eseguire:
+Per una verifica riproducibile a partire dal `package-lock.json`, equivalente al setup usato dalla CI:
 
 ```bash
 docker compose \
@@ -130,8 +163,6 @@ docker compose \
   run --rm --no-deps app \
   sh -c "npm ci && npm run verify"
 ```
-
-`--no-deps` evita di avviare PostgreSQL quando la verifica coinvolge esclusivamente unit test che non richiedono servizi esterni.
 
 ## Usage
 
@@ -168,6 +199,8 @@ Lo stack applicativo usa:
 
 La configurazione Docker è mantenuta nella cartella `docker/`. Il file `docker/.env.example` documenta le variabili richieste, mentre `docker/.env` contiene i valori locali e non viene versionato.
 
+Le date che rappresentano giorni di calendario sono persistite come PostgreSQL `DATE`. Il backend le tratta come date civili e non come istanti temporali; eventuali timestamp tecnici introdotti in seguito useranno `TIMESTAMPTZ`.
+
 ## Struttura del progetto
 
 La struttura fisica segue i boundary definiti dall'architettura e viene materializzata quando compaiono file con una responsabilità reale:
@@ -195,6 +228,8 @@ db/
   seed/
 
 test/
+  integration/
+  support/
 docs/
 uml/
 docker/
@@ -204,17 +239,17 @@ Le directory vuote non vengono mantenute artificialmente con file placeholder: v
 
 ## Test
 
-Jest, con `ts-jest`, è il framework usato per gli unit test. I test del backend sono scritti in TypeScript e vengono sottoposti a type-check dedicato prima dell'esecuzione.
+Jest, con `ts-jest`, è il framework usato per unit test e test di integrazione. I test del backend sono scritti in TypeScript e vengono sottoposti a type-check dedicato prima dell'esecuzione.
 
-Gli unit test della business logic devono essere indipendenti e deterministici. PostgreSQL viene coinvolto solo nei test che richiedono realmente mapping, query o transazioni.
+Gli unit test della business logic restano indipendenti e deterministici. I test che dipendono realmente da PostgreSQL usano il database configurato per l'ambiente soltanto come server: per ogni suite viene creato uno schema temporaneo con nome controllato, viene applicata la migration versionata e lo schema viene eliminato al termine. Lo schema di sviluppo non viene troncato o riutilizzato come fixture di test.
 
-Il comando per eseguire esclusivamente i test è:
+Il comando per eseguire tutti i test è:
 
 ```bash
 npm test
 ```
 
-Dall'host, usando il container applicativo:
+Dall'host, con PostgreSQL già avviato e `healthy`:
 
 ```bash
 docker compose \
@@ -228,10 +263,10 @@ docker compose \
 
 Il repository usa GitHub Actions per la Continuous Integration su:
 
-- push verso `main`;
+- ogni push, indipendentemente dal branch;
 - pull request verso `main`.
 
-La pipeline esegue il checkout del repository, prepara la configurazione non sensibile, installa le dipendenze tramite `npm ci` ed esegue `npm run verify` nel container applicativo.
+La pipeline esegue il checkout del repository, prepara la configurazione non sensibile, avvia PostgreSQL e ne attende lo stato `healthy`, installa le dipendenze tramite `npm ci` ed esegue `npm run verify` nel container applicativo. Il cleanup finale elimina i container e i volumi creati dalla run.
 
 Il job fallisce se fallisce uno dei controlli inclusi nel quality gate: compilazione TypeScript, type-check dei test, ESLint o Jest.
 
