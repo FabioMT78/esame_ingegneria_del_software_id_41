@@ -50,14 +50,14 @@
       "numParte": 0,
       "titolo": "Articolo 7",
       "sottotitolo": "(canone)",
-      "descrizione": "Secondo quanto stabilito dall’Accordo definito tra Assessorato alle Politiche Abitative del 05/02/2004 protocollo n.385 Roma. Il canone annuo di locazione è convenuto in Euro _________,00 annuali da corrispondere al Locatore come indicato nell’Articolo 10 (modalità di pagamento) del presente contratto. Tale canone è stato determinato dalle parti sulla base dell’applicazione dei seguenti criteri e parametri: secondo quanto stabilito dall’articolo dell’Accordo territoriale. Nel caso in cui l’accordo territoriale di cui al presente punto lo preveda, il canone sarà aggiornato annualmente nella misura contrattata che comunque non potrà superare il 75% della variazione ISTAT. Nel caso in cui il locatore opti per l’applicazione della cedolare secca è sospesa per un periodo corrispondente alla durata dell’opzione la facoltà di chiedere l’aggiornamento ISTAT (art.3, D.Lgs 14 marzo 2011, n. 23)."
+      "descrizione": "Secondo quanto stabilito dall’Accordo definito tra Assessorato alle Politiche Abitative del 05/02/2004 protocollo n.385 Roma. Il canone annuo di locazione è convenuto in Euro {{canone_annuale}} annuali da corrispondere al Locatore come indicato nell’Articolo 10 (modalità di pagamento) del presente contratto. Tale canone è stato determinato dalle parti sulla base dell’applicazione dei seguenti criteri e parametri: secondo quanto stabilito dall’articolo dell’Accordo territoriale. Nel caso in cui l’accordo territoriale di cui al presente punto lo preveda, il canone sarà aggiornato annualmente nella misura contrattata che comunque non potrà superare il 75% della variazione ISTAT. Nel caso in cui il locatore opti per l’applicazione della cedolare secca è sospesa per un periodo corrispondente alla durata dell’opzione la facoltà di chiedere l’aggiornamento ISTAT (art.3, D.Lgs 14 marzo 2011, n. 23)."
     },
     {
       "numArticolo": 8,
       "numParte": 0,
       "titolo": "Articolo 8",
       "sottotitolo": "(utenze e tasse)",
-      "descrizione": "Di comune accordo il locatore ed il conduttore hanno convenuto al pagamento mensile di utenze e tasse fisse a carico del conduttore di cui si assume l’onere il locatore, ovvero della TARI, Telecom, condominio, super condominio e, in forma preventiva, la quota parte mensile del conguaglio condominiale dell’anno in corso calcolato sulla base dei conguagli disponibili degli ultimi 3 anni, di cui il conduttore ha preso visione, fermo restando che a produzione della rendicontazione condominiale verrà verificato se quanto versato ha generato un debito o un credito che sarà cura delle parti, locatore e/o conduttore, di saldare entro un mese dalla comunicazione. La quota parte delle suddette spese si riassume come di seguito: - TARI: € 15,45 - Telecom: € 7,50 - Condominio: € 28,85 - Super condominio: € 6,20 - Conguaglio preventivo: € 10,65 L’importo totale delle spese è di € 65,65 è da considerarsi suscettibile di modifiche in base alle variazioni di utenze e tasse e va corrisposto al Locatore come indicato nell’Articolo 10 (modalità di pagamento) del presente contratto"
+      "descrizione": "Di comune accordo il locatore ed il conduttore hanno convenuto al pagamento mensile di utenze e tasse fisse a carico del conduttore di cui si assume l’onere il locatore, ovvero della TARI, Telecom, condominio, super condominio e, in forma preventiva, la quota parte mensile del conguaglio condominiale dell’anno in corso calcolato sulla base dei conguagli disponibili degli ultimi 3 anni, di cui il conduttore ha preso visione, fermo restando che a produzione della rendicontazione condominiale verrà verificato se quanto versato ha generato un debito o un credito che sarà cura delle parti, locatore e/o conduttore, di saldare entro un mese dalla comunicazione."
     },
     {
       "numArticolo": 9,
@@ -71,7 +71,7 @@
       "numParte": 0,
       "titolo": "Articolo 10",
       "sottotitolo": "(modalità di pagamento)",
-      "descrizione": "Il canone (articolo 7 - canone), le utenze e tasse (articolo 8 - utenze e tasse), comprensive dei servizi accessori, devono essere versate in n.12 rate anticipate di pari importo da corrispondersi al domicilio della parte locatrice entro il giorno 5 di ogni mese. La rata mensile di Euro ____________,___ (euro _____________________/__ di cui _________,00 di canone sommate a 65,65 di utenze, tasse e spese accessorie) è da corrispondere a mezzo bonifico bancario presso la banca Intesa San Paolo: IBAN ____________________________; in caso di mancato pagamento del canone la parte locatrice potrà valersi del disposto dell’art.1453 C.C. senza bisogno di diffida o di costituzione in mora."
+      "descrizione": "Il canone (articolo 7 - canone), le utenze e tasse (articolo 8 - utenze e tasse), comprensive dei servizi accessori, devono essere versate in n.12 rate anticipate di pari importo da corrispondersi al domicilio della parte locatrice entro il giorno {{giorno_pagamento}} di ogni mese. La rata mensile di Euro {{canone_mensile_num}} (euro {{canone_mensile_text}}/00 di cui _________,00) è da corrispondere a mezzo bonifico bancario presso la banca Intesa San Paolo: IBAN {{iban_proprietario}}; in caso di mancato pagamento del canone la parte locatrice potrà valersi del disposto dell’art.1453 C.C. senza bisogno di diffida o di costituzione in mora."
     },
     {
       "numArticolo": 11,
@@ -113,7 +113,7 @@
       "numParte": 0,
       "titolo": "Articolo 16",
       "sottotitolo": "(deposito cauzionale)",
-      "descrizione": "A garanzia delle obbligazioni assunte con il presente contratto, la parte conduttrice corrisponde alla parte locatrice, che con la firma del presente contratto ne rilascia quietanza, la somma di Euro ________,00 (euro ___________/00) a titolo di deposito cauzionale pari a 3 mensilità del canone, non imputabile in conto pigioni e non produttiva di interessi legali. La garanzia come sopra costituita sarà restituita al termine della locazione previa verifica dello stato dell’unità immobiliare e dell’osservanza di ogni obbligazione contrattuale."
+      "descrizione": "A garanzia delle obbligazioni assunte con il presente contratto, la parte conduttrice corrisponde alla parte locatrice, che con la firma del presente contratto ne rilascia quietanza, la somma di Euro {{deposito_cauzionale_num}},00 (euro {{deposito_cauzionale_text}}/00) a titolo di deposito cauzionale pari a 3 mensilità del canone, non imputabile in conto pigioni e non produttiva di interessi legali. La garanzia come sopra costituita sarà restituita al termine della locazione previa verifica dello stato dell’unità immobiliare e dell’osservanza di ogni obbligazione contrattuale."
     },
     {
       "numArticolo": 17,
