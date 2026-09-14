@@ -80,4 +80,3 @@ temp/
 # --- Dipendenze Node.js ---
 node_modules/
 dist/
-uml/pdf
