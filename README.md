@@ -53,7 +53,7 @@ Personalizzare i valori presenti in `docker/.env` quando necessario.
 
 `docker/.env` contiene la configurazione locale e non deve essere versionato; `docker/.env.example` rimane nel repository come template riproducibile.
 
-#### 3. Scaricare le immagini Docker
+#### 3. Scaricare le immagini Docker e installare le dipendenze
 
 ```bash
 docker compose --env-file docker/.env -f docker/compose.yaml pull
@@ -64,6 +64,16 @@ Le immagini di riferimento sono:
 ```text
 node:24.21.0-alpine3.24
 postgres:16.15-alpine3.24
+```
+
+Installare quindi le dipendenze applicative nel volume Docker dedicato:
+
+```bash
+docker compose \
+  --env-file docker/.env \
+  -f docker/compose.yaml \
+  run --rm --no-deps app \
+  npm ci
 ```
 
 #### 4. Inizializzare lo schema PostgreSQL
@@ -95,6 +105,27 @@ Un database di sviluppo che possiede già lo schema `001_initial_schema.sql` dev
 le migration successive non ancora applicate, a partire da `002_persona_iban.sql`. I test di
 integrazione non riutilizzano né svuotano lo schema di sviluppo: creano uno schema temporaneo
 isolato, applicano tutte le migration versionate in ordine e lo eliminano al termine.
+
+#### 5. Caricare i template contrattuali
+
+I template di `Canone concordato` e `Canone libero` sono versionati come JSON in
+`db/seed/template/`. Dopo aver applicato le migration, caricarli nel database di sviluppo con:
+
+```bash
+docker compose \
+  --env-file docker/.env \
+  -f docker/compose.yaml \
+  run --rm --no-deps app \
+  npm run db:seed:templates
+```
+
+Il seed è idempotente: può essere rilanciato senza creare duplicati. La denominazione identifica
+la tipologia da aggiornare; per ciascuna tipologia l'insieme degli articoli persistiti viene
+riallineato al JSON versionato. L'operazione è transazionale, quindi un errore non lascia un
+caricamento parziale.
+
+I file JSON costituiscono i dati iniziali autorevoli dei template della versione 1.0. La procedura
+di seed non crea Immobili, Persone, Contratti o Pagamenti dimostrativi.
 
 ## Avvio dell'applicazione
 

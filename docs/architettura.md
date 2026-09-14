@@ -188,6 +188,24 @@ I dati definitivi sono conservati in forma relazionale. Lo schema e i dati inizi
 
 Gli identificatori persistenti sono tecnici e separati dalle chiavi naturali del dominio. Nella versione 1.0 vengono rappresentati come `int`; non sono necessari UUID o identificatori distribuiti.
 
+### Seed dei template contrattuali
+
+Le due `TipologiaContrattuale` supportate e i relativi `Articolo` iniziali sono versionati come
+file JSON in `db/seed/template/`. I JSON sono dati di configurazione iniziale, non codice di
+dominio e non vengono letti direttamente durante l'esecuzione dei casi d'uso: una utility
+infrastrutturale li valida e li trasferisce nelle tabelle relazionali prima dell'utilizzo
+dell'applicazione.
+
+Il seed identifica una tipologia tramite la sua denominazione, ne aggiorna durata e rinnovo e
+riallinea l'insieme degli articoli al contenuto versionato. L'operazione è idempotente e
+transazionale: rilanciarla non crea duplicati e un errore non lascia una tipologia caricata solo
+parzialmente. La sostituzione degli articoli è accettabile perché nella versione 1.0 essi sono
+template configurativi e i Contratti già registrati mantengono comunque il proprio
+`contenuto` storico indipendente.
+
+Non viene introdotta una porta applicativa per il seed: si tratta di una responsabilità di setup
+dell'infrastruttura, esterna al workflow di UC-01 e UC-02.
+
 ### `BozzaContratto` e JSONB
 
 La bozza è l'unica struttura persistita come documento JSONB. Questa scelta è coerente con la sua natura di application model temporaneo, composto da dati eterogenei necessari alla ripresa del workflow e non ancora trasformati in stato definitivo del dominio.
