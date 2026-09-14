@@ -1,7 +1,12 @@
 import RegistraPagamentoService from "../../src/application/RegistraPagamentoService";
+import {
+  ConflittoApplicativo,
+  RisorsaNonTrovata,
+} from "../../src/application/errors/ApplicationError";
 import type ContrattoRepository from "../../src/application/ports/ContrattoRepository";
 import type DataCorrenteProvider from "../../src/application/ports/DataCorrenteProvider";
 import type ImmobileRepository from "../../src/application/ports/ImmobileRepository";
+import type PagamentoRepository from "../../src/application/ports/PagamentoRepository";
 import Contratto from "../../src/domain/Contratto";
 import DatiCatastali from "../../src/domain/DatiCatastali";
 import Immobile from "../../src/domain/Immobile";
@@ -45,6 +50,19 @@ class ContrattoRepositoryFake implements ContrattoRepository {
 
   async esisteSovrapposizione(): Promise<boolean> {
     return false;
+  }
+}
+
+class PagamentoRepositoryFake implements PagamentoRepository {
+  salvataggi: { contrattoId: number; pagamento: Pagamento }[] = [];
+  erroreDaLanciare: Error | null = null;
+
+  async salva(contrattoId: number, pagamento: Pagamento): Promise<void> {
+    if (this.erroreDaLanciare !== null) {
+      throw this.erroreDaLanciare;
+    }
+
+    this.salvataggi.push({ contrattoId, pagamento });
   }
 }
 
@@ -175,16 +193,19 @@ function creaService(
   service: RegistraPagamentoService;
   immobili: ImmobileRepositoryFake;
   contratti: ContrattoRepositoryFake;
+  pagamenti: PagamentoRepositoryFake;
 } {
   const immobili = new ImmobileRepositoryFake();
   const contratti = new ContrattoRepositoryFake();
+  const pagamenti = new PagamentoRepositoryFake();
   const service = new RegistraPagamentoService(
     immobili,
     contratti,
+    pagamenti,
     new DataCorrenteProviderFake(oggi),
   );
 
-  return { service, immobili, contratti };
+  return { service, immobili, contratti, pagamenti };
 }
 
 describe("RegistraPagamentoService", () => {
@@ -372,5 +393,128 @@ describe("RegistraPagamentoService", () => {
       meseCompetenza: 6,
       importo: 533.33,
     });
+  });
+
+  test("alla conferma ricarica lo stato, crea il pagamento con la data server e lo persiste", async () => {
+    const oggi = new Date("2026-09-10T13:45:00.000Z");
+    const { service, contratti, pagamenti } = creaService(oggi);
+    const contratto = creaContratto();
+    aggiungiPagamento(contratto, 2026, 6);
+    contratti.contratti = [contratto];
+
+    const pagamento = await service.confermaPagamento(10, 2026, 7);
+
+    expect(pagamento).toMatchObject({
+      annoCompetenza: 2026,
+      meseCompetenza: 7,
+      importo: 1000,
+    });
+    expect(pagamento.dataPagamento).toEqual(
+      new Date("2026-09-10T00:00:00.000Z"),
+    );
+    expect(pagamenti.salvataggi).toHaveLength(1);
+    expect(pagamenti.salvataggi[0]).toMatchObject({
+      contrattoId: 10,
+      pagamento,
+    });
+  });
+
+  test("rifiuta la conferma se la competenza mostrata in anteprima è stata nel frattempo pagata", async () => {
+    const { service, contratti, pagamenti } = creaService();
+    const contratto = creaContratto();
+    aggiungiPagamento(contratto, 2026, 6);
+    contratti.contratti = [contratto];
+
+    const anteprima = await service.preparaPagamento(1, 2);
+    expect(anteprima).toMatchObject({
+      contrattoId: 10,
+      annoCompetenza: 2026,
+      meseCompetenza: 7,
+    });
+
+    aggiungiPagamento(contratto, 2026, 7);
+
+    await expect(
+      service.confermaPagamento(10, 2026, 7),
+    ).rejects.toBeInstanceOf(ConflittoApplicativo);
+    expect(pagamenti.salvataggi).toHaveLength(0);
+  });
+
+  test("rifiuta il salto di una competenza precedente ancora non pagata", async () => {
+    const { service, contratti, pagamenti } = creaService();
+    const contratto = creaContratto();
+    aggiungiPagamento(contratto, 2026, 6);
+    contratti.contratti = [contratto];
+
+    await expect(
+      service.confermaPagamento(10, 2026, 8),
+    ).rejects.toBeInstanceOf(ConflittoApplicativo);
+    expect(pagamenti.salvataggi).toHaveLength(0);
+  });
+
+  test("alla conferma considera anche eventuali arretrati più vecchi di altri contratti dello stesso inquilino", async () => {
+    const { service, contratti, pagamenti } = creaService();
+    const immobile = creaImmobile(1);
+    const storico = creaContratto({
+      id: 10,
+      immobile,
+      dal: new Date("2026-01-01T00:00:00.000Z"),
+      al: new Date("2026-04-30T00:00:00.000Z"),
+    });
+    const corrente = creaContratto({
+      id: 11,
+      immobile,
+      dal: new Date("2026-06-01T00:00:00.000Z"),
+      al: new Date("2029-05-31T00:00:00.000Z"),
+    });
+    aggiungiPagamento(storico, 2026, 1);
+    aggiungiPagamento(storico, 2026, 2);
+    aggiungiPagamento(corrente, 2026, 6);
+    contratti.contratti = [corrente, storico];
+
+    await expect(
+      service.confermaPagamento(11, 2026, 7),
+    ).rejects.toBeInstanceOf(ConflittoApplicativo);
+    expect(pagamenti.salvataggi).toHaveLength(0);
+  });
+
+  test("ricalcola l'importo alla conferma senza fidarsi del valore della preview", async () => {
+    const { service, contratti } = creaService();
+    const contratto = creaContratto({
+      dal: new Date("2026-06-15T00:00:00.000Z"),
+      canoneMensile: 1000,
+    });
+    contratti.contratti = [contratto];
+
+    const anteprima = await service.preparaPagamento(1, 2);
+    expect(anteprima?.importo).toBe(533.33);
+
+    contratto.canoneMensile = 1200;
+
+    const pagamento = await service.confermaPagamento(10, 2026, 6);
+
+    expect(pagamento.importo).toBe(640);
+  });
+
+  test("propaga un errore di persistenza senza restituire un falso successo", async () => {
+    const { service, contratti, pagamenti } = creaService();
+    const contratto = creaContratto();
+    aggiungiPagamento(contratto, 2026, 6);
+    contratti.contratti = [contratto];
+    const errore = new Error("Persistenza non disponibile");
+    pagamenti.erroreDaLanciare = errore;
+
+    await expect(
+      service.confermaPagamento(10, 2026, 7),
+    ).rejects.toBe(errore);
+    expect(pagamenti.salvataggi).toHaveLength(0);
+  });
+
+  test("se il contratto non esiste segnala una risorsa non trovata", async () => {
+    const { service } = creaService();
+
+    await expect(
+      service.confermaPagamento(999, 2026, 7),
+    ).rejects.toBeInstanceOf(RisorsaNonTrovata);
   });
 });

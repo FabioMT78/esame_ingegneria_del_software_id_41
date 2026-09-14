@@ -89,7 +89,6 @@ package "application" {
     }
 
     interface PagamentoRepository {
-      + trovaPerContratto(contrattoId : int): Promise<List<Pagamento>>
       + salva(contrattoId : int, pagamento : Pagamento): Promise<void>
     }
 
@@ -363,6 +362,12 @@ note right of Indirizzo
   Nazione, CAP, civico, scala e interno sono opzionali:
   non sono dati universalmente disponibili né per
   l'ubicazione di un Immobile né per la residenza.
+end note
+
+note right of PagamentoRepository
+  Porta di scrittura di UC-02.
+  I Pagamenti esistenti vengono ricostruiti
+  con il Contratto tramite ContrattoRepository.
 end note
 
 note right of RegistrazioneContrattoPort

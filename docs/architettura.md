@@ -169,8 +169,10 @@ Le porte sono orientate ai bisogni dei casi d'uso e non alle singole tabelle del
 - `PersonaRepository` consente l'identificazione e il recupero delle Persone registrate.
 - `TipologiaContrattualeRepository` fornisce tipologie contrattuali e relativi articoli template; non viene introdotto un `ArticoloRepository` autonomo perché gli articoli sono sempre letti nel contesto della tipologia.
 - `ContrattoRepository` fornisce i Contratti necessari ai due casi d'uso e offre, per UC-01, una verifica mirata dell'esistenza di una sovrapposizione per Immobile e intervallo. Il significato della sovrapposizione resta una regola del dominio; il repository evita soltanto di caricare tutti i Contratti quando è sufficiente una ricerca di esistenza sui dati persistiti.
-- `PagamentoRepository` isola lettura e scrittura dei Pagamenti di UC-02. Prima della persistenza il nuovo pagamento viene sottoposto alle invarianti del `Contratto`.
+- `PagamentoRepository` isola la scrittura del nuovo Pagamento di UC-02. I Pagamenti già registrati vengono letti insieme al `Contratto` tramite `ContrattoRepository`, che ricostruisce l'aggregato necessario al caso d'uso. Prima della persistenza il nuovo pagamento viene sottoposto alle invarianti del `Contratto`.
 - `RegistrazioneContrattoPort` rappresenta l'operazione di scrittura definitiva e atomica di UC-01.
+
+Per UC-02 `PagamentoRepository` è volutamente una porta orientata alla sola scrittura. Il `ContrattoRepository` già ricostruisce i `Contratto` con i Pagamenti storici necessari per individuare e rivalidare la competenza; introdurre anche una lettura autonoma dei Pagamenti nella seconda porta duplicherebbe query e mapping e creerebbe due possibili fonti applicative dello stesso stato. L'alternativa considerata era una porta `PagamentoRepository` simmetrica di lettura e scrittura, ma nello scope attuale non aggiunge una responsabilità utile. Il trade-off è una porta asimmetrica, accettato perché le porte sono definite sui bisogni dei casi d'uso e non come CRUD delle tabelle.
 
 Le firme pubbliche e le relazioni precise sono rappresentate nel Class Diagram e nel codice.
 

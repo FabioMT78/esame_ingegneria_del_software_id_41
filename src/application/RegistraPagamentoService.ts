@@ -1,10 +1,16 @@
 import type Contratto from "../domain/Contratto";
 import type Immobile from "../domain/Immobile";
+import Pagamento from "../domain/Pagamento";
 import type Persona from "../domain/Persona";
+import {
+  ConflittoApplicativo,
+  RisorsaNonTrovata,
+} from "./errors/ApplicationError";
 import PagamentoDaRegistrare from "./model/PagamentoDaRegistrare";
 import type ContrattoRepository from "./ports/ContrattoRepository";
 import type DataCorrenteProvider from "./ports/DataCorrenteProvider";
 import type ImmobileRepository from "./ports/ImmobileRepository";
+import type PagamentoRepository from "./ports/PagamentoRepository";
 
 type CompetenzaNonPagata = {
   contratto: Contratto;
@@ -16,6 +22,7 @@ class RegistraPagamentoService {
   constructor(
     private readonly immobileRepository: ImmobileRepository,
     private readonly contrattoRepository: ContrattoRepository,
+    private readonly pagamentoRepository: PagamentoRepository,
     private readonly dataCorrenteProvider: DataCorrenteProvider,
   ) {}
 
@@ -64,6 +71,67 @@ class RegistraPagamentoService {
     }
 
     return this.creaAnteprima(competenza, oggi);
+  }
+
+  async confermaPagamento(
+    contrattoId: number,
+    annoCompetenza: number,
+    meseCompetenza: number,
+  ): Promise<Pagamento> {
+    const contrattoSelezionato =
+      await this.contrattoRepository.trovaPerId(contrattoId);
+
+    if (contrattoSelezionato === null) {
+      throw new RisorsaNonTrovata("Contratto non trovato");
+    }
+
+    const immobileId = contrattoSelezionato.immobile.id;
+    const inquilinoId = contrattoSelezionato.inquilino.id;
+
+    if (immobileId === undefined || inquilinoId === undefined) {
+      throw new Error(
+        "Contratto registrato privo degli identificativi persistenti richiesti",
+      );
+    }
+
+    const contrattiAggiornati =
+      await this.contrattoRepository.trovaPerImmobile(immobileId);
+    const contrattiDellInquilino = contrattiAggiornati.filter(
+      (contratto) => contratto.inquilino.id === inquilinoId,
+    );
+    const oggi = this.dataCorrenteProvider.oggi();
+    const competenza = this.trovaCompetenzaNonPagataPiuVecchia(
+      contrattiDellInquilino,
+      oggi,
+    );
+
+    if (
+      competenza === null ||
+      competenza.contratto.id !== contrattoId ||
+      competenza.anno !== annoCompetenza ||
+      competenza.mese !== meseCompetenza
+    ) {
+      throw new ConflittoApplicativo(
+        "La competenza da confermare non è più registrabile; aggiornare l'anteprima",
+      );
+    }
+
+    const importo = competenza.contratto.calcolaImportoCompetenza(
+      annoCompetenza,
+      meseCompetenza,
+    );
+    const pagamento = new Pagamento({
+      annoCompetenza,
+      meseCompetenza,
+      dataPagamento: RegistraPagamentoService.inizioGiorno(oggi),
+      importo,
+    });
+
+    competenza.contratto.aggiungiPagamento(pagamento);
+
+    await this.pagamentoRepository.salva(contrattoId, pagamento);
+
+    return pagamento;
   }
 
   private trovaCompetenzaNonPagataPiuVecchia(
