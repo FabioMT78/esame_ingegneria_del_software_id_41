@@ -10,6 +10,7 @@
     "build": "tsc --project tsconfig.json",
     "start": "node dist/web/server.js",
     "dev": "tsx watch src/web/server.ts",
+    "db:seed:templates": "tsx src/infrastructure/persistence/postgres/SeedTemplateContrattualiCli.ts",
     "typecheck:test": "tsc --project test/tsconfig.json",
     "lint": "eslint src test public --max-warnings=0",
     "test": "jest",

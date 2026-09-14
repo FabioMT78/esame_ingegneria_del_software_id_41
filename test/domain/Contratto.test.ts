@@ -84,6 +84,7 @@ function creaPersona(
 
 type CreaContrattoOptions = {
   tipologia?: TipologiaContrattuale;
+  al?: Date;
   canoneMensile?: number;
   giornoPagamento?: number;
 };
@@ -92,17 +93,22 @@ function creaContratto(
   dal: string,
   {
     tipologia = creaTipologia(),
+    al,
     canoneMensile = 1000,
     giornoPagamento = 15,
   }: CreaContrattoOptions = {},
 ): Contratto {
+  const dataDal = new Date(`${dal}T00:00:00.000Z`);
+  const dataAl = al ?? Contratto.calcolaDataFine(dataDal, tipologia);
+
   return new Contratto({
     nomeDescrizione: "Contratto test",
     immobile: creaImmobile(),
     proprietario: creaPersona("RSSMRA80A10H501U"),
     inquilino: creaPersona("VRDLGI90B20H501X", true),
     tipologia,
-    dal: new Date(`${dal}T00:00:00.000Z`),
+    dal: dataDal,
+    al: dataAl,
     canoneMensile,
     giornoPagamento,
     registratoIl: new Date("2026-01-01T00:00:00.000Z"),
@@ -110,30 +116,43 @@ function creaContratto(
 }
 
 describe("Contratto.al", () => {
-  test("deriva la data finale dalla durata triennale meno un giorno", () => {
-    expect(creaContratto("2026-06-01").al).toEqual(
-      new Date("2029-05-31T00:00:00.000Z"),
-    );
+  test("conserva la data finale esplicita come parte del periodo storico", () => {
+    const al = new Date("2029-05-31T00:00:00.000Z");
+    const contratto = creaContratto("2026-06-01", {
+      tipologia: creaTipologia(4, 4),
+      al,
+    });
+
+    expect(contratto.al).toEqual(al);
+    expect(contratto.al).not.toBe(al);
   });
 
-  test("deriva la data finale dalla durata quadriennale meno un giorno", () => {
-    expect(
+  test("rifiuta una data finale precedente alla data iniziale", () => {
+    expect(() =>
       creaContratto("2026-06-01", {
-        tipologia: creaTipologia(4, 4),
-      }).al,
-    ).toEqual(new Date("2030-05-31T00:00:00.000Z"));
+        al: new Date("2026-05-31T00:00:00.000Z"),
+      }),
+    ).toThrow(RangeError);
   });
 });
 
 describe("Contratto.calcolaDataFine", () => {
-  test("calcola la data finale senza modificare la data iniziale", () => {
+  test("calcola la data finale triennale meno un giorno senza modificare dal", () => {
     const dal = new Date("2026-06-15T00:00:00.000Z");
     const originale = new Date(dal.getTime());
 
-    expect(
-      Contratto.calcolaDataFine(dal, creaTipologia()),
-    ).toEqual(new Date("2029-06-14T00:00:00.000Z"));
+    expect(Contratto.calcolaDataFine(dal, creaTipologia())).toEqual(
+      new Date("2029-06-14T00:00:00.000Z"),
+    );
     expect(dal).toEqual(originale);
+  });
+
+  test("calcola la data finale quadriennale meno un giorno", () => {
+    const dal = new Date("2026-06-01T00:00:00.000Z");
+
+    expect(Contratto.calcolaDataFine(dal, creaTipologia(4, 4))).toEqual(
+      new Date("2030-05-31T00:00:00.000Z"),
+    );
   });
 });
 
@@ -162,7 +181,7 @@ describe("Contratto.periodiSiSovrappongono", () => {
 });
 
 describe("Contratto.siSovrapponeA", () => {
-  test("delega la regola di sovrapposizione ai periodi inclusivi", () => {
+  test("delega la regola di sovrapposizione ai periodi inclusivi memorizzati", () => {
     const esistente = creaContratto("2026-06-01");
     const sovrapposto = creaContratto("2029-05-31");
     const successivo = creaContratto("2029-06-01");
@@ -211,7 +230,7 @@ describe("Contratto.calcolaImportoCompetenza", () => {
     expect(contratto.calcolaImportoCompetenza(2026, 7)).toBe(1000);
   });
 
-  test("calcola il pro-rata dell'ultima mensilità", () => {
+  test("calcola il pro-rata dell'ultima mensilità usando al memorizzato", () => {
     const contratto = creaContratto("2026-06-15", {
       canoneMensile: 1000,
     });

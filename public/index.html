@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gestionale Affitti — Nuovo contratto</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <p class="eyebrow">Gestionale Affitti</p>
+      <h1>Registrazione contratto di locazione</h1>
+      <p class="subtitle">Procedura guidata UC-01</p>
+    </div>
+  </header>
+
+  <main class="container main-layout">
+    <nav aria-label="Avanzamento registrazione contratto">
+      <ol id="stepper" class="stepper">
+        <li data-step="1"><span>1</span>Immobile</li>
+        <li data-step="2"><span>2</span>Proprietario</li>
+        <li data-step="3"><span>3</span>Inquilino</li>
+        <li data-step="4"><span>4</span>Dati contrattuali</li>
+        <li data-step="5"><span>5</span>Riepilogo</li>
+      </ol>
+    </nav>
+
+    <div id="status" class="status" role="status" aria-live="polite" hidden></div>
+
+    <div id="procedura-toolbar" class="procedure-toolbar" hidden>
+      <button id="torna-riepilogo" class="button secondary" type="button">
+        Torna al riepilogo
+      </button>
+    </div>
+
+    <section id="avvio-panel" class="card" aria-labelledby="avvio-title" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Bozze recuperabili</p>
+          <h2 id="avvio-title">Riprendi oppure inizia un nuovo contratto</h2>
+        </div>
+        <button id="nuovo-contratto" class="button secondary" type="button">
+          Nuovo contratto
+        </button>
+      </div>
+      <p class="muted">
+        Le bozze sono mantenute separatamente. Scegli esplicitamente quale procedura continuare.
+      </p>
+      <div id="bozze-list" class="draft-list"></div>
+    </section>
+
+    <section id="step1-panel" class="card" aria-labelledby="step1-title" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Step 1 di 5</p>
+          <h2 id="step1-title">Immobile</h2>
+        </div>
+        <div id="bozza-badge-step1" class="badge" hidden></div>
+      </div>
+
+      <p class="muted">
+        Seleziona un immobile già registrato oppure inseriscine uno nuovo.
+      </p>
+
+      <fieldset class="choice-group">
+        <legend>Origine dell'immobile</legend>
+        <label>
+          <input type="radio" name="modalita-immobile" value="esistente" checked>
+          Immobile esistente
+        </label>
+        <label>
+          <input type="radio" name="modalita-immobile" value="nuovo">
+          Nuovo immobile
+        </label>
+      </fieldset>
+
+      <form id="form-immobile-esistente">
+        <div class="field">
+          <label for="immobile-id">Immobile registrato</label>
+          <select id="immobile-id" name="immobileId" required>
+            <option value="">Seleziona un immobile</option>
+          </select>
+          <p id="immobile-detail" class="field-help"></p>
+        </div>
+
+        <div class="actions">
+          <button class="button primary" type="submit">Salva e continua</button>
+        </div>
+      </form>
+
+      <form id="form-immobile-nuovo" hidden>
+        <fieldset>
+          <legend>Dati generali</legend>
+          <div class="field">
+            <label for="nome">Nome immobile</label>
+            <input id="nome" name="nome" type="text" maxlength="120" required>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Indirizzo</legend>
+          <div class="form-grid">
+            <div class="field">
+              <label for="nazione">Nazione <span class="optional">(opzionale)</span></label>
+              <input id="nazione" name="nazione" type="text" maxlength="80">
+            </div>
+            <div class="field">
+              <label for="provincia">Provincia</label>
+              <input id="provincia" name="provincia" type="text" maxlength="80" required>
+            </div>
+            <div class="field">
+              <label for="comune">Comune</label>
+              <input id="comune" name="comune" type="text" maxlength="120" required>
+            </div>
+            <div class="field">
+              <label for="cap">CAP <span class="optional">(opzionale)</span></label>
+              <input id="cap" name="cap" type="text" maxlength="16">
+            </div>
+            <div class="field wide">
+              <label for="indirizzo">Indirizzo</label>
+              <input id="indirizzo" name="indirizzo" type="text" maxlength="180" required>
+            </div>
+            <div class="field">
+              <label for="civico">Civico <span class="optional">(opzionale)</span></label>
+              <input id="civico" name="civico" type="text" maxlength="20">
+            </div>
+            <div class="field">
+              <label for="scala">Scala <span class="optional">(opzionale)</span></label>
+              <input id="scala" name="scala" type="text" maxlength="20">
+            </div>
+            <div class="field">
+              <label for="interno">Interno <span class="optional">(opzionale)</span></label>
+              <input id="interno" name="interno" type="text" maxlength="20">
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Dati catastali</legend>
+          <div class="form-grid">
+            <div class="field">
+              <label for="codice-comunale">Codice comunale</label>
+              <input id="codice-comunale" name="codiceComunale" type="text" maxlength="20" required>
+            </div>
+            <div class="field">
+              <label for="foglio">Foglio</label>
+              <input id="foglio" name="foglio" type="number" min="0" step="1" required>
+            </div>
+            <div class="field">
+              <label for="particella">Particella</label>
+              <input id="particella" name="particella" type="number" min="0" step="1" required>
+            </div>
+            <div class="field">
+              <label for="subalterno">Subalterno</label>
+              <input id="subalterno" name="subalterno" type="number" min="0" step="1" required>
+            </div>
+            <div class="field">
+              <label for="categoria">Categoria</label>
+              <input id="categoria" name="categoria" type="text" maxlength="30" required>
+            </div>
+            <div class="field">
+              <label for="consistenza">Consistenza</label>
+              <input id="consistenza" name="consistenza" type="number" min="0" step="0.01" required>
+            </div>
+            <div class="field">
+              <label for="rendita">Rendita</label>
+              <input id="rendita" name="rendita" type="number" min="0" step="0.01" required>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="actions">
+          <button class="button primary" type="submit">Salva e continua</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="step2-panel" class="card" aria-labelledby="step2-title" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Step 2 di 5</p>
+          <h2 id="step2-title">Proprietario</h2>
+        </div>
+        <div id="bozza-badge-step2" class="badge" hidden></div>
+      </div>
+
+      <p class="muted">
+        Cerca il proprietario tramite codice fiscale oppure inseriscine direttamente uno nuovo.
+      </p>
+
+      <form id="proprietario-form-ricerca" class="lookup-form">
+        <div class="field">
+          <label for="proprietario-cf-ricerca">Codice fiscale</label>
+          <input
+            id="proprietario-cf-ricerca"
+            name="codiceFiscale"
+            type="text"
+            maxlength="16"
+            pattern="[A-Za-z]{6}[0-9LMNPQRSTUVlmnpqrstuv]{2}[A-Za-z][0-9LMNPQRSTUVlmnpqrstuv]{2}[A-Za-z][0-9LMNPQRSTUVlmnpqrstuv]{3}[A-Za-z]"
+            title="Inserire un codice fiscale di 16 caratteri nel formato previsto"
+            autocomplete="off"
+            autocapitalize="characters"
+            spellcheck="false"
+            required
+          >
+        </div>
+        <div class="lookup-actions">
+          <button class="button secondary" type="submit">Cerca</button>
+          <button id="proprietario-nuovo" class="button secondary" type="button">
+            Nuovo proprietario
+          </button>
+        </div>
+      </form>
+
+      <p id="proprietario-esito-ricerca" class="inline-message" hidden></p>
+
+      <form id="proprietario-form-dati" hidden>
+        <fieldset>
+          <legend>Dati anagrafici</legend>
+          <div class="form-grid">
+            <div class="field">
+              <label for="proprietario-nome">Nome</label>
+              <input id="proprietario-nome" name="nome" type="text" maxlength="120" required>
+            </div>
+            <div class="field">
+              <label for="proprietario-cognome">Cognome</label>
+              <input id="proprietario-cognome" name="cognome" type="text" maxlength="120" required>
+            </div>
+            <div class="field">
+              <label for="proprietario-codice-fiscale">Codice fiscale</label>
+              <input
+                id="proprietario-codice-fiscale"
+                name="codiceFiscale"
+                type="text"
+                maxlength="16"
+                pattern="[A-Za-z]{6}[0-9LMNPQRSTUVlmnpqrstuv]{2}[A-Za-z][0-9LMNPQRSTUVlmnpqrstuv]{2}[A-Za-z][0-9LMNPQRSTUVlmnpqrstuv]{3}[A-Za-z]"
+                title="Inserire un codice fiscale di 16 caratteri nel formato previsto"
+                autocomplete="off"
+                autocapitalize="characters"
+                spellcheck="false"
+                required
+                readonly
+              >
+            </div>
+            <div class="field">
+              <label for="proprietario-luogo-nascita">Luogo di nascita</label>
+              <input id="proprietario-luogo-nascita" name="luogoNascita" type="text" maxlength="120" required>
+            </div>
+            <div class="field">
+              <label for="proprietario-data-nascita">Data di nascita</label>
+              <input id="proprietario-data-nascita" name="dataNascita" type="date" required>
+            </div>
+            <div class="field">
+              <label for="proprietario-iban">IBAN <span class="optional">(se richiesto dal template)</span></label>
+              <input
+                id="proprietario-iban"
+                name="iban"
+                type="text"
+                autocomplete="off"
+                autocapitalize="characters"
+                spellcheck="false"
+              >
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Residenza</legend>
+          <div class="form-grid">
+            <div class="field">
+              <label for="proprietario-nazione">Nazione <span class="optional">(opzionale)</span></label>
+              <input id="proprietario-nazione" name="nazione" type="text" maxlength="80">
+            </div>
+            <div class="field">
+              <label for="proprietario-provincia">Provincia</label>
+              <input id="proprietario-provincia" name="provincia" type="text" maxlength="80" required>
+            </div>
+            <div class="field">
+              <label for="proprietario-comune">Comune</label>
+              <input id="proprietario-comune" name="comune" type="text" maxlength="120" required>
+            </div>
+            <div class="field">
+              <label for="proprietario-cap">CAP <span class="optional">(opzionale)</span></label>
+              <input id="proprietario-cap" name="cap" type="text" maxlength="16">
+            </div>
+            <div class="field wide">
+              <label for="proprietario-indirizzo">Indirizzo</label>
+              <input id="proprietario-indirizzo" name="indirizzo" type="text" maxlength="180" required>
+            </div>
+            <div class="field">
+              <label for="proprietario-civico">Civico <span class="optional">(opzionale)</span></label>
+              <input id="proprietario-civico" name="civico" type="text" maxlength="20">
+            </div>
+            <div class="field">
+              <label for="proprietario-scala">Scala <span class="optional">(opzionale)</span></label>
+              <input id="proprietario-scala" name="scala" type="text" maxlength="20">
+            </div>
+            <div class="field">
+              <label for="proprietario-interno">Interno <span class="optional">(opzionale)</span></label>
+              <input id="proprietario-interno" name="interno" type="text" maxlength="20">
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="actions split">
+          <div>
+            <button id="proprietario-indietro" class="button secondary" type="button">Indietro</button>
+            <button id="proprietario-cambia-cf" class="button secondary" type="button">
+              Cambia codice fiscale
+            </button>
+          </div>
+          <button class="button primary" type="submit">Salva e continua</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="step3-panel" class="card" aria-labelledby="step3-title" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Step 3 di 5</p>
+          <h2 id="step3-title">Inquilino</h2>
+        </div>
+        <div id="bozza-badge-step3" class="badge" hidden></div>
+      </div>
+
+      <p class="muted">
+        Cerca l'inquilino tramite codice fiscale oppure inseriscine direttamente uno nuovo. Il documento di riconoscimento è obbligatorio.
+      </p>
+
+      <form id="inquilino-form-ricerca" class="lookup-form">
+        <div class="field">
+          <label for="inquilino-cf-ricerca">Codice fiscale</label>
+          <input
+            id="inquilino-cf-ricerca"
+            name="codiceFiscale"
+            type="text"
+            maxlength="16"
+            pattern="[A-Za-z]{6}[0-9LMNPQRSTUVlmnpqrstuv]{2}[A-Za-z][0-9LMNPQRSTUVlmnpqrstuv]{2}[A-Za-z][0-9LMNPQRSTUVlmnpqrstuv]{3}[A-Za-z]"
+            title="Inserire un codice fiscale di 16 caratteri nel formato previsto"
+            autocomplete="off"
+            autocapitalize="characters"
+            spellcheck="false"
+            required
+          >
+        </div>
+        <div class="lookup-actions">
+          <button class="button secondary" type="submit">Cerca</button>
+          <button id="inquilino-nuovo" class="button secondary" type="button">
+            Nuovo inquilino
+          </button>
+        </div>
+      </form>
+
+      <p id="inquilino-esito-ricerca" class="inline-message" hidden></p>
+
+      <form id="inquilino-form-dati" hidden>
+        <fieldset>
+          <legend>Dati anagrafici</legend>
+          <div class="form-grid">
+            <div class="field">
+              <label for="inquilino-nome">Nome</label>
+              <input id="inquilino-nome" name="nome" type="text" maxlength="120" required>
+            </div>
+            <div class="field">
+              <label for="inquilino-cognome">Cognome</label>
+              <input id="inquilino-cognome" name="cognome" type="text" maxlength="120" required>
+            </div>
+            <div class="field">
+              <label for="inquilino-codice-fiscale">Codice fiscale</label>
+              <input
+                id="inquilino-codice-fiscale"
+                name="codiceFiscale"
+                type="text"
+                maxlength="16"
+                pattern="[A-Za-z]{6}[0-9LMNPQRSTUVlmnpqrstuv]{2}[A-Za-z][0-9LMNPQRSTUVlmnpqrstuv]{2}[A-Za-z][0-9LMNPQRSTUVlmnpqrstuv]{3}[A-Za-z]"
+                title="Inserire un codice fiscale di 16 caratteri nel formato previsto"
+                autocomplete="off"
+                autocapitalize="characters"
+                spellcheck="false"
+                required
+                readonly
+              >
+            </div>
+            <div class="field">
+              <label for="inquilino-luogo-nascita">Luogo di nascita</label>
+              <input id="inquilino-luogo-nascita" name="luogoNascita" type="text" maxlength="120" required>
+            </div>
+            <div class="field">
+              <label for="inquilino-data-nascita">Data di nascita</label>
+              <input id="inquilino-data-nascita" name="dataNascita" type="date" required>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Residenza</legend>
+          <div class="form-grid">
+            <div class="field">
+              <label for="inquilino-nazione">Nazione <span class="optional">(opzionale)</span></label>
+              <input id="inquilino-nazione" name="nazione" type="text" maxlength="80">
+            </div>
+            <div class="field">
+              <label for="inquilino-provincia">Provincia</label>
+              <input id="inquilino-provincia" name="provincia" type="text" maxlength="80" required>
+            </div>
+            <div class="field">
+              <label for="inquilino-comune">Comune</label>
+              <input id="inquilino-comune" name="comune" type="text" maxlength="120" required>
+            </div>
+            <div class="field">
+              <label for="inquilino-cap">CAP <span class="optional">(opzionale)</span></label>
+              <input id="inquilino-cap" name="cap" type="text" maxlength="16">
+            </div>
+            <div class="field wide">
+              <label for="inquilino-indirizzo">Indirizzo</label>
+              <input id="inquilino-indirizzo" name="indirizzo" type="text" maxlength="180" required>
+            </div>
+            <div class="field">
+              <label for="inquilino-civico">Civico <span class="optional">(opzionale)</span></label>
+              <input id="inquilino-civico" name="civico" type="text" maxlength="20">
+            </div>
+            <div class="field">
+              <label for="inquilino-scala">Scala <span class="optional">(opzionale)</span></label>
+              <input id="inquilino-scala" name="scala" type="text" maxlength="20">
+            </div>
+            <div class="field">
+              <label for="inquilino-interno">Interno <span class="optional">(opzionale)</span></label>
+              <input id="inquilino-interno" name="interno" type="text" maxlength="20">
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Documento di riconoscimento</legend>
+          <div class="form-grid">
+            <div class="field">
+              <label for="inquilino-documento-tipo">Tipo</label>
+              <select id="inquilino-documento-tipo" name="documentoTipo" required>
+                <option value="">Seleziona il documento</option>
+                <option value="carta d'identità">Carta d'identità</option>
+                <option value="passaporto">Passaporto</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="inquilino-documento-numero">Numero</label>
+              <input id="inquilino-documento-numero" name="documentoNumero" type="text" maxlength="80" required>
+            </div>
+            <div class="field">
+              <label for="inquilino-documento-organo">Organo emittente</label>
+              <input id="inquilino-documento-organo" name="documentoOrgano" type="text" maxlength="160" required>
+            </div>
+            <div class="field">
+              <label for="inquilino-documento-rilascio">Data di rilascio</label>
+              <input id="inquilino-documento-rilascio" name="documentoRilascio" type="date" required>
+            </div>
+            <div class="field">
+              <label for="inquilino-documento-scadenza">Data di scadenza</label>
+              <input id="inquilino-documento-scadenza" name="documentoScadenza" type="date" required>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="actions split">
+          <div>
+            <button id="inquilino-indietro" class="button secondary" type="button">Indietro</button>
+            <button id="inquilino-cambia-cf" class="button secondary" type="button">
+              Cambia codice fiscale
+            </button>
+          </div>
+          <button class="button primary" type="submit">Salva e continua</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="step4-panel" class="card" aria-labelledby="step4-title" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Step 4 di 5</p>
+          <h2 id="step4-title">Dati contrattuali</h2>
+        </div>
+        <div id="bozza-badge-step4" class="badge" hidden></div>
+      </div>
+
+      <p class="muted">
+        Inserisci i dati del rapporto. La data finale viene calcolata dal server usando la durata della tipologia selezionata.
+      </p>
+
+      <form id="form-dati-contrattuali">
+        <div class="form-grid">
+          <div class="field wide">
+            <label for="contratto-nome-descrizione">Nome o breve descrizione</label>
+            <input
+              id="contratto-nome-descrizione"
+              name="nomeDescrizione"
+              type="text"
+              required
+            >
+          </div>
+
+          <div class="field">
+            <label for="contratto-tipologia">Tipologia contrattuale</label>
+            <select id="contratto-tipologia" name="tipologiaId" required>
+              <option value="">Seleziona una tipologia</option>
+            </select>
+            <p id="tipologia-dettaglio" class="field-help"></p>
+          </div>
+
+          <div class="field">
+            <label for="contratto-dal">Decorrenza</label>
+            <input id="contratto-dal" name="dal" type="date" required>
+          </div>
+
+          <div class="field">
+            <label for="contratto-al">Data finale</label>
+            <input id="contratto-al" name="al" type="date" readonly>
+            <p class="field-help">Calcolata dal server dopo il salvataggio.</p>
+          </div>
+
+          <div class="field">
+            <label for="contratto-canone">Canone mensile</label>
+            <input id="contratto-canone" name="canoneMensile" type="number" step="0.01" required>
+          </div>
+
+          <div class="field">
+            <label for="contratto-giorno-pagamento">Giorno di pagamento</label>
+            <input
+              id="contratto-giorno-pagamento"
+              name="giornoPagamento"
+              type="number"
+              min="1"
+              max="28"
+              step="1"
+              required
+            >
+          </div>
+        </div>
+
+        <div class="actions split">
+          <button id="dati-contrattuali-indietro" class="button secondary" type="button">
+            Indietro
+          </button>
+          <button class="button primary" type="submit">Salva e continua</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="step5-panel" class="card" aria-labelledby="step5-title" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Step 5 di 5</p>
+          <h2 id="step5-title">Riepilogo</h2>
+        </div>
+        <div id="bozza-badge-step5" class="badge" hidden></div>
+      </div>
+
+      <div id="riepilogo-operativo">
+        <p class="muted">
+          Verifica i dati e l'anteprima degli articoli valorizzati. Puoi modificare gli step già completati prima della registrazione definitiva.
+        </p>
+
+        <div id="riepilogo-contenuto" class="summary-grid"></div>
+
+        <section class="document-preview" aria-labelledby="anteprima-title">
+          <div class="summary-heading">
+            <h3 id="anteprima-title">Anteprima articoli contrattuali</h3>
+          </div>
+          <p id="anteprima-stato" class="muted">Caricamento anteprima…</p>
+          <div
+            id="riepilogo-anteprima"
+            class="template-list"
+            aria-label="Anteprima degli articoli contrattuali"
+            hidden
+          ></div>
+        </section>
+
+        <div class="actions split summary-actions">
+          <div>
+            <button id="riepilogo-indietro" class="button secondary" type="button">
+              Indietro
+            </button>
+            <button id="salva-bozza" class="button secondary" type="button">
+              Salva bozza ed esci
+            </button>
+          </div>
+          <div>
+            <button id="riepilogo-annulla" class="button danger" type="button">
+              Annulla bozza
+            </button>
+            <button id="riepilogo-conferma" class="button primary" type="button">
+              Conferma e registra
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="riepilogo-successo" class="success-panel" hidden>
+        <h3>Contratto registrato</h3>
+        <p id="riepilogo-successo-testo"></p>
+        <button id="nuova-procedura-dopo-conferma" class="button primary" type="button">
+          Registra un altro contratto
+        </button>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

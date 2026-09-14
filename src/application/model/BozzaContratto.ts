@@ -1,9 +1,9 @@
-import Contratto from "../../domain/Contratto";
 import type Immobile from "../../domain/Immobile";
 import type Persona from "../../domain/Persona";
 import type TipologiaContrattuale from "../../domain/TipologiaContrattuale";
 
 type BozzaContrattoParams = {
+  idBozza?: number;
   stepCompletato: number;
   immobile?: Immobile;
   proprietario?: Persona;
@@ -11,11 +11,13 @@ type BozzaContrattoParams = {
   tipologia?: TipologiaContrattuale;
   nomeDescrizione?: string;
   dal?: Date;
+  al?: Date;
   canoneMensile?: number;
   giornoPagamento?: number;
 };
 
 class BozzaContratto {
+  idBozza?: number;
   stepCompletato: number;
   immobile?: Immobile;
   proprietario?: Persona;
@@ -23,10 +25,12 @@ class BozzaContratto {
   tipologia?: TipologiaContrattuale;
   nomeDescrizione?: string;
   dal?: Date;
+  al?: Date;
   canoneMensile?: number;
   giornoPagamento?: number;
 
   constructor({
+    idBozza,
     stepCompletato,
     immobile,
     proprietario,
@@ -34,9 +38,14 @@ class BozzaContratto {
     tipologia,
     nomeDescrizione,
     dal,
+    al,
     canoneMensile,
     giornoPagamento,
   }: BozzaContrattoParams) {
+    if (idBozza !== undefined) {
+      this.idBozza = idBozza;
+    }
+
     this.stepCompletato = stepCompletato;
 
     if (immobile !== undefined) {
@@ -63,6 +72,10 @@ class BozzaContratto {
       this.dal = new Date(dal.getTime());
     }
 
+    if (al !== undefined) {
+      this.al = new Date(al.getTime());
+    }
+
     if (canoneMensile !== undefined) {
       this.canoneMensile = canoneMensile;
     }
@@ -70,14 +83,6 @@ class BozzaContratto {
     if (giornoPagamento !== undefined) {
       this.giornoPagamento = giornoPagamento;
     }
-  }
-
-  get al(): Date | undefined {
-    if (this.dal === undefined || this.tipologia === undefined) {
-      return undefined;
-    }
-
-    return Contratto.calcolaDataFine(this.dal, this.tipologia);
   }
 }
 

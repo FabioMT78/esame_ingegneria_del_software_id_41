@@ -52,8 +52,22 @@ Il modello usa quindi due associazioni nominate fra `Persona` e `Contratto`:
 - `inquilino`.
 
 La stessa Persona può partecipare a più contratti nel tempo e assumere ruoli differenti in rapporti contrattuali diversi.
+Nello stesso Contratto, invece, proprietario e inquilino devono essere Persone distinte:
+i rispettivi codici fiscali non possono coincidere.
 
-Il codice fiscale identifica una Persona registrata. I dati anagrafici richiesti comprendono nome, cognome, luogo e data di nascita, codice fiscale e residenza.
+Il codice fiscale identifica una Persona registrata. La versione 1.0 ne valida e normalizza
+la struttura di 16 caratteri, ammettendo nelle posizioni normalmente numeriche le sostituzioni
+previste per l'omocodia, senza introdurre una verifica anagrafica esterna dell'effettiva
+attribuzione del codice. I dati anagrafici richiesti comprendono nome, cognome, luogo e data
+di nascita, codice fiscale e residenza. In UC-01 la data di nascita deve corrispondere,
+rispetto alla data corrente del server, a un'età compresa tra 18 e 150 anni inclusi.
+Per una Persona già registrata il codice fiscale è immutabile nell'ambito di UC-01: un codice
+fiscale differente identifica una nuova Persona. La versione 1.0 non verifica invece la coerenza
+semantica fra codice fiscale e nome, cognome, data o luogo di nascita, perché tale controllo
+richiederebbe regole anagrafiche ulteriori o fonti esterne e rimane fuori scope.
+`Persona` può inoltre contenere un IBAN opzionale. L'IBAN appartiene alla Persona e non al Contratto:
+quando un template lo utilizza, il generatore legge l'IBAN della Persona che nel Contratto assume il
+ruolo di proprietario.
 
 La residenza non è modellata come un gruppo di attributi interno a `Persona`: viene riutilizzato il concetto `Indirizzo` tramite l'associazione `residenza`. Ogni Persona ha un solo indirizzo di residenza, mentre più Persone possono condividere lo stesso Indirizzo.
 
@@ -88,7 +102,7 @@ Quando l'interno è specificato per un Immobile, l'indirizzo completo non può d
 - consistenza;
 - rendita.
 
-La combinazione `codice comunale + foglio + particella + subalterno` identifica univocamente l'Immobile. `categoria`, `consistenza` e `rendita` descrivono caratteristiche catastali ma non partecipano all'identificazione.
+La combinazione `codice comunale + foglio + particella + subalterno` identifica univocamente l'Immobile. `categoria`, `consistenza` e `rendita` descrivono caratteristiche catastali ma non partecipano all'identificazione. I valori numerici `foglio`, `particella`, `subalterno`, `consistenza` e `rendita` non possono essere negativi.
 
 ### 3.3 Documento di riconoscimento
 
@@ -103,6 +117,9 @@ Gli attributi concettuali sono:
 - numero del documento.
 
 Una `Persona` può avere `0..1` DocumentoRiconoscimento e ogni DocumentoRiconoscimento appartiene a una sola Persona. Quando una Persona assume il ruolo di inquilino in un Contratto, il documento deve essere presente.
+Per essere utilizzabile in UC-01, la data di rilascio del documento non può essere successiva
+alla data corrente fornita dal server e la data di scadenza deve essere strettamente successiva
+alla stessa data corrente.
 
 La versione 1.0 non gestisce storico o pluralità di documenti per la stessa Persona.
 
@@ -112,8 +129,9 @@ La versione 1.0 non gestisce storico o pluralità di documenti per la stessa Per
 
 - nome o breve descrizione;
 - data iniziale `dal`;
-- data finale derivata `/al`;
+- data finale `al`;
 - canone mensile;
+- canone annuale derivato dal canone mensile;
 - giorno di pagamento;
 - data di registrazione `registratoIl`;
 - `contenuto`, copia completa del documento generato;
@@ -132,7 +150,7 @@ Per le tipologie supportate nella versione 1.0:
 - canone concordato 3+2: `durata = 3`, `rinnovo = 2`;
 - canone libero 4+4: `durata = 4`, `rinnovo = 4`.
 
-La data `/al` è derivata esclusivamente da `dal` e `TipologiaContrattuale.durata`: corrisponde all'anniversario della decorrenza dopo il numero di anni previsto, meno un giorno. Il valore `rinnovo` descrive la tipologia ma non estende il periodo gestito nella versione 1.0 e non introduce un caso d'uso di rinnovo.
+La data `al` viene determinata automaticamente a partire da `dal` e `TipologiaContrattuale.durata`: corrisponde all'anniversario della decorrenza dopo il numero di anni previsto, meno un giorno. Il calcolo avviene quando i dati contrattuali vengono validati; il valore ottenuto entra nello stato della bozza e, alla conferma, viene conservato nel Contratto registrato come parte del periodo storico. Non viene quindi ricalcolato dalla tipologia a ogni lettura del Contratto. Il valore `rinnovo` descrive la tipologia ma non estende il periodo gestito nella versione 1.0 e non introduce un caso d'uso di rinnovo.
 
 `registratoIl` è valorizzato alla registrazione definitiva. Prima di tale momento non esiste un Contratto registrato incompleto: lo stato temporaneo della procedura è rappresentato separatamente dalla bozza applicativa.
 
@@ -157,6 +175,11 @@ Ogni TipologiaContrattuale possiede almeno un Articolo template. Le parti vengon
 La copia storica completa del documento viene conservata direttamente in `Contratto.contenuto`. Il Domain Model non prescrive il formato tecnico del contenuto: la scelta concreta della versione 1.0 è documentata in `docs/architettura.md`.
 
 Il contenuto storico non deve dipendere da successive modifiche dei template o dei dati sorgente utilizzati per generarlo.
+
+I valori usati esclusivamente per la resa documentale non vengono duplicati nello stato persistito: il
+canone annuale è derivato dal canone mensile, le rappresentazioni degli importi in lettere appartengono
+al generatore e l'eventuale deposito cauzionale riportato nel template viene calcolato come tre mensilità
+solo per la generazione del documento, senza introdurre una gestione del deposito nella versione 1.0.
 
 ### 3.6 Pagamento e competenze mensili
 
@@ -195,21 +218,27 @@ Alla registrazione definitiva del Contratto viene creato il Pagamento della prim
 
 ### 3.7 BozzaContratto e confine del Domain Model
 
-`BozzaContratto` non appartiene al Domain Model. Rappresenta lo stato temporaneo e recuperabile della procedura guidata di UC-01 ed è quindi un application model.
+`BozzaContratto` non appartiene al Domain Model. Rappresenta lo stato temporaneo e recuperabile di una procedura guidata di UC-01 ed è quindi un application model.
 
-Nuovi Immobili, nuove Persone, eventuali modifiche validate a Persone esistenti e dati del DocumentoRiconoscimento rimangono nella bozza fino alla conferma definitiva. L'annullamento della procedura non rende permanenti tali dati.
+Nella versione 1.0 più bozze possono coesistere anche se il sistema è mono-utente: la pluralità serve a sospendere e riprendere preparazioni relative a contratti diversi, non a distinguere utenti. Ogni bozza persistita è identificata tramite `idBozza`, identificatore tecnico del workflow applicativo e non identificatore di dominio. Per uno stesso Immobile già registrato è ammessa al massimo una bozza attiva.
 
-La bozza non rappresenta un Contratto incompleto e non contiene il documento storico o Pagamenti definitivi. Il suo lifecycle e il comportamento di recupero sono rappresentati nei diagrammi dinamici; le decisioni architetturali relative alla sua persistenza appartengono a `docs/architettura.md`.
+Nuovi Immobili, nuove Persone, eventuali modifiche validate a Persone esistenti e dati del DocumentoRiconoscimento rimangono nella relativa bozza fino alla conferma definitiva. L'annullamento della procedura elimina soltanto la bozza selezionata e non rende permanenti tali dati. Per una nuova Persona l'interfaccia può avviare direttamente l'inserimento senza una ricerca preliminare; questa variante di interazione non introduce un nuovo concetto nel modello e il codice fiscale continua a identificare univocamente la Persona, per cui un codice già registrato non può produrre una seconda Persona.
+
+La bozza non rappresenta un Contratto incompleto e non contiene il documento storico o Pagamenti definitivi. Dopo i quattro step di acquisizione validati, il quinto step di riepilogo è una vista operativa sullo stato della bozza: non incrementa `stepCompletato`, perché non introduce nuovi dati persistenti. Dal riepilogo il proprietario può confermare la registrazione, conservare la bozza per una ripresa successiva oppure annullarla. Il suo lifecycle e il comportamento di recupero sono rappresentati nei diagrammi dinamici; le decisioni architetturali relative alla sua persistenza appartengono a `docs/architettura.md`.
 
 ## 4. Vincoli concettuali principali
 
 Il Domain Model rende espliciti i vincoli necessari a comprenderne struttura e significato:
 
-- il codice fiscale identifica una Persona registrata;
+- il codice fiscale identifica una Persona registrata, è sottoposto al controllo strutturale previsto e non è modificabile in UC-01 per una Persona già persistita;
+- in UC-01 la data di nascita deve corrispondere a un'età compresa tra 18 e 150 anni rispetto alla data corrente del server;
+- proprietario e inquilino dello stesso Contratto devono avere codici fiscali differenti;
+- foglio, particella, subalterno, consistenza e rendita dei DatiCatastali devono essere maggiori o uguali a zero;
 - una Persona che assume il ruolo di inquilino deve disporre del DocumentoRiconoscimento richiesto;
+- il DocumentoRiconoscimento dell'inquilino deve avere data di rilascio non successiva alla data corrente del server e data di scadenza successiva alla stessa data corrente;
 - la combinazione catastale identifica univocamente un Immobile;
 - il giorno di pagamento è compreso tra 1 e 28;
-- la data `/al` è derivata da `dal` e dalla durata iniziale della TipologiaContrattuale;
+- la data `al` viene calcolata da `dal` e dalla durata iniziale della TipologiaContrattuale durante la definizione del periodo e viene poi conservata nel Contratto;
 - il rinnovo della tipologia non estende il periodo gestito nella versione 1.0;
 - i periodi di due Contratti dello stesso Immobile non possono sovrapporsi;
 - ogni TipologiaContrattuale possiede almeno un Articolo template;
@@ -230,12 +259,12 @@ Il Class Diagram conserva i concetti del Domain Model e aggiunge i tipi software
 
 Due differenze rispetto al Domain Model sono intenzionali:
 
-- `BozzaContratto` e `PagamentoDaRegistrare` compaiono come application model perché servono al workflow, ma non sono concetti del dominio;
+- `BozzaContratto` e `PagamentoDaRegistrare` compaiono come application model perché servono al workflow, ma non sono concetti del dominio; `idBozza` identifica esclusivamente una bozza persistita del workflow di UC-01;
 - nel Domain Model un Contratto registrato possiede `contenuto` e almeno un Pagamento, mentre nel Class Diagram tali elementi possono essere temporaneamente assenti durante l'assemblaggio in memoria prima della registrazione definitiva.
 
 `Articolo` resta associato soltanto alla `TipologiaContrattuale`; non esiste un'associazione `Contratto`--`Articolo`. La storia del documento è responsabilità di `Contratto.contenuto`.
 
-`Contratto` espone i comportamenti di dominio necessari ai casi d'uso, fra cui verifica della sovrapposizione, calcolo di importo e scadenza delle competenze, stato temporale, impostazione del contenuto e aggiunta dei Pagamenti.
+`Contratto` espone i comportamenti di dominio necessari ai casi d'uso, fra cui definizione e confronto dei periodi, calcolo di importo e scadenza delle competenze, stato temporale, impostazione del contenuto e aggiunta dei Pagamenti. Il significato della sovrapposizione resta nel dominio; il repository può offrire una ricerca mirata per verificare efficientemente se un periodo sovrapposto esiste nei dati persistiti.
 
 Le responsabilità dei Service, le porte applicative, la Dependency Rule e le scelte di persistenza sono descritte in `docs/architettura.md`.
 
@@ -249,17 +278,24 @@ I diagrammi dinamici usano partecipanti logici per descrivere collaborazioni e f
 
 Il diagramma mette in evidenza in particolare:
 
-- recupero dell'eventuale bozza e distinzione fra bozza riprendibile e bozza residua di una registrazione già completata;
-- aggiornamento della bozza dopo gli step validi, senza persistenza definitiva anticipata dei nuovi dati o delle modifiche;
-- controllo della sovrapposizione prima della registrazione;
-- costruzione del Contratto soltanto alla conferma finale;
-- generazione del contenuto storico a partire dai template e dai dati finali;
+- recupero dell'insieme delle bozze, eliminazione delle eventuali bozze residue e scelta fra ripresa, annullamento di una specifica bozza e nuova procedura;
+- identificazione esplicita della bozza corrente nelle operazioni successive allo step Immobile;
+- ricerca di una Persona esistente oppure inserimento diretto di una nuova Persona, mantenendo il codice fiscale come identità univoca;
+- aggiornamento della sola bozza selezionata dopo gli step validi, senza persistenza definitiva anticipata dei nuovi dati o delle modifiche;
+- validazione temporale del DocumentoRiconoscimento rispetto alla data corrente del server;
+- calcolo e memorizzazione di `al` nella bozza alla validazione dei dati contrattuali e controllo dell'IBAN quando richiesto dal template;
+- generazione dell'anteprima valorizzata nel riepilogo tramite lo stesso `GeneratoreDocumentoContratto` usato alla conferma, senza persistenza definitiva;
+- navigazione diretta verso gli step già completati per eventuali modifiche;
+- azioni di salvataggio della bozza, annullamento o conferma concentrate nel riepilogo;
+- controllo mirato della sovrapposizione prima della registrazione, senza richiedere il caricamento di tutti i Contratti dell'Immobile per tale verifica;
+- costruzione del Contratto transitorio per l'anteprima e ricostruzione/rivalidazione del Contratto alla conferma finale usando il periodo `dal`--`al` già determinato;
+- rigenerazione del contenuto storico a partire dai template e dai dati finali;
 - creazione del primo Pagamento;
 - registrazione definitiva come operazione logica coerente e atomica;
-- cleanup della bozza successivo al successo, senza invalidare il Contratto in caso di errore di cancellazione;
-- conservazione della bozza in caso di errore della registrazione definitiva.
+- cleanup della sola bozza corrente successivo al successo, senza invalidare il Contratto in caso di errore di cancellazione;
+- conservazione della bozza corrente in caso di errore della registrazione definitiva.
 
-Il confronto usato per riconoscere una bozza residua utilizza, quando tutti disponibili, identificazione catastale dell'Immobile, codice fiscale dell'Inquilino e periodo `dal`--`al`. Solo la coincidenza di tutti e tre gli elementi con un Contratto già registrato consente di eliminarla automaticamente come residua.
+Il confronto usato per riconoscere una bozza residua utilizza, quando tutti disponibili, identificazione catastale dell'Immobile, codice fiscale dell'Inquilino e periodo `dal`--`al`. Solo la coincidenza di tutti e tre gli elementi con un Contratto già registrato consente di eliminarla automaticamente come residua; le altre bozze restano disponibili.
 
 ### 6.2 Activity Diagram UC-01
 
@@ -267,15 +303,18 @@ Il confronto usato per riconoscere una bozza residua utilizza, quando tutti disp
 
 Il diagramma evidenzia:
 
-- ripresa o avvio della procedura;
-- avanzamento attraverso i sei step;
+- recupero delle bozze non concluse e rimozione delle eventuali residue;
+- scelta fra una bozza riprendibile, l'annullamento di una specifica bozza e una nuova procedura;
+- avanzamento attraverso cinque step, di cui i primi quattro acquisiscono dati e il quinto presenta il riepilogo;
+- navigazione diretta verso gli step già completati;
 - cicli di validazione e correzione prima dell'avanzamento;
-- distinzione tra selezione di dati esistenti e acquisizione di nuovi dati;
-- aggiornamento progressivo della bozza;
-- possibilità di annullamento prima della conferma;
-- ritorno alla modifica in presenza di sovrapposizione;
+- distinzione tra ricerca di dati esistenti e inserimento diretto di nuovi dati;
+- aggiornamento progressivo della sola bozza corrente;
+- anteprima valorizzata degli articoli nel riepilogo senza registrazione definitiva;
+- scelta nel riepilogo fra conservazione della bozza, annullamento e conferma;
+- ritorno alla modifica in presenza di errori o sovrapposizione;
 - registrazione definitiva soltanto dopo conferma valida;
-- cleanup della bozza dopo il completamento positivo.
+- cleanup della sola bozza interessata dopo il completamento positivo.
 
 L'Activity Diagram usa i ruoli `Proprietario` e `Sistema` e non introduce componenti architetturali.
 

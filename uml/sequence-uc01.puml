@@ -3,267 +3,255 @@ title UC-01 — Registrare un contratto di locazione
 
 actor Proprietario
 boundary "Interfaccia UC-01" as UI
-control "Gestione UC-01" as UC
-participant "Bozza UC-01" as Draft
-database "Archivio dati" as Store
+control "RegistraContrattoService" as UC
+participant "Repository bozze" as Draft
+database "Repository dati definitivi" as Store
+participant "GeneratoreDocumentoContratto" as Generator
 participant "Contratto" as Contract
 participant "Pagamento" as Payment
 
 note over UI,UC
-I partecipanti applicativi sono ruoli logici.
-Non definiscono una corrispondenza uno-a-uno
-con le classi concrete, ma le operazioni pubbliche
-richiamate sono mantenute coerenti con il Class Diagram.
+La procedura presenta cinque step.
+I primi quattro acquisiscono dati; il quinto è il riepilogo.
+stepCompletato resta quindi compreso fra 0 e 4.
 end note
 
-Proprietario -> UI : avvia registrazione contratto
+Proprietario -> UI : avvia UC-01
 UI -> UC : avvia()
-UC -> Draft : recupera()
+UC -> Draft : elenca()
+Draft --> UC : List<BozzaContratto>
 
-alt bozza esistente
-    Draft --> UC : dati della bozza
-    UC -> Store : confronta progressivamente con contratti registrati
-(dati catastali, CF inquilino, dal/al disponibili)
-    alt tutti i dati presenti e coincidenti
-con un contratto già registrato
-        Store --> UC : corrispondenza completa
-        UC -> Draft : elimina()
-        note right of Draft
-        La bozza è considerata residua di una
-        registrazione già completata e viene
-        eliminata silenziosamente.
-        end note
-        UC --> UI : mostra step immobile
-    else confronto incompleto o non coincidente
-        Store --> UC : nessuna corrispondenza completa
-        UC --> UI : mostra procedura con dati recuperati
+loop per ogni bozza persistita
+  alt dati sufficienti per riconoscere un residuo
+    UC -> Store : recupera Immobile/Contratti necessari
+    Store --> UC : dati definitivi
+    UC -> UC : confronta catasto + CF inquilino + dal/al
+    alt coincide con Contratto già registrato
+      UC -> Draft : elimina(idBozza)
+    else non coincide
+      UC -> UC : mantiene bozza riprendibile
     end
+  else dati insufficienti
+    UC -> UC : mantiene bozza riprendibile
+  end
+end
+UC --> UI : bozze riprendibili
+
+alt esistono bozze riprendibili
+  UI --> Proprietario : mostra Riprendi / Annulla per ciascuna bozza\ne Nuovo contratto
+  alt annulla una bozza dall'elenco
+    Proprietario -> UI : annulla bozza idBozza
+    UI -> UC : annulla(idBozza)
+    UC -> Draft : trovaPerId(idBozza)
+    Draft --> UC : BozzaContratto
+    UC -> Draft : elimina(idBozza)
+    UC --> UI : bozza eliminata
+  else riprende una bozza
+    Proprietario -> UI : seleziona idBozza
+    UI --> Proprietario : mostra primo step non completato\no riepilogo se i primi 4 sono completi
+  else nuova procedura
+    UI --> Proprietario : mostra Step 1 senza idBozza
+  end
 else nessuna bozza
-    Draft --> UC : nessuna bozza
-    UC --> UI : mostra step immobile
+  UI --> Proprietario : mostra Step 1 senza idBozza
 end
 
 group Step 1 — Immobile
-    UC -> Store : trovaTutti()
-    Store --> UC : List<Immobile>
-    UC --> UI : mostra immobili disponibili
+  UI -> UC : elencaImmobili()
+  UC -> Store : trovaTutti()
+  Store --> UC : List<Immobile>
+  UC --> UI : immobili
 
-    Proprietario -> UI : seleziona immobile esistente\noppure inserisce nuovo immobile
-
-    alt seleziona immobile esistente
-        UI -> UC : selezionaImmobile(immobileId)
-        UC -> Store : trovaPerId(immobileId)
-
-        alt immobile trovato
-            Store --> UC : Immobile
-            UC -> Draft : salva(bozza con Immobile selezionato)
-            UC --> UI : mostra step proprietario
-        else immobile non trovato
-            Store --> UC : null
-            UC --> UI : mostra errore
-        end
-
-    else inserisce nuovo immobile
-        UI -> UC : inserisciNuovoImmobile(immobile)
-        UC -> UC : valida dati del nuovo Immobile
-
-        alt dati non validi
-            UC --> UI : mostra errori di validazione
-        else dati validi
-            UC -> Store : trovaPerDatiCatastali(datiCatastali)
-
-            alt duplicato catastale
-                Store --> UC : Immobile
-                UC --> UI : segnala duplicato catastale
-            else nessun duplicato catastale
-                Store --> UC : null
-
-                alt interno specificato
-                    UC -> Store : esisteConIndirizzo(indirizzo)
-
-                    alt duplicato indirizzo
-                        Store --> UC : true
-                        UC --> UI : segnala duplicato indirizzo
-                    else nessun duplicato indirizzo
-                        Store --> UC : false
-                        UC -> Draft : salva(bozza con nuovo Immobile)
-                        note right of Draft
-                        Il nuovo Immobile resta nella bozza
-                        e non viene ancora salvato permanentemente.
-                        end note
-                        UC --> UI : mostra step proprietario
-                    end
-
-                else interno non specificato
-                    UC -> Draft : salva(bozza con nuovo Immobile)
-                    note right of Draft
-                    Il nuovo Immobile resta nella bozza
-                    e non viene ancora salvato permanentemente.
-                    end note
-                    UC --> UI : mostra step proprietario
-                end
-            end
-        end
+  Proprietario -> UI : seleziona immobile esistente\noppure inserisce nuovo immobile
+  alt immobile esistente
+    UI -> UC : selezionaImmobile(immobileId, idBozza?)
+    UC -> Store : trovaPerId(immobileId)
+    Store --> UC : Immobile | null
+    alt non trovato
+      UC --> UI : errore
+    else trovato
+      UC -> Draft : trovaPerImmobileId(immobileId)
+      Draft --> UC : BozzaContratto | null
+      alt altra bozza sullo stesso Immobile
+        UC --> UI : conflitto
+      else disponibile
+        UC -> Draft : salva(bozza)
+        Draft --> UC : BozzaContratto con idBozza
+        UC --> UI : Step 2
+      end
     end
+  else nuovo immobile
+    UI -> UC : inserisciNuovoImmobile(immobile, idBozza?)
+    UC -> Store : verifica duplicato catastale\ne, se applicabile, indirizzo completo
+    Store --> UC : esito
+    alt duplicato / dati non validi
+      UC --> UI : errore
+    else valido
+      UC -> Draft : salva(bozza)
+      Draft --> UC : BozzaContratto con idBozza
+      UC --> UI : Step 2
+    end
+  end
 end
 
-loop per ruolo [proprietario, inquilino]
-    Proprietario -> UI : inserisce codice fiscale
-    UI -> UC : cercaPersona(codiceFiscale)
-    UC -> Store : trovaPerCodiceFiscale(codiceFiscale)
+group Step 2 — Proprietario
+  alt ricerca Persona esistente
+    Proprietario -> UI : inserisce codice fiscale e Cerca
+    UI -> UC : cercaPersonaPerBozza(idBozza, proprietario, CF)
+    UC -> Draft : trovaPerId(idBozza)
+    Draft --> UC : BozzaContratto
+    UC -> Store : trovaPerCodiceFiscale(CF)
+    Store --> UC : Persona | null
+    UC --> UI : working copy | null
+  else inserimento diretto nuova Persona
+    Proprietario -> UI : Nuovo proprietario\ne compila i dati
+  end
+  Proprietario -> UI : salva proprietario
+  UI -> UC : impostaProprietario(idBozza, persona)
+  UC -> Draft : trovaPerId(idBozza)
+  Draft --> UC : BozzaContratto
+  UC -> UC : valida CF, età e ruolo distinto
+  opt persona senza id persistito
+    UC -> Store : trovaPerCodiceFiscale(CF)
+    Store --> UC : Persona | null
+  end
+  alt CF già registrato nell'inserimento diretto\no altri dati non validi
+    UC --> UI : errore; usare ricerca se Persona già esiste
+  else valido
+    UC -> Draft : salva(bozza con proprietario)
+    Draft --> UC : BozzaContratto
+    UC --> UI : Step 3
+  end
+end
 
-    alt Persona già registrata
-        Store --> UC : Persona
-        UC --> UI : mostra dati precompilati del ruolo
-        Proprietario -> UI : verifica / modifica dati anagrafici e residenza
-        opt ruolo = inquilino
-            Proprietario -> UI : verifica / modifica documento disponibile
-        end
-    else Persona non registrata
-        Store --> UC : null
-        UC --> UI : richiede dati anagrafici e residenza
-        Proprietario -> UI : inserisce dati Persona
-    end
-
-    opt ruolo = inquilino e documento assente o da correggere
-        UC --> UI : richiede / consente modifica documento
-        Proprietario -> UI : inserisce / modifica dati documento
-    end
-
-    alt ruolo = proprietario
-        UI -> UC : impostaProprietario(persona)
-    else ruolo = inquilino
-        UI -> UC : impostaInquilino(persona)
-    end
-
-    UC -> UC : valida Persona e, per l'inquilino, documento
-    note right of UC
-    Per una Persona già registrata il codice fiscale
-    resta invariato; gli altri dati possono essere corretti.
-    end note
-
-    alt dati non validi
-        UC --> UI : mostra errori di validazione
-    else dati validi
-        UC -> Draft : salva(bozza con working copy Persona e ruolo)
-        note right of Draft
-        Nuovi dati e modifiche a dati esistenti restano
-        nella bozza fino alla conferma definitiva.
-        end note
-    end
+group Step 3 — Inquilino
+  alt ricerca Persona esistente
+    Proprietario -> UI : inserisce codice fiscale e Cerca
+    UI -> UC : cercaPersonaPerBozza(idBozza, inquilino, CF)
+    UC -> Draft : trovaPerId(idBozza)
+    Draft --> UC : BozzaContratto
+    UC -> Store : trovaPerCodiceFiscale(CF)
+    Store --> UC : Persona | null
+    UC --> UI : working copy | null
+  else inserimento diretto nuova Persona
+    Proprietario -> UI : Nuovo inquilino\ne compila dati + documento
+  end
+  Proprietario -> UI : salva inquilino
+  UI -> UC : impostaInquilino(idBozza, persona)
+  UC -> Draft : trovaPerId(idBozza)
+  Draft --> UC : BozzaContratto
+  UC -> UC : valida CF, età, ruoli distinti\ne presenza documento
+  UC -> UC : oggi = DataCorrenteProvider.oggi()
+  UC -> UC : documento.validaRilascioAlla(oggi)\ndocumento.validaScadenzaAlla(oggi)
+  opt persona senza id persistito
+    UC -> Store : trovaPerCodiceFiscale(CF)
+    Store --> UC : Persona | null
+  end
+  alt dati/documento non validi o CF già registrato\nnell'inserimento diretto
+    UC --> UI : errore
+  else valido
+    UC -> Draft : salva(bozza con inquilino)
+    Draft --> UC : BozzaContratto
+    UC --> UI : Step 4
+  end
 end
 
 group Step 4 — Dati contrattuali
-    UC -> Store : trovaTutte()
-    Store --> UC : List<TipologiaContrattuale>
-    UC --> UI : mostra tipologie disponibili
+  UI -> UC : elencaTipologie()
+  UC -> Store : trovaTutte()
+  Store --> UC : List<TipologiaContrattuale>
+  UC --> UI : tipologie (senza mostrare articoli nello Step 4)
 
-    Proprietario -> UI : seleziona tipologia ed inserisce nome/descrizione, dal,\ncanoneMensile, giornoPagamento
-    UI -> UC : impostaDatiContrattuali(nomeDescrizione, tipologiaId, dal,\ncanoneMensile, giornoPagamento)
-    UC -> Store : trovaPerIdConArticoli(tipologiaId)
-    Store --> UC : TipologiaContrattuale + Articoli predefiniti
-    UC -> UC : calcola /al usando Contratto.calcolaDataFine(dal, tipologia)
-    note right of UC
-    Gli articoli predefiniti sono template.
-    Eventuali parti con lo stesso numero di articolo
-    vengono ordinate e composte soltanto alla conferma.
+  Proprietario -> UI : inserisce nome/descrizione, tipologia, dal,\ncanoneMensile, giornoPagamento
+  UI -> UC : impostaDatiContrattuali(...)
+  UC -> Draft : trovaPerId(idBozza)
+  Draft --> UC : BozzaContratto
+  UC -> Store : trovaPerIdConArticoli(tipologiaId)
+  Store --> UC : TipologiaContrattuale + Articoli
+  alt template richiede proprietario.iban e IBAN assente
+    UC --> UI : errore; completare Step 2
+  else dati validi
+    UC -> Contract : calcolaDataFine(dal, tipologia)
+    Contract --> UC : al
+    UC -> Draft : salva(bozza con dati e al)
+    Draft --> UC : BozzaContratto
+    UC --> UI : Step 5 — Riepilogo
+  end
+end
+
+group Step 5 — Riepilogo
+  UI -> UC : anteprima(idBozza)
+  UC -> Draft : trovaPerId(idBozza)
+  Draft --> UC : BozzaContratto completa
+  UC -> UC : rivalida età, documento, CF distinti,\nIBAN richiesto e dati contrattuali
+  UC -> Contract : costruisce Contratto transitorio
+  Contract --> UC : Contratto
+  UC -> Generator : genera(contratto)
+  Generator --> UC : HTML valorizzato
+  UC --> UI : HTML anteprima
+  note over UC,Generator
+    Nessuna scrittura definitiva, nessun Pagamento,
+    nessun contenuto storico viene persistito nell'anteprima.
+  end note
+  UI --> Proprietario : mostra dati + articoli valorizzati
+
+  opt modifica di uno step già completato
+    Proprietario -> UI : seleziona direttamente Step 1..4
+    UI --> Proprietario : mostra step scelto
+    Proprietario -> UI : salva modifica
+    UI -> UC : richiama operazione dello step con idBozza
+    UC -> Draft : salva bozza aggiornata
+    UC --> UI : torna al riepilogo e rigenera anteprima
+  end
+
+  alt Salva bozza ed esci
+    Proprietario -> UI : salva bozza ed esci
+    note right of UI
+      I quattro step sono già stati persistiti progressivamente.
+      Non serve una nuova scrittura applicativa.
     end note
-    UC -> Draft : salva(bozza con dati contrattuali e tipologia)
-    UC --> UI : mostra riepilogo
-end
-
-opt modifica dal riepilogo
-    Proprietario -> UI : modifica dati
-    UI -> UC : richiama l'operazione dello step modificato
-    UC -> Draft : salva(bozza aggiornata)
-    UC --> UI : mostra riepilogo aggiornato
-end
-
-note over Proprietario,Draft
-L'annullamento è possibile in qualunque momento
-prima della conferma definitiva.
-In caso di annullamento la bozza viene eliminata
-e i dati acquisiti o modificati non vengono persistiti.
-end note
-
-alt proprietario annulla
-    Proprietario -> UI : annulla
-    UI -> UC : annulla()
-    UC -> Draft : elimina()
-    UC --> UI : conferma annullamento
-else proprietario conferma
-    Proprietario -> UI : conferma
-    UI -> UC : conferma()
-    UC -> Store : trovaPerImmobile(immobileId)
-    Store --> UC : List<Contratto>
-    UC -> UC : verifica sovrapposizione del nuovo periodo
-con i Contratti recuperati
-
-    alt periodo sovrapposto
-        UC --> UI : mostra errore di sovrapposizione
-        note right of Draft
-        La bozza resta disponibile.
-        end note
-    else periodo disponibile
-        UC -> UC : acquisisce data corrente tramite DataCorrenteProvider
-        UC -> Contract : costruisci(dati finali validati:\nImmobile, proprietario, inquilino,\ntipologia, dati contrattuali, registratoIl)
-        Contract --> UC : Contratto in assemblaggio
-
-        UC -> UC : genera documento HTML completo tramite\nGeneratoreDocumentoContratto.genera(contratto)
-        UC -> Contract : impostaContenuto(documento HTML)
-        Contract --> UC : Contratto con copia storica completa
-        note over UC,Contract
-        Il documento viene generato esclusivamente alla conferma
-        usando i dati finali validati. Il contenuto salvato nel
-        Contratto non viene rigenerato da successive modifiche
-        dei template o dei dati sorgente.
-        end note
-
-        UC -> Payment : crea prima mensilità(\nanno/mese da dal,\ndataPagamento = dal,\nimporto = Contratto.calcolaImportoCompetenza(...))
-        note right of Payment
-        Se dal non coincide con il primo giorno del mese,
-        l'importo è calcolato in pro-rata sui giorni
-        coperti fino alla fine del mese, estremi inclusi.
-        Nessun arrotondamento intermedio; risultato finale
-        arrotondato a due cifre decimali.
-        end note
-        Payment --> UC : Pagamento
-        UC -> Contract : aggiungiPagamento(pagamento)
-
-        note over UC,Store
-        Solo in questo momento diventano persistenti
-        gli eventuali nuovi oggetti e le modifiche validate
-        a Persone già registrate, comprese residenza e
-        dati di riconoscimento quando pertinenti.
-        end note
-
-        UC -> Store : registraDefinitivamente(contratto)
-
-        alt registrazione definitiva riuscita
-            Store --> UC : Promise risolta
-            UC -> Draft : elimina()
-            alt eliminazione bozza riuscita
-                Draft --> UC : ok
-                UC --> UI : registrazione completata
-            else errore di cleanup della bozza
-                Draft --> UC : errore
-                note over UC,Draft
-                Il contratto resta validamente registrato.
-                La bozza residua sarà riconosciuta alla
-                successiva apertura tramite il confronto
-                progressivo con i dati persistiti.
-                end note
-                UC --> UI : registrazione completata
-            end
-        else errore di registrazione definitiva
-            Store --> UC : Promise rifiutata / errore
-            UC --> UI : mostra errore
-            note over Draft,Store
-            Nessun dato definitivo deve rimanere
-            salvato parzialmente; la bozza resta disponibile.
-            end note
-        end
+    UI --> Proprietario : torna alla schermata iniziale UC-01\nlasciando la bozza riprendibile
+  else Annulla bozza
+    Proprietario -> UI : annulla bozza
+    UI -> UC : annulla(idBozza)
+    UC -> Draft : elimina(idBozza)
+    UC --> UI : annullamento completato
+  else Conferma e registra
+    Proprietario -> UI : conferma e registra
+    UI -> UC : conferma(idBozza)
+    UC -> Draft : trovaPerId(idBozza)
+    Draft --> UC : BozzaContratto
+    UC -> UC : rivalida dati usando data corrente
+    UC -> Contract : ricostruisce Contratto dai dati finali
+    Contract --> UC : Contratto
+    opt Immobile già persistito
+      UC -> Store : esisteSovrapposizione(immobileId, dal, al)
+      Store --> UC : boolean
     end
+    alt periodo sovrapposto
+      UC --> UI : errore; bozza invariata
+    else periodo disponibile
+      UC -> Generator : genera(contratto)
+      Generator --> UC : HTML definitivo
+      UC -> Contract : impostaContenuto(HTML)
+      UC -> Payment : crea prima mensilità
+      Payment --> UC : Pagamento
+      UC -> Contract : aggiungiPagamento(pagamento)
+      UC -> Store : registraDefinitivamente(contratto)
+      alt registrazione fallita
+        Store --> UC : errore / rollback
+        UC --> UI : errore; bozza disponibile
+      else registrazione riuscita
+        Store --> UC : ok
+        UC -> Draft : elimina(idBozza)
+        note right of Draft
+          Un eventuale errore di cleanup non annulla
+          la registrazione definitiva già completata.
+        end note
+        UC --> UI : registrazione completata
+      end
+    end
+  end
 end
 
 @enduml

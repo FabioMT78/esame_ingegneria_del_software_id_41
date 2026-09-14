@@ -9,8 +9,12 @@ type PersonaParams = {
   dataNascita: Date;
   codiceFiscale: string;
   residenza: Indirizzo;
+  iban?: string;
   documento?: DocumentoRiconoscimento;
 };
+
+const CODICE_FISCALE_PATTERN =
+  /^[A-Z]{6}[0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]$/;
 
 class Persona {
   readonly id?: number;
@@ -20,6 +24,7 @@ class Persona {
   dataNascita: Date;
   readonly codiceFiscale: string;
   residenza: Indirizzo;
+  iban?: string;
   documento?: DocumentoRiconoscimento;
 
   constructor({
@@ -30,8 +35,11 @@ class Persona {
     dataNascita,
     codiceFiscale,
     residenza,
+    iban,
     documento,
   }: PersonaParams) {
+    Persona.validaData(dataNascita, "Data di nascita non valida");
+
     if (id !== undefined) {
       this.id = id;
     }
@@ -40,11 +48,56 @@ class Persona {
     this.cognome = cognome;
     this.luogoNascita = luogoNascita;
     this.dataNascita = new Date(dataNascita.getTime());
-    this.codiceFiscale = codiceFiscale;
+    this.codiceFiscale = Persona.normalizzaCodiceFiscale(codiceFiscale);
     this.residenza = residenza;
+
+    if (iban !== undefined) {
+      this.iban = Persona.normalizzaIban(iban);
+    }
 
     if (documento !== undefined) {
       this.documento = documento;
+    }
+  }
+
+  static normalizzaCodiceFiscale(codiceFiscale: string): string {
+    const normalizzato = codiceFiscale.trim().toUpperCase();
+
+    if (!CODICE_FISCALE_PATTERN.test(normalizzato)) {
+      throw new RangeError(
+        "Il codice fiscale deve avere 16 caratteri nel formato previsto",
+      );
+    }
+
+    return normalizzato;
+  }
+
+  static normalizzaIban(iban: string): string {
+    const normalizzato = iban.replace(/\s+/g, "").toUpperCase();
+
+    if (normalizzato.length === 0) {
+      throw new RangeError("IBAN non può essere vuoto");
+    }
+
+    return normalizzato;
+  }
+
+  static validaDataNascita(dataNascita: Date, oggi: Date): void {
+    Persona.validaData(dataNascita, "Data di nascita non valida");
+    Persona.validaData(oggi, "Data corrente non valida");
+
+    const nascita = Persona.chiaveData(dataNascita);
+    const dataMinima = (oggi.getUTCFullYear() - 150) * 10000 +
+      (oggi.getUTCMonth() + 1) * 100 +
+      oggi.getUTCDate();
+    const dataMassima = (oggi.getUTCFullYear() - 18) * 10000 +
+      (oggi.getUTCMonth() + 1) * 100 +
+      oggi.getUTCDate();
+
+    if (nascita < dataMinima || nascita > dataMassima) {
+      throw new RangeError(
+        "La data di nascita deve corrispondere a un'età compresa tra 18 e 150 anni",
+      );
     }
   }
 
@@ -54,6 +107,8 @@ class Persona {
     luogoNascita: string,
     dataNascita: Date,
   ): void {
+    Persona.validaData(dataNascita, "Data di nascita non valida");
+
     this.nome = nome;
     this.cognome = cognome;
     this.luogoNascita = luogoNascita;
@@ -68,6 +123,18 @@ class Persona {
     documento: DocumentoRiconoscimento,
   ): void {
     this.documento = documento;
+  }
+
+  private static chiaveData(data: Date): number {
+    return data.getUTCFullYear() * 10000 +
+      (data.getUTCMonth() + 1) * 100 +
+      data.getUTCDate();
+  }
+
+  private static validaData(data: Date, messaggio: string): void {
+    if (Number.isNaN(data.getTime())) {
+      throw new RangeError(messaggio);
+    }
   }
 }
 

@@ -9,6 +9,12 @@ type DatiCatastaliParams = {
   rendita: number;
 };
 
+function validaNonNegativo(nome: string, valore: number): void {
+  if (valore < 0) {
+    throw new RangeError(`${nome} non può essere negativo`);
+  }
+}
+
 class DatiCatastali {
   id?: number;
   codiceComunale: string;
@@ -29,6 +35,12 @@ class DatiCatastali {
     consistenza,
     rendita,
   }: DatiCatastaliParams) {
+    validaNonNegativo("Foglio", foglio);
+    validaNonNegativo("Particella", particella);
+    validaNonNegativo("Subalterno", subalterno);
+    validaNonNegativo("Consistenza", consistenza);
+    validaNonNegativo("Rendita", rendita);
+
     if (id !== undefined) {
       this.id = id;
     }

@@ -2,8 +2,6 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
 
   pull_request:
     branches:
@@ -24,6 +22,13 @@ jobs:
       - name: Prepare environment
         run: cp docker/.env.example docker/.env
 
+      - name: Start PostgreSQL
+        run: |
+          docker compose \
+            --env-file docker/.env \
+            -f docker/compose.yaml \
+            up -d --wait db
+
       - name: Verify project in container
         run: |
           docker compose \
@@ -31,3 +36,12 @@ jobs:
             -f docker/compose.yaml \
             run --rm --no-deps app \
             sh -c "npm ci && npm run verify"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose \
+            --env-file docker/.env \
+            -f docker/compose.yaml \
+            down -v
+            
