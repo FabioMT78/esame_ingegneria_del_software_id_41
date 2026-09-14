@@ -107,6 +107,12 @@ package "application" {
 }
 
 package "web" {
+  class SicurezzaInputHttpMiddleware <<middleware>>
+
+  class SicurezzaInputService <<service>> {
+    + verifica<T>(valore : T, percorso : string) : T
+  }
+
   class RegistraContrattoController <<controller>> {
     + router : Router
   }
@@ -268,6 +274,7 @@ BozzaContratto "1" --> "0..1" TipologiaContrattuale : tipologia
 
 RegistraContrattoController ..> RegistraContrattoService
 RegistraPagamentoController ..> RegistraPagamentoService
+SicurezzaInputHttpMiddleware ..> SicurezzaInputService
 compositionRoot ..> RegistraContrattoService
 compositionRoot ..> RegistraPagamentoService
 compositionRoot ..> PostgresBozzaContrattoRepository
@@ -329,6 +336,15 @@ note right of RegistraContrattoController
   Espone anche l'anteprima HTML della bozza completa.
   Le date di calendario attraversano HTTP come YYYY-MM-DD.
   Non contiene regole di dominio o query SQL.
+end note
+
+note right of SicurezzaInputHttpMiddleware
+  Intercetta le richieste /api prima dei controller.
+  Ispeziona path, query e body tramite SicurezzaInputService.
+  I pattern sospetti producono HTTP 400 e un log tecnico
+  con il valore reso sicuro per la registrazione.
+  La rilevazione euristica non sostituisce validazione
+  specifica, query parametrizzate o HTML escaping.
 end note
 
 note right of RegistraPagamentoController

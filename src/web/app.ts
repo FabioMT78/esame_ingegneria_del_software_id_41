@@ -8,6 +8,7 @@ import {
   type RegistraPagamentoHttpService,
 } from "./RegistraPagamentoController";
 import { gestisciErroreHttp } from "./HttpErrorHandler";
+import { sicurezzaInputHttpMiddleware } from "./SicurezzaInputHttpMiddleware";
 
 type CreaAppOptions = {
   registraContrattoService?: RegistraContrattoHttpService;
@@ -18,6 +19,7 @@ function creaApp(options: CreaAppOptions = {}): Express {
   const app = express();
 
   app.use(express.json());
+  app.use("/api", sicurezzaInputHttpMiddleware);
   app.use(express.static("public"));
 
   app.get("/health", (_req, res) => {

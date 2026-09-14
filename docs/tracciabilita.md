@@ -31,7 +31,7 @@ La catena mantenuta è:
 | Requisito | Evidenza principale |
 |---|---|
 | RNF-01 — recuperabilità delle bozze | `BozzaContrattoRepository`, `PostgresBozzaContrattoRepository`, `RegistraContrattoService.avvia()` e relativi test applicativi/integrativi |
-| RNF-03 — validazione e trattamento sicuro degli input | validazione HTML, `Uc01HttpInput.ts`, `Uc02HttpInput.ts`, query parametrizzate `pg`, escaping nel `GeneratoreDocumentoHtmlContratto` e test HTTP/documentali |
+| RNF-03 — validazione e trattamento sicuro degli input | `SicurezzaInputHttpMiddleware.ts` e `SicurezzaInputService.ts` per la rilevazione trasversale di pattern XSS/SQL injection su input HTTP, `Uc01HttpInput.ts` e `Uc02HttpInput.ts` per la validazione specifica, query parametrizzate `pg`, escaping nel `GeneratoreDocumentoHtmlContratto`; evidenza in `test/web/SicurezzaInputService.test.ts`, `test/web/SicurezzaInputHttp.test.ts` e nei test HTTP/documentali |
 | RNF-04 — errori senza stato parziale o falso successo | `HttpErrorHandler.ts`, transazione `PostgresRegistrazioneContratto`, propagazione degli errori di `PagamentoRepository`, test di rollback/conflitto/preview obsoleta |
 | RNF-05 — stato percepibile delle operazioni | `public/js/app.js` e `public/js/pagamenti.js`, che mostrano caricamento, successo ed errore durante le chiamate asincrone |
 
