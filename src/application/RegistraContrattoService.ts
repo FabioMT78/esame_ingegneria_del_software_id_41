@@ -519,6 +519,7 @@ class RegistraContrattoService {
       dataNascita: persona.dataNascita,
       codiceFiscale: persona.codiceFiscale,
       residenza,
+      ...(persona.iban !== undefined ? { iban: persona.iban } : {}),
     });
 
     if (persona.documento !== undefined) {

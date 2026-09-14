@@ -13,6 +13,7 @@ class Persona {
   luogoNascita
   dataNascita
   codiceFiscale
+  iban [0..1]
 }
 
 class Indirizzo {
@@ -53,6 +54,7 @@ class Contratto {
   dal
   al
   canoneMensile
+  /canoneAnnuale
   giornoPagamento
   registratoIl
   contenuto
@@ -102,6 +104,8 @@ note right of Persona
   { in UC-01, età alla data corrente in 18..150 anni }
   { se assume il ruolo di inquilino,
     DocumentoRiconoscimento presente }
+  { iban opzionale; richiesto solo dai template
+    che usano il placeholder proprietario.iban }
 end note
 
 note right of DocumentoRiconoscimento
@@ -128,6 +132,7 @@ note right of Contratto
     durante la definizione del periodo e poi conservato }
   { periodi relativi allo stesso Immobile non sovrapposti }
   { registratoIl valorizzato alla registrazione definitiva }
+  { /canoneAnnuale = canoneMensile * 12 }
   { contenuto = copia completa del contratto generato }
   { /stato derivato dal periodo e dalla data corrente:
     futuro, in essere oppure scaduto }

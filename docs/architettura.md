@@ -210,7 +210,15 @@ La regola secondo cui due periodi relativi allo stesso Immobile non possono sovr
 
 `Articolo` rappresenta esclusivamente il template della `TipologiaContrattuale`. La suddivisione di un articolo logico in parti ordinate permette al generatore di inserire i valori dinamici senza creare copie valorizzate degli articoli associate al Contratto.
 
-Nella versione 1.0 i punti di inserimento dei dati dinamici sono dichiarati direttamente nel testo del template tramite placeholder espliciti con forma `{{nome}}`, usando nomi qualificati come `{{contratto.canoneMensile}}`, `{{contratto.dal}}`, `{{proprietario.codiceFiscale}}` o `{{inquilino.documento.numero}}`. Il generatore mantiene una lista chiusa di placeholder supportati: un placeholder sconosciuto rende la generazione non valida invece di produrre silenziosamente un documento incompleto. I numeri di articolo e parte determinano esclusivamente ordine e raggruppamento e non vengono usati come convenzione implicita per decidere quale valore inserire.
+Nella versione 1.0 i punti di inserimento dei dati dinamici sono dichiarati direttamente nel testo del template tramite placeholder espliciti con forma `{{nome}}`, usando nomi qualificati come `{{contratto.canoneMensile}}`, `{{contratto.dal}}`, `{{proprietario.codiceFiscale}}`, `{{proprietario.iban}}` o `{{inquilino.documento.numero}}`. Il generatore mantiene una lista chiusa di placeholder supportati: un placeholder sconosciuto rende la generazione non valida invece di produrre silenziosamente un documento incompleto. I numeri di articolo e parte determinano esclusivamente ordine e raggruppamento e non vengono usati come convenzione implicita per decidere quale valore inserire.
+
+
+Il generatore distingue i dati autorevoli dai valori di presentazione. `Contratto.canoneAnnuale` è derivato
+dal canone mensile e non viene persistito separatamente; le forme testuali degli importi sono prodotte
+dall'infrastruttura documentale. Analogamente, quando un template riporta un deposito cauzionale pari a
+tre mensilità, il relativo importo viene derivato soltanto durante il rendering e non diventa stato del
+Contratto o del database. L'IBAN, invece, è un dato opzionale della Persona e viene risolto dal placeholder
+`proprietario.iban` in base al ruolo assunto nel Contratto.
 
 Il testo dei template è trattato come testo e non come HTML arbitrario. `GeneratoreDocumentoHtmlContratto` esegue l'escaping sia dei template sia dei valori dinamici prima di produrre l'HTML, evitando che dati provenienti dal workflow vengano interpretati come markup. Le date di calendario vengono rese nel documento nel formato stabile `YYYY-MM-DD`; il formato appartiene al rendering e non modifica la rappresentazione `Date` usata da dominio e application layer.
 

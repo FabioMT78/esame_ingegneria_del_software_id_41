@@ -15,6 +15,7 @@ function creaContratto(articoli: Articolo[]): Contratto {
     luogoNascita: "Roma",
     dataNascita: new Date(Date.UTC(1980, 0, 10)),
     codiceFiscale: "RSSMRA80A10H501U",
+    iban: "it 60 x054 2811 1010 0000 0123 456",
     residenza: new Indirizzo({
       provincia: "RM",
       comune: "Roma",
@@ -118,7 +119,7 @@ describe("GeneratoreDocumentoHtmlContratto", () => {
     expect(html.indexOf('data-num-articolo="1"')).toBeLessThan(
       html.indexOf('data-num-articolo="2"'),
     );
-    expect(html.indexOf("Il canone è euro 950.50.")).toBeLessThan(
+    expect(html.indexOf("Il canone è euro 950,50.")).toBeLessThan(
       html.indexOf("Pagamento entro il giorno 15."),
     );
     expect(html).toContain("Decorrenza 2026-06-15 - 2029-06-14.");
@@ -144,6 +145,48 @@ describe("GeneratoreDocumentoHtmlContratto", () => {
     expect(html).toContain("Comune &lt;Milano&gt;");
     expect(html).not.toContain("<Admin>");
     expect(html).not.toContain("<Milano>");
+  });
+
+
+  test("renderizza valori derivati, importi in lettere e IBAN del proprietario", () => {
+    const generatore = new GeneratoreDocumentoHtmlContratto();
+    const contratto = creaContratto([
+      new Articolo({
+        numArticolo: 1,
+        numParte: 0,
+        titolo: "Valori",
+        descrizione:
+          "Annuo {{contratto.canoneAnnuale}} ({{contratto.canoneAnnualeText}}/00). " +
+          "Mensile {{contratto.canoneMensile}} ({{contratto.canoneMensileText}}/00). " +
+          "Deposito {{contratto.depositoCauzionale}},00 ({{contratto.depositoCauzionaleText}}/00). " +
+          "IBAN {{proprietario.iban}}.",
+      }),
+    ]);
+
+    const html = generatore.genera(contratto);
+
+    expect(html).toContain("Annuo 11406,00 (undicimilaquattrocentosei/00)");
+    expect(html).toContain("Mensile 950,50 (novecentocinquanta/50)");
+    expect(html).toContain("Deposito 2851,50 (duemilaottocentocinquantuno/50)");
+    expect(html).toContain("IBAN IT60X0542811101000000123456");
+  });
+
+  test("se il template richiede l'IBAN rifiuta un proprietario che non lo possiede", () => {
+    const generatore = new GeneratoreDocumentoHtmlContratto();
+    const contratto = creaContratto([
+      new Articolo({
+        numArticolo: 1,
+        numParte: 0,
+        titolo: "Pagamento",
+        descrizione: "IBAN {{proprietario.iban}}",
+      }),
+    ]);
+
+    delete contratto.proprietario.iban;
+
+    expect(() => generatore.genera(contratto)).toThrow(
+      "IBAN del proprietario obbligatorio per il template selezionato",
+    );
   });
 
   test("rifiuta placeholder non supportati", () => {

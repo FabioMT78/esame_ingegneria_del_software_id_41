@@ -9,6 +9,7 @@ type PersonaParams = {
   dataNascita: Date;
   codiceFiscale: string;
   residenza: Indirizzo;
+  iban?: string;
   documento?: DocumentoRiconoscimento;
 };
 
@@ -23,6 +24,7 @@ class Persona {
   dataNascita: Date;
   readonly codiceFiscale: string;
   residenza: Indirizzo;
+  iban?: string;
   documento?: DocumentoRiconoscimento;
 
   constructor({
@@ -33,6 +35,7 @@ class Persona {
     dataNascita,
     codiceFiscale,
     residenza,
+    iban,
     documento,
   }: PersonaParams) {
     Persona.validaData(dataNascita, "Data di nascita non valida");
@@ -48,6 +51,10 @@ class Persona {
     this.codiceFiscale = Persona.normalizzaCodiceFiscale(codiceFiscale);
     this.residenza = residenza;
 
+    if (iban !== undefined) {
+      this.iban = Persona.normalizzaIban(iban);
+    }
+
     if (documento !== undefined) {
       this.documento = documento;
     }
@@ -60,6 +67,16 @@ class Persona {
       throw new RangeError(
         "Il codice fiscale deve avere 16 caratteri nel formato previsto",
       );
+    }
+
+    return normalizzato;
+  }
+
+  static normalizzaIban(iban: string): string {
+    const normalizzato = iban.replace(/\s+/g, "").toUpperCase();
+
+    if (normalizzato.length === 0) {
+      throw new RangeError("IBAN non può essere vuoto");
     }
 
     return normalizzato;

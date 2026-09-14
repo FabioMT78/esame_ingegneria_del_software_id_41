@@ -77,18 +77,24 @@ docker compose \
   up -d --wait db
 ```
 
-Applicare la migration iniziale al database di sviluppo:
+Applicare le migration versionate in ordine numerico al database di sviluppo:
 
 ```bash
-docker compose \
-  --env-file docker/.env \
-  -f docker/compose.yaml \
-  exec -T db \
-  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
-  < db/migrations/001_initial_schema.sql
+for migration in db/migrations/*.sql; do
+  docker compose \
+    --env-file docker/.env \
+    -f docker/compose.yaml \
+    exec -T db \
+    sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+    < "$migration"
+done
 ```
 
-La migration iniziale è versionata e deve essere applicata una sola volta a un database vuoto. I test di integrazione non riutilizzano né svuotano lo schema di sviluppo: creano uno schema temporaneo isolato, applicano la stessa migration e lo eliminano al termine.
+Ogni migration deve essere applicata una sola volta e nell'ordine definito dal nome del file.
+Un database di sviluppo che possiede già lo schema `001_initial_schema.sql` deve ricevere soltanto
+le migration successive non ancora applicate, a partire da `002_persona_iban.sql`. I test di
+integrazione non riutilizzano né svuotano lo schema di sviluppo: creano uno schema temporaneo
+isolato, applicano tutte le migration versionate in ordine e lo eliminano al termine.
 
 ## Avvio dell'applicazione
 
@@ -241,7 +247,7 @@ Le directory vuote non vengono mantenute artificialmente con file placeholder: v
 
 Jest, con `ts-jest`, è il framework usato per unit test e test di integrazione. I test del backend sono scritti in TypeScript e vengono sottoposti a type-check dedicato prima dell'esecuzione.
 
-Gli unit test della business logic restano indipendenti e deterministici. I test che dipendono realmente da PostgreSQL usano il database configurato per l'ambiente soltanto come server: per ogni suite viene creato uno schema temporaneo con nome controllato, viene applicata la migration versionata e lo schema viene eliminato al termine. Lo schema di sviluppo non viene troncato o riutilizzato come fixture di test.
+Gli unit test della business logic restano indipendenti e deterministici. I test che dipendono realmente da PostgreSQL usano il database configurato per l'ambiente soltanto come server: per ogni suite viene creato uno schema temporaneo con nome controllato, vengono applicate in ordine tutte le migration versionate e lo schema viene eliminato al termine. Lo schema di sviluppo non viene troncato o riutilizzato come fixture di test.
 
 Il comando per eseguire tutti i test è:
 

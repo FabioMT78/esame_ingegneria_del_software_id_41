@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import type { Pool, PoolClient } from "pg";
 import { creaPoolPostgres } from "../../src/infrastructure/persistence/postgres/PostgresPool";
@@ -22,13 +22,18 @@ class PostgresTestDatabase {
       schemaCreato = true;
       await client.query(`SET search_path TO "${schemaName}", public`);
 
-      const migrationPath = path.resolve(
-        process.cwd(),
-        "db/migrations/001_initial_schema.sql",
-      );
-      const migrationSql = await readFile(migrationPath, "utf8");
+      const migrationsDir = path.resolve(process.cwd(), "db/migrations");
+      const migrations = (await readdir(migrationsDir))
+        .filter((file) => /^\d+.*\.sql$/.test(file))
+        .sort();
 
-      await client.query(migrationSql);
+      for (const migration of migrations) {
+        const migrationSql = await readFile(
+          path.join(migrationsDir, migration),
+          "utf8",
+        );
+        await client.query(migrationSql);
+      }
 
       return new PostgresTestDatabase(pool, client, schemaName);
     } catch (errore) {

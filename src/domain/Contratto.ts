@@ -75,6 +75,10 @@ class Contratto {
     this.registratoIl = new Date(registratoIl.getTime());
   }
 
+  get canoneAnnuale(): number {
+    return Math.round(this.canoneMensile * 12 * 100) / 100;
+  }
+
   static validaGiornoPagamento(giornoPagamento: number): void {
     if (
       !Number.isInteger(giornoPagamento) ||

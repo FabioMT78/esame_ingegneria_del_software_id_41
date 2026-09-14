@@ -376,6 +376,12 @@ function renderArticoliTipologia(tipologia) {
   elementi.tipologiaArticoli.hidden = false;
 }
 
+function tipologiaRichiedeIbanProprietario(tipologia) {
+  return tipologia.articoli.some((articolo) =>
+    /\{\{\s*proprietario\.iban\s*\}\}/.test(articolo.descrizione),
+  );
+}
+
 function aggiornaDettaglioTipologia() {
   const tipologia = tipologiaSelezionata();
 
@@ -388,9 +394,16 @@ function aggiornaDettaglioTipologia() {
     return;
   }
 
+  const richiedeIban = tipologiaRichiedeIbanProprietario(tipologia);
+  const ibanMancante =
+    richiedeIban && !stato.bozzaCorrente?.proprietario?.iban;
+
   elementi.tipologiaDettaglio.textContent =
     `Periodo iniziale: ${tipologia.durata} anni. ` +
-    `Rinnovo previsto dalla tipologia: ${tipologia.rinnovo} anni.`;
+    `Rinnovo previsto dalla tipologia: ${tipologia.rinnovo} anni.` +
+    (ibanMancante
+      ? " Il template selezionato richiede l'IBAN del proprietario: torna allo Step 2 per inserirlo."
+      : "");
 
   renderArticoliTipologia(tipologia);
 }
@@ -564,6 +577,7 @@ function renderRiepilogo() {
       ["Codice fiscale", proprietario.codiceFiscale],
       ["Nascita", `${proprietario.luogoNascita} — ${proprietario.dataNascita}`],
       ["Residenza", formattaIndirizzo(proprietario.residenza)],
+      ["IBAN", proprietario.iban ?? "—"],
     ]),
     creaSezioneRiepilogo("Inquilino", 3, [
       ["Nome", `${inquilino.nome} ${inquilino.cognome}`],
@@ -1012,6 +1026,7 @@ function inizializzaFormPersone() {
   proprietarioForm = creaGestorePersona({
     prefix: "proprietario",
     richiedeDocumento: false,
+    gestisceIban: true,
     onCerca: (codiceFiscale) =>
       cercaPersonaConFeedback(codiceFiscale, "proprietario"),
     onSalva: salvaProprietarioCorrente,
@@ -1024,6 +1039,7 @@ function inizializzaFormPersone() {
   inquilinoForm = creaGestorePersona({
     prefix: "inquilino",
     richiedeDocumento: true,
+    gestisceIban: false,
     onCerca: (codiceFiscale) =>
       cercaPersonaConFeedback(codiceFiscale, "inquilino"),
     onSalva: salvaInquilinoCorrente,

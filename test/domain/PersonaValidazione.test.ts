@@ -41,6 +41,26 @@ describe("Persona - validazione codice fiscale", () => {
   });
 });
 
+describe("Persona - IBAN opzionale", () => {
+  test("normalizza l'IBAN quando è presente", () => {
+    const persona = new Persona({
+      nome: "Mario",
+      cognome: "Rossi",
+      luogoNascita: "Roma",
+      dataNascita: new Date("1980-01-10T00:00:00.000Z"),
+      codiceFiscale: "RSSMRA80A10H501U",
+      iban: "it 60 x054 2811 1010 0000 0123 456",
+      residenza: new Indirizzo({
+        provincia: "RM",
+        comune: "Roma",
+        indirizzo: "Via Esempio",
+      }),
+    });
+
+    expect(persona.iban).toBe("IT60X0542811101000000123456");
+  });
+});
+
 describe("Persona - validazione data di nascita", () => {
   const oggi = new Date("2026-09-13T00:00:00.000Z");
 

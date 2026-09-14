@@ -61,6 +61,9 @@ previste per l'omocodia, senza introdurre una verifica anagrafica esterna dell'e
 attribuzione del codice. I dati anagrafici richiesti comprendono nome, cognome, luogo e data
 di nascita, codice fiscale e residenza. In UC-01 la data di nascita deve corrispondere,
 rispetto alla data corrente del server, a un'età compresa tra 18 e 150 anni inclusi.
+`Persona` può inoltre contenere un IBAN opzionale. L'IBAN appartiene alla Persona e non al Contratto:
+quando un template lo utilizza, il generatore legge l'IBAN della Persona che nel Contratto assume il
+ruolo di proprietario.
 
 La residenza non è modellata come un gruppo di attributi interno a `Persona`: viene riutilizzato il concetto `Indirizzo` tramite l'associazione `residenza`. Ogni Persona ha un solo indirizzo di residenza, mentre più Persone possono condividere lo stesso Indirizzo.
 
@@ -123,6 +126,7 @@ La versione 1.0 non gestisce storico o pluralità di documenti per la stessa Per
 - data iniziale `dal`;
 - data finale `al`;
 - canone mensile;
+- canone annuale derivato dal canone mensile;
 - giorno di pagamento;
 - data di registrazione `registratoIl`;
 - `contenuto`, copia completa del documento generato;
@@ -166,6 +170,11 @@ Ogni TipologiaContrattuale possiede almeno un Articolo template. Le parti vengon
 La copia storica completa del documento viene conservata direttamente in `Contratto.contenuto`. Il Domain Model non prescrive il formato tecnico del contenuto: la scelta concreta della versione 1.0 è documentata in `docs/architettura.md`.
 
 Il contenuto storico non deve dipendere da successive modifiche dei template o dei dati sorgente utilizzati per generarlo.
+
+I valori usati esclusivamente per la resa documentale non vengono duplicati nello stato persistito: il
+canone annuale è derivato dal canone mensile, le rappresentazioni degli importi in lettere appartengono
+al generatore e l'eventuale deposito cauzionale riportato nel template viene calcolato come tre mensilità
+solo per la generazione del documento, senza introdurre una gestione del deposito nella versione 1.0.
 
 ### 3.6 Pagamento e competenze mensili
 

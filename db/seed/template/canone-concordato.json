@@ -71,7 +71,7 @@
       "numParte": 0,
       "titolo": "Articolo 10",
       "sottotitolo": "(modalità di pagamento)",
-      "descrizione": "Il canone (articolo 7 - canone), le utenze e tasse (articolo 8 - utenze e tasse), comprensive dei servizi accessori, devono essere versate in n.12 rate anticipate di pari importo da corrispondersi al domicilio della parte locatrice entro il giorno {{contratto.giornoPagamento}} di ogni mese. La rata mensile di Euro {{contratto.canoneMensile}} (euro {{contratto.canoneMensileText}}/00 di cui _________,00) è da corrispondere a mezzo bonifico bancario presso la banca Intesa San Paolo: IBAN {{Persona.iban}}; in caso di mancato pagamento del canone la parte locatrice potrà valersi del disposto dell’art.1453 C.C. senza bisogno di diffida o di costituzione in mora."
+      "descrizione": "Il canone (articolo 7 - canone), le utenze e tasse (articolo 8 - utenze e tasse), comprensive dei servizi accessori, devono essere versate in n.12 rate anticipate di pari importo da corrispondersi al domicilio della parte locatrice entro il giorno {{contratto.giornoPagamento}} di ogni mese. La rata mensile di Euro {{contratto.canoneMensile}} (euro {{contratto.canoneMensileText}}/00 di cui _________,00) è da corrispondere a mezzo bonifico bancario presso la banca Intesa San Paolo: IBAN {{proprietario.iban}}; in caso di mancato pagamento del canone la parte locatrice potrà valersi del disposto dell’art.1453 C.C. senza bisogno di diffida o di costituzione in mora."
     },
     {
       "numArticolo": 11,

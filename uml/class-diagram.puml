@@ -191,6 +191,7 @@ package "domain" {
     - dal : date
     - al : date
     - canoneMensile : decimal
+    + /canoneAnnuale : decimal
     - giornoPagamento : int
     - registratoIl : date
     - contenuto : string [0..1]
@@ -330,6 +331,8 @@ note right of Persona
   In UC-01 id e codiceFiscale non vengono modificati.
   Il codice fiscale viene normalizzato e validato
   strutturalmente, ammettendo l'omocodia.
+  L'IBAN è opzionale e appartiene alla Persona;
+  il template può richiederlo al proprietario.
   La data di nascita deve corrispondere a un'età
   compresa tra 18 e 150 anni rispetto alla data server.
   I dati recuperati sono una working copy verificabile

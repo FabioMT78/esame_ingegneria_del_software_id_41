@@ -235,7 +235,10 @@ proprietario e inquilino devono essere persone distinte e non possono quindi ave
 stesso codice fiscale.
 Se il codice fiscale corrisponde a una persona già registrata, il sistema deve recuperarne e
 mostrare i dati affinché il proprietario possa verificarli ed eventualmente modificarli prima
-di completare lo step. Nell'ambito di UC-01 il codice fiscale della persona già registrata non
+di completare lo step. Per la Persona che assume il ruolo di proprietario il sistema deve
+inoltre consentire di acquisire un IBAN opzionale a livello anagrafico; l'IBAN diventa necessario
+alla registrazione definitiva quando il template della tipologia selezionata contiene il relativo
+segnaposto. Nell'ambito di UC-01 il codice fiscale della persona già registrata non
 è modificabile. In caso contrario il sistema deve consentire di acquisire i dati di una nuova
 persona: nome, cognome, luogo di nascita, data di nascita, codice fiscale, provincia, comune
 e indirizzo della residenza; nazione, CAP, numero civico, scala e interno devono poter essere
@@ -257,8 +260,12 @@ contrattuale, la data iniziale, il canone mensile e il giorno di pagamento. La t
 contrattuale deve definire la durata del periodo iniziale, la durata del rinnovo e gli articoli
 predefiniti applicabili. Il sistema deve calcolare automaticamente la data finale del periodo
 iniziale utilizzando la durata della tipologia selezionata e rendere disponibili gli articoli
-predefiniti della tipologia. Il documento completo del contratto deve essere generato soltanto
-alla conferma definitiva, componendo gli articoli template con i dati finali validati della registrazione. \\
+predefiniti della tipologia. Il canone annuale deve essere derivato dal canone mensile moltiplicato
+per dodici e non deve essere richiesto come dato autonomo. Il documento completo del contratto deve
+essere generato soltanto alla conferma definitiva, componendo gli articoli template con i dati finali
+validati della registrazione. Il generatore deve poter rendere gli importi richiesti dal template sia
+in forma numerica sia in lettere; l'eventuale importo del deposito cauzionale riportato nel documento
+è un valore documentale derivato pari a tre mensilità e non introduce gestione o persistenza del deposito. \\
 
 \req{RF-05} &
 La presenza di uno o più contratti già registrati per l'immobile non deve impedire l'avvio o
@@ -442,6 +449,11 @@ assuma entrambi i ruoli nello stesso contratto.
 cognome, luogo di nascita, data di nascita, codice fiscale, provincia, comune e indirizzo
 della residenza; nazione, CAP, numero civico, scala e interno devono poter essere acquisiti
 quando disponibili senza essere obbligatori.
+
+\textbf{Dato} che la Persona assume il ruolo di proprietario,
+\textbf{quando} il template contrattuale selezionato usa il segnaposto dell'IBAN del proprietario,
+\textbf{allora} il sistema deve richiedere che l'IBAN sia disponibile prima della registrazione definitiva;
+se il template non usa tale dato, la sua assenza non deve impedire UC-01.
 
 \textbf{Dato} che la persona deve assumere il ruolo di inquilino,
 \textbf{quando} i dati del documento di riconoscimento non sono presenti o devono essere corretti,

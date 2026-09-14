@@ -1,0 +1,6 @@
+BEGIN;
+
+ALTER TABLE persona
+    ADD COLUMN iban TEXT;
+
+COMMIT;

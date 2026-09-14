@@ -83,6 +83,7 @@ function applicaLimiteScadenzaDocumento(elemento) {
 function creaGestorePersona({
   prefix,
   richiedeDocumento,
+  gestisceIban = false,
   onCerca,
   onSalva,
   onIndietro,
@@ -142,6 +143,10 @@ function creaGestorePersona({
     assegna("codice-fiscale", persona.codiceFiscale);
     assegna("luogo-nascita", persona.luogoNascita);
     assegna("data-nascita", persona.dataNascita);
+
+    if (gestisceIban) {
+      assegna("iban", persona.iban);
+    }
 
     assegna("nazione", persona.residenza.nazione);
     assegna("provincia", persona.residenza.provincia);
@@ -236,6 +241,14 @@ function creaGestorePersona({
       ),
       residenza,
     };
+
+    if (gestisceIban) {
+      const iban = valoreOpzionale(dati, "iban");
+
+      if (iban !== undefined) {
+        persona.iban = iban.replace(/\s+/g, "").toUpperCase();
+      }
+    }
 
     if (richiedeDocumento) {
       persona.documento = {
