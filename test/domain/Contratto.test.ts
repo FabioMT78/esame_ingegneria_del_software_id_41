@@ -253,6 +253,58 @@ describe("Contratto.calcolaImportoCompetenza", () => {
   });
 });
 
+describe("Contratto.calcolaScadenzaCompetenza", () => {
+  test("usa il giorno di pagamento del contratto nel mese di competenza", () => {
+    const contratto = creaContratto("2026-06-15", {
+      giornoPagamento: 15,
+    });
+
+    expect(contratto.calcolaScadenzaCompetenza(2026, 7)).toEqual(
+      new Date("2026-07-15T00:00:00.000Z"),
+    );
+  });
+
+  test.each([1, 28])(
+    "rispetta il giorno di pagamento limite %i",
+    (giornoPagamento) => {
+      const contratto = creaContratto("2026-06-15", {
+        giornoPagamento,
+      });
+
+      expect(contratto.calcolaScadenzaCompetenza(2026, 7)).toEqual(
+        new Date(Date.UTC(2026, 6, giornoPagamento)),
+      );
+    },
+  );
+
+  test("applica la stessa regola alle competenze di confine parziali", () => {
+    const contratto = creaContratto("2026-06-15", {
+      giornoPagamento: 20,
+    });
+
+    expect(contratto.calcolaScadenzaCompetenza(2026, 6)).toEqual(
+      new Date("2026-06-20T00:00:00.000Z"),
+    );
+    expect(contratto.calcolaScadenzaCompetenza(2029, 6)).toEqual(
+      new Date("2029-06-20T00:00:00.000Z"),
+    );
+  });
+
+  test("rifiuta competenze fuori dal periodo o mesi non validi", () => {
+    const contratto = creaContratto("2026-06-15");
+
+    expect(() => contratto.calcolaScadenzaCompetenza(2026, 5)).toThrow(
+      RangeError,
+    );
+    expect(() => contratto.calcolaScadenzaCompetenza(2029, 7)).toThrow(
+      RangeError,
+    );
+    expect(() => contratto.calcolaScadenzaCompetenza(2027, 13)).toThrow(
+      RangeError,
+    );
+  });
+});
+
 describe("Contratto contenuto e pagamenti", () => {
   test("conserva il contenuto storico assegnato", () => {
     const contratto = creaContratto("2026-06-01");

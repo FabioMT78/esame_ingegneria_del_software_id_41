@@ -382,12 +382,6 @@ quella da riprendere e ripristinarne i dati già validati senza richiedere un me
 identificazione tra utenti diversi. &
 Affidabilità / recuperabilità \\
 
-\req{RNF-02} &
-In condizioni nominali di utilizzo, le operazioni interattive dei due casi d'uso che
-richiedono elaborazione o comunicazione con il server devono completarsi entro
-1,5 secondi. &
-Prestazioni \\
-
 \req{RNF-03} &
 Il client deve applicare controlli di ammissibilità coerenti con il tipo di ciascun campo,
 segnalando prima dell'invio caratteri o sequenze non consentiti. Tali controlli non sostituiscono
@@ -669,9 +663,6 @@ trasversali della versione 1.0.
     \texttt{dal}--\texttt{al} devono essere eliminate automaticamente e non proposte; le altre
     bozze devono rimanere disponibili.
 
-    \item[CV-02 -- RNF-02] In condizioni nominali, ciascuna operazione interattiva di
-    UC-01 e UC-02 che richiede il server deve completarsi entro 1,5 secondi.
-
     \item[CV-03 -- RNF-03] Un input contenente caratteri o sequenze non ammessi per il campo
     deve essere segnalato dal client. Lo stesso input, se inviato direttamente al server aggirando
     il controllo client, deve essere nuovamente validato e rifiutato o neutralizzato senza eseguire
@@ -719,11 +710,9 @@ US-02 & RF-07--RF-10 & AC-10--AC-15 & UC-02 \\
 
 \section{Questioni aperte}
 
-Restano da chiarire i seguenti aspetti:
+Resta da chiarire il seguente aspetto:
 
 \begin{itemize}
-    \item definire in modo riproducibile le condizioni nominali e l'ambiente di misura utilizzati
-          per verificare il tempo massimo di risposta previsto da RNF-02;
     \item l'eventuale introduzione di un requisito di conformità normativa, da formulare
           soltanto dopo aver individuato e verificato le fonti normative italiane applicabili
           alle tipologie contrattuali e agli articoli predefiniti.

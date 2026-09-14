@@ -117,14 +117,22 @@ class PostgresContrattoRepository implements ContrattoRepository {
   }
 
   private async mappaContratto(riga: ContrattoRow): Promise<Contratto> {
-    const [immobile, proprietario, inquilino, tipologia, pagamenti] =
-      await Promise.all([
-        this.immobileRepository.trovaPerId(riga.immobile_id),
-        this.personaRepository.trovaPerId(riga.proprietario_id),
-        this.personaRepository.trovaPerId(riga.inquilino_id),
-        this.tipologiaRepository.trovaPerIdConArticoli(riga.tipologia_id),
-        this.trovaPagamenti(riga.id),
-      ]);
+    /*
+     * Le query sono intenzionalmente sequenziali.
+     * PostgresExecutor può essere anche un singolo PoolClient (per esempio nei test
+     * e nelle operazioni transazionali), sul quale pg non supporta query concorrenti.
+     */
+    const immobile = await this.immobileRepository.trovaPerId(riga.immobile_id);
+    const proprietario = await this.personaRepository.trovaPerId(
+      riga.proprietario_id,
+    );
+    const inquilino = await this.personaRepository.trovaPerId(
+      riga.inquilino_id,
+    );
+    const tipologia = await this.tipologiaRepository.trovaPerIdConArticoli(
+      riga.tipologia_id,
+    );
+    const pagamenti = await this.trovaPagamenti(riga.id);
 
     if (
       immobile === null ||

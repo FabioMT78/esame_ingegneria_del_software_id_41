@@ -1,6 +1,6 @@
 {
   "name": "gestionale-affitti",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Applicazione web per la gestione dei contratti e dei pagamenti per gli affitti ad uso abitativo",
   "engines": {

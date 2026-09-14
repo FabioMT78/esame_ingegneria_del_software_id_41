@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gestionale Affitti — Registra pagamento</title>
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <p class="eyebrow">Gestionale Affitti</p>
+      <h1>Registrazione pagamento del canone</h1>
+    </div>
+  </header>
+
+  <main class="container main-layout">
+    <div class="procedure-toolbar">
+      <a class="button secondary" href="/">Registrazione contratto</a>
+    </div>
+
+    <div id="pagamento-status" class="status" role="status" aria-live="polite" hidden></div>
+
+    <section class="card" aria-labelledby="immobile-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Passo 1</p>
+          <h2 id="immobile-title">Seleziona l'immobile</h2>
+        </div>
+      </div>
+
+      <p class="muted">
+        Il riferimento numerico mantiene distinguibili anche immobili con lo stesso nome.
+      </p>
+
+      <div class="field">
+        <label for="pagamento-immobile">Immobile</label>
+        <select id="pagamento-immobile">
+          <option value="">Seleziona un immobile</option>
+        </select>
+      </div>
+    </section>
+
+    <section id="inquilino-panel" class="card" aria-labelledby="inquilino-title" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Passo 2</p>
+          <h2 id="inquilino-title">Seleziona l'inquilino</h2>
+        </div>
+      </div>
+
+      <p id="inquilino-help" class="muted">
+        Se esiste un solo inquilino associato ai contratti dell'immobile, viene selezionato automaticamente.
+      </p>
+
+      <div class="field">
+        <label for="pagamento-inquilino">Inquilino</label>
+        <select id="pagamento-inquilino">
+          <option value="">Seleziona un inquilino</option>
+        </select>
+      </div>
+    </section>
+
+    <section id="anteprima-panel" class="card" aria-labelledby="anteprima-title" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Passo 3</p>
+          <h2 id="anteprima-title">Mensilità da registrare</h2>
+        </div>
+      </div>
+
+      <p id="nessuna-mensilita" class="inline-message" hidden>
+        Non risultano mensilità registrabili per la selezione corrente.
+      </p>
+
+      <div id="anteprima-contenuto" hidden>
+        <div class="summary-grid">
+          <section class="summary-section">
+            <h3>Contratto</h3>
+            <dl class="summary-list">
+              <dt>Tipologia</dt>
+              <dd id="preview-tipologia"></dd>
+              <dt>Periodo</dt>
+              <dd id="preview-periodo"></dd>
+              <dt>Canone mensile</dt>
+              <dd id="preview-canone"></dd>
+            </dl>
+          </section>
+
+          <section class="summary-section">
+            <h3>Pagamento</h3>
+            <dl class="summary-list">
+              <dt>Competenza</dt>
+              <dd id="preview-competenza"></dd>
+              <dt>Scadenza</dt>
+              <dd id="preview-scadenza"></dd>
+              <dt>Importo</dt>
+              <dd id="preview-importo"></dd>
+              <dt>Stato</dt>
+              <dd id="preview-stato"></dd>
+            </dl>
+          </section>
+        </div>
+
+        <div class="actions">
+          <button id="pagamento-annulla" class="button secondary" type="button">
+            Annulla
+          </button>
+          <button id="pagamento-pagato" class="button primary" type="button">
+            Pagato
+          </button>
+        </div>
+
+        <div id="conferma-panel" class="confirmation-box" hidden>
+          <p>Conferma esplicita richiesta</p>
+          <p>
+            La conferma ricaricherà i dati persistiti e ricalcolerà la mensilità lato server.
+          </p>
+          <div class="actions">
+            <button id="conferma-indietro" class="button secondary" type="button">
+              Indietro
+            </button>
+            <button id="conferma-pagamento" class="button primary" type="button">
+              Conferma registrazione
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="pagamento-successo" class="success-panel" aria-labelledby="successo-title" hidden>
+      <h2 id="successo-title">Pagamento registrato</h2>
+      <p id="successo-dettaglio"></p>
+      <button id="nuovo-pagamento" class="button primary" type="button">
+        Registra un altro pagamento
+      </button>
+    </section>
+  </main>
+
+  <script src="/js/pagamenti.js" defer></script>
+</body>
+</html>

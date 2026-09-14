@@ -9,8 +9,9 @@ participant "Contratto" as Contract
 participant "Pagamento" as Payment
 
 note over UI,UC
-I partecipanti applicativi sono ruoli logici.
-Non definiscono ancora l'architettura definitiva.
+I partecipanti rappresentano ruoli logici del caso d'uso.
+Le responsabilità e le dipendenze concrete sono definite
+nel Class Diagram e nell'architettura.
 end note
 
 Proprietario -> UI : avvia registrazione pagamento

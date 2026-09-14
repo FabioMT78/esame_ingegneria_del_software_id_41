@@ -9,7 +9,7 @@ La versione `1.0` è focalizzata su due casi d'uso principali end-to-end:
 
 Il progetto privilegia uno scope contenuto, la testabilità, la chiarezza delle responsabilità e la tracciabilità rispetto al numero di funzionalità.
 
-La specifica completa dello scope, delle user stories, dei requisiti funzionali e non funzionali e degli acceptance criteria è disponibile in [`docs/requisiti.tex`](docs/requisiti.tex). Le decisioni di modellazione sono documentate in [`docs/modellazione.md`](docs/modellazione.md); architettura, responsabilità e decisioni di design sono descritte in [`docs/architettura.md`](docs/architettura.md).
+La specifica completa dello scope, delle user stories, dei requisiti funzionali e non funzionali e degli acceptance criteria è disponibile in [`docs/requisiti.tex`](docs/requisiti.tex). Le decisioni di modellazione sono documentate in [`docs/modellazione.md`](docs/modellazione.md); architettura, responsabilità e decisioni di design sono descritte in [`docs/architettura.md`](docs/architettura.md). La tracciabilità end-to-end dei due casi d'uso è raccolta in [`docs/tracciabilita.md`](docs/tracciabilita.md). La relazione finale è disponibile in [`docs/relazione.tex`](docs/relazione.tex) e, quando compilata, in `docs/relazione.pdf`.
 
 ## Quickstart
 
@@ -149,6 +149,11 @@ Risultato atteso:
 {"status":"ok"}
 ```
 
+Con l'applicazione avviata, i due frontend sono disponibili in locale:
+
+- UC-01 — registrazione contratto: `http://localhost:3000/`;
+- UC-02 — registrazione pagamento: `http://localhost:3000/pagamenti.html`.
+
 Per arrestare i servizi:
 
 ```bash
@@ -265,8 +270,11 @@ db/
   seed/
 
 test/
+  application/
+  domain/
   integration/
   support/
+  web/
 docs/
 uml/
 docker/
@@ -279,6 +287,8 @@ Le directory vuote non vengono mantenute artificialmente con file placeholder: v
 Jest, con `ts-jest`, è il framework usato per unit test e test di integrazione. I test del backend sono scritti in TypeScript e vengono sottoposti a type-check dedicato prima dell'esecuzione.
 
 Gli unit test della business logic restano indipendenti e deterministici. I test che dipendono realmente da PostgreSQL usano il database configurato per l'ambiente soltanto come server: per ogni suite viene creato uno schema temporaneo con nome controllato, vengono applicate in ordine tutte le migration versionate e lo schema viene eliminato al termine. Lo schema di sviluppo non viene troncato o riutilizzato come fixture di test.
+
+UC-02 include inoltre un test end-to-end di integrazione che attraversa HTTP, application layer e PostgreSQL con una data server deterministica, verificando sia il flusso positivo sia il rifiuto di una preview diventata obsoleta prima della conferma.
 
 Il comando per eseguire tutti i test è:
 
@@ -322,6 +332,8 @@ La documentazione viene mantenuta nello stesso repository del codice e versionat
 - requisiti: [`docs/requisiti.tex`](docs/requisiti.tex);
 - modellazione: [`docs/modellazione.md`](docs/modellazione.md);
 - architettura e decisioni di design: [`docs/architettura.md`](docs/architettura.md);
+- tracciabilità end-to-end UC-01 e UC-02: [`docs/tracciabilita.md`](docs/tracciabilita.md);
+- relazione finale: [`docs/relazione.tex`](docs/relazione.tex);
 - diagrammi UML PlantUML:
   - `uml/use-case.puml`;
   - `uml/domain-model.puml`;
@@ -330,7 +342,16 @@ La documentazione viene mantenuta nello stesso repository del codice e versionat
   - `uml/activity-uc01.puml`;
   - `uml/sequence-uc02.puml`.
 
-Le sorgenti PlantUML sono la rappresentazione autorevole dei diagrammi modellati e vengono esportate in PDF per la relazione.
+Le sorgenti PlantUML sono la rappresentazione autorevole dei diagrammi modellati e vengono esportate in PDF per la relazione. Lo script `uml/export-pdf.sh` genera gli export in `uml/pdf/` usando il comando `plantuml` disponibile nel sistema oppure il JAR indicato dalla variabile `PLANTUML_JAR`. Dopo l'esportazione, ricompilando `docs/relazione.tex` i diagrammi vengono inclusi automaticamente nella relazione.
+I PDF LaTeX possono essere rigenerati con `docs/build-pdf.sh`, che compila `docs/requisiti.tex` e `docs/relazione.tex` tramite `latexmk`.
+
+## Contributo individuale
+
+Il progetto è stato svolto individualmente. L'autore è responsabile dell'intero ciclo di lavoro: definizione dello scope e dei requisiti, modellazione UML, scelte architetturali e di design, implementazione, test, configurazione della CI, documentazione e preparazione della release.
+
+## Consegna finale
+
+La consegna della versione 1.0 è costituita dal repository Git nello stato identificato dal tag `v1.0.0`, comprensivo di sorgenti, test, migration, seed, configurazione Docker/CI, documentazione e sorgenti PlantUML. La relazione finale è `docs/relazione.pdf`; i PDF dei diagrammi UML sono mantenuti nella cartella `uml/pdf/`.
 
 ## Release
 

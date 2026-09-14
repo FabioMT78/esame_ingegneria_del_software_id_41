@@ -89,7 +89,6 @@ package "application" {
     }
 
     interface PagamentoRepository {
-      + trovaPerContratto(contrattoId : int): Promise<List<Pagamento>>
       + salva(contrattoId : int, pagamento : Pagamento): Promise<void>
     }
 
@@ -109,6 +108,10 @@ package "application" {
 
 package "web" {
   class RegistraContrattoController <<controller>> {
+    + router : Router
+  }
+
+  class RegistraPagamentoController <<controller>> {
     + router : Router
   }
 
@@ -204,7 +207,6 @@ package "domain" {
     + {static} validaGiornoPagamento(giornoPagamento : int) : void
     + {static} periodiSiSovrappongono(dal : date, al : date, altroDal : date, altroAl : date) : boolean
     + {static} calcolaDataFine(dal : date, tipologia : TipologiaContrattuale) : date
-    + statoAlla(data : date) : string
     + impostaContenuto(contenuto : string) : void
     + aggiungiPagamento(pagamento : Pagamento) : void
   }
@@ -225,6 +227,9 @@ package "infrastructure" {
     class PostgresPersonaRepository <<repository>>
     class PostgresTipologiaContrattualeRepository <<repository>>
     class PostgresContrattoRepository <<repository>>
+    class PostgresPagamentoRepository <<repository>> {
+      + salva(contrattoId : int, pagamento : Pagamento): Promise<void>
+    }
     class PostgresRegistrazioneContratto <<transactional adapter>> {
       + registraDefinitivamente(contratto : Contratto): Promise<void>
     }
@@ -262,12 +267,15 @@ BozzaContratto "1" --> "0..1" Persona : inquilino
 BozzaContratto "1" --> "0..1" TipologiaContrattuale : tipologia
 
 RegistraContrattoController ..> RegistraContrattoService
+RegistraPagamentoController ..> RegistraPagamentoService
 compositionRoot ..> RegistraContrattoService
+compositionRoot ..> RegistraPagamentoService
 compositionRoot ..> PostgresBozzaContrattoRepository
 compositionRoot ..> PostgresImmobileRepository
 compositionRoot ..> PostgresPersonaRepository
 compositionRoot ..> PostgresTipologiaContrattualeRepository
 compositionRoot ..> PostgresContrattoRepository
+compositionRoot ..> PostgresPagamentoRepository
 compositionRoot ..> PostgresRegistrazioneContratto
 compositionRoot ..> GeneratoreDocumentoHtmlContratto
 compositionRoot ..> DataCorrenteSistemaProvider
@@ -300,12 +308,14 @@ PostgresImmobileRepository ..|> ImmobileRepository
 PostgresPersonaRepository ..|> PersonaRepository
 PostgresTipologiaContrattualeRepository ..|> TipologiaContrattualeRepository
 PostgresContrattoRepository ..|> ContrattoRepository
+PostgresPagamentoRepository ..|> PagamentoRepository
 PostgresRegistrazioneContratto ..|> RegistrazioneContrattoPort
 GeneratoreDocumentoHtmlContratto ..|> GeneratoreDocumentoContratto
 DataCorrenteSistemaProvider ..|> DataCorrenteProvider
 
 PostgresBozzaContrattoRepository ..> BozzaContrattoJsonMapper
 PostgresContrattoRepository ..> PostgresValueMapper
+PostgresPagamentoRepository ..> PostgresValueMapper
 PostgresImmobileRepository ..> PostgresValueMapper
 PostgresPersonaRepository ..> PostgresValueMapper
 PostgresRegistrazioneContratto ..> PostgresValueMapper
@@ -321,10 +331,17 @@ note right of RegistraContrattoController
   Non contiene regole di dominio o query SQL.
 end note
 
+note right of RegistraPagamentoController
+  Confine HTTP di UC-02: valida identificativi e competenza,
+  invoca il Service e serializza preview e Pagamento.
+  Non decide la mensilità, non calcola importi
+  e non accede direttamente alla persistenza.
+end note
+
 note right of compositionRoot
   Unico punto di assemblaggio delle dipendenze concrete.
   Costruisce pool, repository, adapter e provider
-  e li inietta nel RegistraContrattoService.
+  e li inietta nei Service dei due casi d'uso.
 end note
 
 note right of GeneratoreDocumentoHtmlContratto
@@ -363,6 +380,12 @@ note right of Indirizzo
   Nazione, CAP, civico, scala e interno sono opzionali:
   non sono dati universalmente disponibili né per
   l'ubicazione di un Immobile né per la residenza.
+end note
+
+note right of PagamentoRepository
+  Porta di scrittura di UC-02.
+  I Pagamenti esistenti vengono ricostruiti
+  con il Contratto tramite ContrattoRepository.
 end note
 
 note right of RegistrazioneContrattoPort
@@ -421,6 +444,6 @@ note bottom of PagamentoDaRegistrare
   e i valori vengono ricalcolati lato server.
 end note
 
-note "Le operazioni dei Service che attraversano porte di persistenza sono asincrone.\nLe porte di persistenza restituiscono Promise perché le implementazioni concrete usano pg.\nGeneratoreDocumentoContratto e DataCorrenteProvider restano sincroni: nella v1.0 non richiedono I/O asincrono.\nGli id del design sono interi e vengono assegnati dalla persistenza PostgreSQL.\nIl contenuto storico del Contratto è una stringa HTML nella v1.0.\nIl confine HTTP riceve RegistraContrattoService per dependency injection e non costruisce dipendenze infrastrutturali.\nIl composition root è l'unico punto che conosce insieme web, application e implementazioni concrete dell'infrastruttura.\nLe implementazioni PostgreSQL realizzano le porte dell'application layer senza introdurre dipendenze da pg nei Service o nel dominio." as NDesign
+note "Le operazioni dei Service che attraversano porte di persistenza sono asincrone.\nLe porte di persistenza restituiscono Promise perché le implementazioni concrete usano pg.\nGeneratoreDocumentoContratto e DataCorrenteProvider restano sincroni: nella v1.0 non richiedono I/O asincrono.\nGli id del design sono interi e vengono assegnati dalla persistenza PostgreSQL.\nIl contenuto storico del Contratto è una stringa HTML nella v1.0.\nI confini HTTP ricevono i rispettivi Service per dependency injection e non costruiscono dipendenze infrastrutturali.\nIl composition root è l'unico punto che conosce insieme web, application e implementazioni concrete dell'infrastruttura.\nLe implementazioni PostgreSQL realizzano le porte dell'application layer senza introdurre dipendenze da pg nei Service o nel dominio." as NDesign
 
 @enduml

@@ -216,6 +216,20 @@ class Contratto {
 
     return this.canoneMensile;
   }
+
+  calcolaScadenzaCompetenza(anno: number, mese: number): Date {
+    if (!Number.isInteger(mese) || mese < 1 || mese > 12) {
+      throw new RangeError(
+        "Il mese di competenza deve essere compreso tra 1 e 12",
+      );
+    }
+
+    const dataDiCompetenza = new Date(Date.UTC(anno, mese - 1, 1));
+
+    this.#checkPeriodoDiCompetenza(dataDiCompetenza);
+
+    return new Date(Date.UTC(anno, mese - 1, this.giornoPagamento));
+  }
 }
 
 export = Contratto;

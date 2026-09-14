@@ -3,10 +3,15 @@ import {
   RegistraContrattoController,
   type RegistraContrattoHttpService,
 } from "./RegistraContrattoController";
+import {
+  RegistraPagamentoController,
+  type RegistraPagamentoHttpService,
+} from "./RegistraPagamentoController";
 import { gestisciErroreHttp } from "./HttpErrorHandler";
 
 type CreaAppOptions = {
   registraContrattoService?: RegistraContrattoHttpService;
+  registraPagamentoService?: RegistraPagamentoHttpService;
 };
 
 function creaApp(options: CreaAppOptions = {}): Express {
@@ -22,6 +27,13 @@ function creaApp(options: CreaAppOptions = {}): Express {
   if (options.registraContrattoService !== undefined) {
     const controller = new RegistraContrattoController(
       options.registraContrattoService,
+    );
+    app.use("/api", controller.router);
+  }
+
+  if (options.registraPagamentoService !== undefined) {
+    const controller = new RegistraPagamentoController(
+      options.registraPagamentoService,
     );
     app.use("/api", controller.router);
   }

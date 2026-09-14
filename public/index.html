@@ -11,11 +11,18 @@
     <div class="container">
       <p class="eyebrow">Gestionale Affitti</p>
       <h1>Registrazione contratto di locazione</h1>
-      <p class="subtitle">Procedura guidata UC-01</p>
     </div>
   </header>
 
   <main class="container main-layout">
+    <div class="procedure-toolbar" aria-label="Azioni principali">
+      <form action="/pagamenti.html" method="get">
+        <button id="registra-pagamento" class="button secondary" type="submit">
+          Registra pagamento
+        </button>
+      </form>
+    </div>
+
     <nav aria-label="Avanzamento registrazione contratto">
       <ol id="stepper" class="stepper">
         <li data-step="1"><span>1</span>Immobile</li>
