@@ -1,9 +1,11 @@
 import type { Express } from "express";
 import RegistraContrattoService from "../application/RegistraContrattoService";
+import RegistraPagamentoService from "../application/RegistraPagamentoService";
 import GeneratoreDocumentoHtmlContratto from "../infrastructure/document/GeneratoreDocumentoHtmlContratto";
 import PostgresBozzaContrattoRepository from "../infrastructure/persistence/postgres/PostgresBozzaContrattoRepository";
 import PostgresContrattoRepository from "../infrastructure/persistence/postgres/PostgresContrattoRepository";
 import PostgresImmobileRepository from "../infrastructure/persistence/postgres/PostgresImmobileRepository";
+import PostgresPagamentoRepository from "../infrastructure/persistence/postgres/PostgresPagamentoRepository";
 import PersonaRepositoryPostgres from "../infrastructure/persistence/postgres/PostgresPersonaRepository";
 import { creaPoolPostgres } from "../infrastructure/persistence/postgres/PostgresPool";
 import PostgresRegistrazioneContratto from "../infrastructure/persistence/postgres/PostgresRegistrazioneContratto";
@@ -25,8 +27,10 @@ function creaApplicazioneProduzione(): ApplicazioneProduzione {
   const tipologiaRepository =
     new PostgresTipologiaContrattualeRepository(pool);
   const contrattoRepository = new PostgresContrattoRepository(pool);
+  const pagamentoRepository = new PostgresPagamentoRepository(pool);
   const registrazioneContratto =
     new PostgresRegistrazioneContratto(pool);
+  const dataCorrenteProvider = new DataCorrenteSistemaProvider();
 
   const registraContrattoService = new RegistraContrattoService(
     bozzaRepository,
@@ -36,11 +40,21 @@ function creaApplicazioneProduzione(): ApplicazioneProduzione {
     contrattoRepository,
     registrazioneContratto,
     new GeneratoreDocumentoHtmlContratto(),
-    new DataCorrenteSistemaProvider(),
+    dataCorrenteProvider,
+  );
+
+  const registraPagamentoService = new RegistraPagamentoService(
+    immobileRepository,
+    contrattoRepository,
+    pagamentoRepository,
+    dataCorrenteProvider,
   );
 
   return {
-    app: creaApp({ registraContrattoService }),
+    app: creaApp({
+      registraContrattoService,
+      registraPagamentoService,
+    }),
     async chiudi(): Promise<void> {
       await pool.end();
     },

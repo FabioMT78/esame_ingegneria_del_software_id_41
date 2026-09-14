@@ -1,7 +1,7 @@
 import { creaApp } from "../../src/web/app";
 import HttpTestServer from "../support/HttpTestServer";
 
-describe("asset statici frontend UC-01", () => {
+describe("asset statici frontend", () => {
   let server: HttpTestServer;
 
   beforeAll(async () => {
@@ -32,7 +32,22 @@ describe("asset statici frontend UC-01", () => {
     expect(body).toContain('id="riepilogo-annulla"');
     expect(body).toContain('id="riepilogo-anteprima"');
     expect(body).toContain('aria-label="Anteprima degli articoli contrattuali"');
-    expect(body).not.toContain('<iframe');
+    expect(body).not.toContain("<iframe");
+  });
+
+  test("serve la pagina dedicata alla registrazione dei pagamenti", async () => {
+    const response = await fetch(`${server.baseUrl}/pagamenti.html`);
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/html");
+    expect(body).toContain("Registrazione pagamento del canone");
+    expect(body).toContain('id="pagamento-immobile"');
+    expect(body).toContain('id="pagamento-inquilino"');
+    expect(body).toContain('id="anteprima-panel"');
+    expect(body).toContain('id="pagamento-pagato"');
+    expect(body).toContain('id="pagamento-annulla"');
+    expect(body).toContain('id="conferma-pagamento"');
   });
 
   test("mantiene realmente nascosti gli elementi marcati hidden", async () => {
@@ -49,6 +64,7 @@ describe("asset statici frontend UC-01", () => {
     ["/js/app.js", "text/javascript"],
     ["/js/api.js", "text/javascript"],
     ["/js/personaForm.js", "text/javascript"],
+    ["/js/pagamenti.js", "text/javascript"],
   ])("serve %s", async (path, contentType) => {
     const response = await fetch(`${server.baseUrl}${path}`);
 

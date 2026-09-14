@@ -124,7 +124,7 @@ application ─────→ port / repository
 
 Il `domain` non dipende dalla persistenza. L'`application` dipende dalle astrazioni richieste dai casi d'uso; le implementazioni concrete dell'infrastruttura dipendono dagli stessi contratti applicativi.
 
-Il composition root è confinato in `src/web/compositionRoot.ts`: è il punto in cui il processo costruisce il pool PostgreSQL, le implementazioni concrete delle porte, i provider infrastrutturali e `RegistraContrattoService`, per poi passarli al confine Express. Non contiene regole applicative; la sua responsabilità è esclusivamente assemblare il grafo delle dipendenze. `server.ts` resta invece il bootstrap del processo e gestisce ascolto HTTP e chiusura ordinata delle risorse.
+Il composition root è confinato in `src/web/compositionRoot.ts`: è il punto in cui il processo costruisce il pool PostgreSQL, le implementazioni concrete delle porte, i provider infrastrutturali, `RegistraContrattoService` e `RegistraPagamentoService`, per poi passarli al confine Express. Non contiene regole applicative; la sua responsabilità è esclusivamente assemblare il grafo delle dipendenze. `server.ts` resta invece il bootstrap del processo e gestisce ascolto HTTP e chiusura ordinata delle risorse.
 
 ## 4. Componenti applicativi e responsabilità
 
@@ -330,6 +330,8 @@ Non viene introdotto un ORM perché lo scope permette di mantenere espliciti SQL
 Il client usa HTML5, CSS e JavaScript vanilla, con `fetch()` per le chiamate HTTP/JSON. TypeScript non viene esteso al frontend nella versione 1.0, evitando una pipeline di build lato browser che i due workflow core non giustificano. Non viene introdotto un framework SPA o un template engine aggiuntivo.
 
 Per UC-01 il frontend rappresenta cinque step. I primi quattro acquisiscono e persistono progressivamente la bozza; il quinto è il riepilogo operativo e non aggiunge uno stato persistente del workflow. Gli step già raggiungibili possono essere selezionati direttamente dalla navigazione superiore, mentre non è consentito saltare verso uno step futuro non ancora validato. Nel riepilogo il client richiede al backend l'anteprima HTML tramite una route dedicata e la mostra in un `iframe` sandboxed; conferma, conservazione della bozza e annullamento restano azioni esplicite e separate.
+
+Per UC-02 il frontend è esposto dalla pagina statica `public/pagamenti.html`. La pagina guida la selezione di Immobile e Inquilino, seleziona automaticamente l'unico Inquilino disponibile, richiede al backend la preview della mensilità registrabile e mostra i dati essenziali del Contratto e del Pagamento. L'azione `Pagato` non persiste immediatamente: apre una conferma esplicita e soltanto tale conferma invia la richiesta di registrazione. `Annulla` agisce esclusivamente sullo stato di presentazione e non produce scritture. La preview visualizzata non viene reinviata come dato autorevole: il client trasmette soltanto l'identità della competenza e il backend ricarica e rivalida lo stato persistito.
 
 ### Database, test e quality gate
 
