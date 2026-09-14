@@ -53,7 +53,7 @@ Personalizzare i valori presenti in `docker/.env` quando necessario.
 
 `docker/.env` contiene la configurazione locale e non deve essere versionato; `docker/.env.example` rimane nel repository come template riproducibile.
 
-#### 3. Scaricare le immagini Docker
+#### 3. Scaricare le immagini Docker e installare le dipendenze
 
 ```bash
 docker compose --env-file docker/.env -f docker/compose.yaml pull
@@ -64,6 +64,16 @@ Le immagini di riferimento sono:
 ```text
 node:24.21.0-alpine3.24
 postgres:16.15-alpine3.24
+```
+
+Installare quindi le dipendenze applicative nel volume Docker dedicato:
+
+```bash
+docker compose \
+  --env-file docker/.env \
+  -f docker/compose.yaml \
+  run --rm --no-deps app \
+  npm ci
 ```
 
 #### 4. Inizializzare lo schema PostgreSQL
@@ -77,18 +87,45 @@ docker compose \
   up -d --wait db
 ```
 
-Applicare la migration iniziale al database di sviluppo:
+Applicare le migration versionate in ordine numerico al database di sviluppo:
+
+```bash
+for migration in db/migrations/*.sql; do
+  docker compose \
+    --env-file docker/.env \
+    -f docker/compose.yaml \
+    exec -T db \
+    sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
+    < "$migration"
+done
+```
+
+Ogni migration deve essere applicata una sola volta e nell'ordine definito dal nome del file.
+Un database di sviluppo che possiede già lo schema `001_initial_schema.sql` deve ricevere soltanto
+le migration successive non ancora applicate, a partire da `002_persona_iban.sql`. I test di
+integrazione non riutilizzano né svuotano lo schema di sviluppo: creano uno schema temporaneo
+isolato, applicano tutte le migration versionate in ordine e lo eliminano al termine.
+
+#### 5. Caricare i template contrattuali
+
+I template di `Canone concordato` e `Canone libero` sono versionati come JSON in
+`db/seed/template/`. Dopo aver applicato le migration, caricarli nel database di sviluppo con:
 
 ```bash
 docker compose \
   --env-file docker/.env \
   -f docker/compose.yaml \
-  exec -T db \
-  sh -c 'psql -U "$POSTGRES_USER" -d "$POSTGRES_DB"' \
-  < db/migrations/001_initial_schema.sql
+  run --rm --no-deps app \
+  npm run db:seed:templates
 ```
 
-La migration iniziale è versionata e deve essere applicata una sola volta a un database vuoto. I test di integrazione non riutilizzano né svuotano lo schema di sviluppo: creano uno schema temporaneo isolato, applicano la stessa migration e lo eliminano al termine.
+Il seed è idempotente: può essere rilanciato senza creare duplicati. La denominazione identifica
+la tipologia da aggiornare; per ciascuna tipologia l'insieme degli articoli persistiti viene
+riallineato al JSON versionato. L'operazione è transazionale, quindi un errore non lascia un
+caricamento parziale.
+
+I file JSON costituiscono i dati iniziali autorevoli dei template della versione 1.0. La procedura
+di seed non crea Immobili, Persone, Contratti o Pagamenti dimostrativi.
 
 ## Avvio dell'applicazione
 
@@ -241,7 +278,7 @@ Le directory vuote non vengono mantenute artificialmente con file placeholder: v
 
 Jest, con `ts-jest`, è il framework usato per unit test e test di integrazione. I test del backend sono scritti in TypeScript e vengono sottoposti a type-check dedicato prima dell'esecuzione.
 
-Gli unit test della business logic restano indipendenti e deterministici. I test che dipendono realmente da PostgreSQL usano il database configurato per l'ambiente soltanto come server: per ogni suite viene creato uno schema temporaneo con nome controllato, viene applicata la migration versionata e lo schema viene eliminato al termine. Lo schema di sviluppo non viene troncato o riutilizzato come fixture di test.
+Gli unit test della business logic restano indipendenti e deterministici. I test che dipendono realmente da PostgreSQL usano il database configurato per l'ambiente soltanto come server: per ogni suite viene creato uno schema temporaneo con nome controllato, vengono applicate in ordine tutte le migration versionate e lo schema viene eliminato al termine. Lo schema di sviluppo non viene troncato o riutilizzato come fixture di test.
 
 Il comando per eseguire tutti i test è:
 

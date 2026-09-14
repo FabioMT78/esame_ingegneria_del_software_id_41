@@ -228,6 +228,7 @@ function serializzaPersona(persona: Persona): JsonRecord {
   };
 
   if (persona.id !== undefined) risultato.id = persona.id;
+  if (persona.iban !== undefined) risultato.iban = persona.iban;
   if (persona.documento !== undefined) {
     risultato.documento = serializzaDocumento(persona.documento);
   }
@@ -242,6 +243,7 @@ function deserializzaPersona(valore: unknown): Persona {
     dati.documento === undefined
       ? undefined
       : deserializzaDocumento(dati.documento);
+  const iban = stringaOpzionale(dati, "iban");
 
   return new Persona({
     ...(id !== undefined ? { id } : {}),
@@ -251,6 +253,7 @@ function deserializzaPersona(valore: unknown): Persona {
     dataNascita: dataFromSql(richiediStringa(dati, "dataNascita")),
     codiceFiscale: richiediStringa(dati, "codiceFiscale"),
     residenza: deserializzaIndirizzo(dati.residenza),
+    ...(iban !== undefined ? { iban } : {}),
     ...(documento !== undefined ? { documento } : {}),
   });
 }

@@ -298,9 +298,10 @@ class PostgresRegistrazioneContratto implements RegistrazioneContrattoPort {
             luogo_nascita,
             data_nascita,
             codice_fiscale,
+            iban,
             residenza_id
           )
-          VALUES ($1, $2, $3, $4::date, $5, $6)
+          VALUES ($1, $2, $3, $4::date, $5, $6, $7)
           RETURNING id
         `,
         [
@@ -309,6 +310,7 @@ class PostgresRegistrazioneContratto implements RegistrazioneContrattoPort {
           persona.luogoNascita,
           dataToSql(persona.dataNascita),
           persona.codiceFiscale,
+          persona.iban ?? null,
           residenzaId,
         ],
       );
@@ -329,14 +331,16 @@ class PostgresRegistrazioneContratto implements RegistrazioneContrattoPort {
             cognome = $2,
             luogo_nascita = $3,
             data_nascita = $4::date,
-            residenza_id = $5
-          WHERE id = $6
+            iban = $5,
+            residenza_id = $6
+          WHERE id = $7
         `,
         [
           persona.nome,
           persona.cognome,
           persona.luogoNascita,
           dataToSql(persona.dataNascita),
+          persona.iban ?? null,
           residenzaId,
           persistita.id,
         ],

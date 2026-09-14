@@ -14,6 +14,7 @@ type PersonaRow = {
   luogo_nascita: string;
   data_nascita: string;
   codice_fiscale: string;
+  iban: string | null;
   residenza_id: number;
   nazione: string | null;
   provincia: string;
@@ -39,6 +40,7 @@ const SELECT_PERSONA = `
     p.luogo_nascita,
     p.data_nascita::text AS data_nascita,
     p.codice_fiscale,
+    p.iban,
     r.id AS residenza_id,
     r.nazione,
     r.provincia,
@@ -111,6 +113,7 @@ function mappaPersona(riga: PersonaRow): Persona {
     dataNascita: dataFromSql(riga.data_nascita),
     codiceFiscale: riga.codice_fiscale,
     residenza,
+    ...(riga.iban !== null ? { iban: riga.iban } : {}),
     ...(documento !== undefined ? { documento } : {}),
   });
 }

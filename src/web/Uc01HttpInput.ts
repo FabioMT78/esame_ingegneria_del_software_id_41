@@ -276,6 +276,7 @@ function creaPersona(valore: unknown): Persona {
   const dati = richiediOggetto(valore, "persona");
   const id = leggiIdOpzionale(dati, "id", "persona.id");
   const documento = creaDocumento(dati.documento);
+  const iban = leggiStringaOpzionale(dati, "iban", "persona.iban");
 
   return new Persona({
     ...(id !== undefined ? { id } : {}),
@@ -293,6 +294,7 @@ function creaPersona(valore: unknown): Persona {
       "persona.codiceFiscale",
     ),
     residenza: creaIndirizzo(dati.residenza),
+    ...(iban !== undefined && iban.trim().length > 0 ? { iban } : {}),
     ...(documento !== undefined ? { documento } : {}),
   });
 }

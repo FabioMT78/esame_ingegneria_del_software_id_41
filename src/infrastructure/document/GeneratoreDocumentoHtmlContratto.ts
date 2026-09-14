@@ -1,8 +1,17 @@
 import type GeneratoreDocumentoContratto from "../../application/ports/GeneratoreDocumentoContratto";
 import type Contratto from "../../domain/Contratto";
 import type Indirizzo from "../../domain/Indirizzo";
+import { importoInLettere } from "./ImportoInLettere";
 
 const PLACEHOLDER = /\{\{\s*([A-Za-z][A-Za-z0-9.]*)\s*\}\}/g;
+const PLACEHOLDER_TESTUALI_IMPORTO = new Set([
+  "contratto.canoneMensileText",
+  "contratto.canoneAnnualeText",
+  "contratto.depositoCauzionaleText",
+]);
+const PLACEHOLDER_IMPORTO_CON_SUFFISSO_ZERO = new Set([
+  "contratto.depositoCauzionale",
+]);
 
 function escapeHtml(valore: string): string {
   return valore
@@ -13,11 +22,19 @@ function escapeHtml(valore: string): string {
     .replaceAll("'", "&#39;");
 }
 
+function escapeRegExp(valore: string): string {
+  return valore.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function dataIso(data: Date): string {
   const anno = data.getUTCFullYear().toString().padStart(4, "0");
   const mese = (data.getUTCMonth() + 1).toString().padStart(2, "0");
   const giorno = data.getUTCDate().toString().padStart(2, "0");
   return `${anno}-${mese}-${giorno}`;
+}
+
+function formattaImporto(importo: number): string {
+  return importo.toFixed(2).replace(".", ",");
 }
 
 function formattaIndirizzo(indirizzo: Indirizzo): string {
@@ -48,27 +65,40 @@ function formattaIndirizzo(indirizzo: Indirizzo): string {
 function valoriPlaceholder(contratto: Contratto): Map<string, string> {
   const { immobile, proprietario, inquilino } = contratto;
   const documento = inquilino.documento;
+  const depositoCauzionale =
+    Math.round(contratto.canoneMensile * 3 * 100) / 100;
 
   const valori = new Map<string, string>([
     ["contratto.nomeDescrizione", contratto.nomeDescrizione],
     ["contratto.dal", dataIso(contratto.dal)],
     ["contratto.al", dataIso(contratto.al)],
-    ["contratto.canoneMensile", contratto.canoneMensile.toFixed(2)],
+    ["contratto.canoneMensile", formattaImporto(contratto.canoneMensile)],
+    [
+      "contratto.canoneMensileText",
+      importoInLettere(contratto.canoneMensile),
+    ],
+    ["contratto.canoneAnnuale", formattaImporto(contratto.canoneAnnuale)],
+    [
+      "contratto.canoneAnnualeText",
+      importoInLettere(contratto.canoneAnnuale),
+    ],
+    ["contratto.depositoCauzionale", formattaImporto(depositoCauzionale)],
+    [
+      "contratto.depositoCauzionaleText",
+      importoInLettere(depositoCauzionale),
+    ],
     ["contratto.giornoPagamento", String(contratto.giornoPagamento)],
     ["contratto.registratoIl", dataIso(contratto.registratoIl)],
 
     ["immobile.nome", immobile.nome],
     ["immobile.indirizzo", formattaIndirizzo(immobile.indirizzo)],
-    [
-      "immobile.codiceComunale",
-      immobile.datiCatastali.codiceComunale,
-    ],
+    ["immobile.codiceComunale", immobile.datiCatastali.codiceComunale],
     ["immobile.foglio", String(immobile.datiCatastali.foglio)],
     ["immobile.particella", String(immobile.datiCatastali.particella)],
     ["immobile.subalterno", String(immobile.datiCatastali.subalterno)],
     ["immobile.categoria", immobile.datiCatastali.categoria],
     ["immobile.consistenza", String(immobile.datiCatastali.consistenza)],
-    ["immobile.rendita", immobile.datiCatastali.rendita.toFixed(2)],
+    ["immobile.rendita", formattaImporto(immobile.datiCatastali.rendita)],
 
     ["proprietario.nome", proprietario.nome],
     ["proprietario.cognome", proprietario.cognome],
@@ -84,6 +114,10 @@ function valoriPlaceholder(contratto: Contratto): Map<string, string> {
     ["inquilino.dataNascita", dataIso(inquilino.dataNascita)],
     ["inquilino.residenza", formattaIndirizzo(inquilino.residenza)],
   ]);
+
+  if (proprietario.iban !== undefined) {
+    valori.set("proprietario.iban", proprietario.iban);
+  }
 
   if (documento !== undefined) {
     valori.set("inquilino.documento.tipo", documento.tipo);
@@ -105,17 +139,64 @@ function valoriPlaceholder(contratto: Contratto): Map<string, string> {
   return valori;
 }
 
+function sostituisciSuffissiCompatibili(
+  testo: string,
+  valori: Map<string, string>,
+): string {
+  let risultato = testo;
+
+  for (const nome of PLACEHOLDER_TESTUALI_IMPORTO) {
+    const valore = valori.get(nome);
+
+    if (valore !== undefined) {
+      risultato = risultato.replace(
+        new RegExp(
+          `\\{\\{\\s*${escapeRegExp(nome)}\\s*\\}\\}/00`,
+          "g",
+        ),
+        escapeHtml(valore),
+      );
+    }
+  }
+
+  for (const nome of PLACEHOLDER_IMPORTO_CON_SUFFISSO_ZERO) {
+    const valore = valori.get(nome);
+
+    if (valore !== undefined) {
+      risultato = risultato.replace(
+        new RegExp(
+          `\\{\\{\\s*${escapeRegExp(nome)}\\s*\\}\\},00`,
+          "g",
+        ),
+        escapeHtml(valore),
+      );
+    }
+  }
+
+  return risultato;
+}
+
 function renderizzaTesto(
   testo: string,
   valori: Map<string, string>,
 ): string {
   const testoEscaped = escapeHtml(testo);
+  const compatibile = sostituisciSuffissiCompatibili(
+    testoEscaped,
+    valori,
+  );
 
-  return testoEscaped
+  return compatibile
     .replace(PLACEHOLDER, (_match, nome: string) => {
       const valore = valori.get(nome);
 
       if (valore === undefined) {
+        if (nome === "proprietario.iban") {
+          throw new Error(
+            "IBAN del proprietario obbligatorio per il template selezionato",
+          );
+        }
+
         throw new Error(`Placeholder non supportato: {{${nome}}}`);
       }
 

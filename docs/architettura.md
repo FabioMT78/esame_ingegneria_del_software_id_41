@@ -136,9 +136,11 @@ Coordina la procedura guidata, il recupero dei dati necessari, la gestione delle
 
 Più bozze possono coesistere nella versione 1.0. Ogni operazione che modifica, conferma o annulla una procedura già iniziata identifica esplicitamente la relativa bozza, evitando che un'operazione su un contratto in preparazione modifichi lo stato temporaneo di un altro. All'avvio il Service individua le bozze riprendibili ed elimina soltanto quelle riconosciute come residue di una registrazione già completata.
 
-Il `Contratto` viene costruito soltanto alla conferma finale. Persistenza, generazione HTML, data corrente e regole di dominio sono delegate ai rispettivi collaboratori; il Service non contiene query, serializzazione, rendering concreto o formule economiche duplicate.
+Dopo il completamento dei quattro step di acquisizione, il Service può costruire un `Contratto` transitorio dalla bozza completa per produrre l'anteprima del riepilogo. L'operazione `anteprima(idBozza)` rivalida i dati dipendenti dalla data corrente e invoca lo stesso `GeneratoreDocumentoContratto` usato dalla conferma, ma non imposta contenuto storico, non crea Pagamenti e non esegue scritture definitive. Alla conferma il `Contratto` viene costruito nuovamente dai dati correnti della bozza, viene eseguito il controllo di sovrapposizione e il documento viene rigenerato prima della registrazione definitiva. In questo modo l'anteprima non diventa fonte autorevole e non può divergere per una logica di rendering separata.
 
-Una Persona già registrata può essere trattata nella procedura come working copy dei dati modificabili, mentre `id` e `codiceFiscale` restano invariati. Un Immobile già registrato viene selezionato ma non modificato da UC-01.
+Persistenza, generazione HTML, data corrente e regole di dominio sono delegate ai rispettivi collaboratori; il Service non contiene query, serializzazione, rendering concreto o formule economiche duplicate.
+
+Una Persona già registrata può essere trattata nella procedura come working copy dei dati modificabili, mentre `id` e `codiceFiscale` restano invariati. L'inserimento diretto di una nuova Persona salta soltanto la ricerca preliminare: il Service verifica comunque che il codice fiscale non appartenga già a una Persona definitiva. Un Immobile già registrato viene selezionato ma non modificato da UC-01.
 
 ### `RegistraPagamentoService`
 
@@ -174,7 +176,7 @@ Le firme pubbliche e le relazioni precise sono rappresentate nel Class Diagram e
 
 ### Altre porte applicative
 
-`GeneratoreDocumentoContratto` isola la produzione del documento definitivo dal caso d'uso. Nella versione 1.0 l'implementazione concreta produce HTML a partire dal `Contratto` definitivo e dai template della tipologia.
+`GeneratoreDocumentoContratto` isola la produzione del documento HTML dal caso d'uso. Nella versione 1.0 la stessa implementazione viene usata sia per l'anteprima valorizzata del riepilogo sia per il documento definitivo: cambia il contesto applicativo, non la logica di rendering. L'anteprima opera su un `Contratto` transitorio costruito dalla bozza e non viene persistita; alla conferma il documento viene rigenerato dai dati finali rivalidati e solo quel risultato viene conservato come contenuto storico.
 
 `DataCorrenteProvider` isola la sorgente della data corrente. È condiviso dai due casi d'uso e permette al server di rimanere autorevole mantenendo i test deterministici.
 
@@ -187,6 +189,24 @@ La persistenza usa **PostgreSQL** tramite SQL esplicito e driver `pg`. Non viene
 I dati definitivi sono conservati in forma relazionale. Lo schema e i dati iniziali sono versionati nella cartella `db/`, che costituisce la fonte autorevole per colonne, chiavi, `CHECK`, `UNIQUE`, foreign key e altri dettagli SQL.
 
 Gli identificatori persistenti sono tecnici e separati dalle chiavi naturali del dominio. Nella versione 1.0 vengono rappresentati come `int`; non sono necessari UUID o identificatori distribuiti.
+
+### Seed dei template contrattuali
+
+Le due `TipologiaContrattuale` supportate e i relativi `Articolo` iniziali sono versionati come
+file JSON in `db/seed/template/`. I JSON sono dati di configurazione iniziale, non codice di
+dominio e non vengono letti direttamente durante l'esecuzione dei casi d'uso: una utility
+infrastrutturale li valida e li trasferisce nelle tabelle relazionali prima dell'utilizzo
+dell'applicazione.
+
+Il seed identifica una tipologia tramite la sua denominazione, ne aggiorna durata e rinnovo e
+riallinea l'insieme degli articoli al contenuto versionato. L'operazione è idempotente e
+transazionale: rilanciarla non crea duplicati e un errore non lascia una tipologia caricata solo
+parzialmente. La sostituzione degli articoli è accettabile perché nella versione 1.0 essi sono
+template configurativi e i Contratti già registrati mantengono comunque il proprio
+`contenuto` storico indipendente.
+
+Non viene introdotta una porta applicativa per il seed: si tratta di una responsabilità di setup
+dell'infrastruttura, esterna al workflow di UC-01 e UC-02.
 
 ### `BozzaContratto` e JSONB
 
@@ -210,13 +230,21 @@ La regola secondo cui due periodi relativi allo stesso Immobile non possono sovr
 
 `Articolo` rappresenta esclusivamente il template della `TipologiaContrattuale`. La suddivisione di un articolo logico in parti ordinate permette al generatore di inserire i valori dinamici senza creare copie valorizzate degli articoli associate al Contratto.
 
-Nella versione 1.0 i punti di inserimento dei dati dinamici sono dichiarati direttamente nel testo del template tramite placeholder espliciti con forma `{{nome}}`, usando nomi qualificati come `{{contratto.canoneMensile}}`, `{{contratto.dal}}`, `{{proprietario.codiceFiscale}}` o `{{inquilino.documento.numero}}`. Il generatore mantiene una lista chiusa di placeholder supportati: un placeholder sconosciuto rende la generazione non valida invece di produrre silenziosamente un documento incompleto. I numeri di articolo e parte determinano esclusivamente ordine e raggruppamento e non vengono usati come convenzione implicita per decidere quale valore inserire.
+Nella versione 1.0 i punti di inserimento dei dati dinamici sono dichiarati direttamente nel testo del template tramite placeholder espliciti con forma `{{nome}}`, usando nomi qualificati come `{{contratto.canoneMensile}}`, `{{contratto.dal}}`, `{{proprietario.codiceFiscale}}`, `{{proprietario.iban}}` o `{{inquilino.documento.numero}}`. Il generatore mantiene una lista chiusa di placeholder supportati: un placeholder sconosciuto rende la generazione non valida invece di produrre silenziosamente un documento incompleto. I numeri di articolo e parte determinano esclusivamente ordine e raggruppamento e non vengono usati come convenzione implicita per decidere quale valore inserire.
+
+
+Il generatore distingue i dati autorevoli dai valori di presentazione. `Contratto.canoneAnnuale` è derivato
+dal canone mensile e non viene persistito separatamente; le forme testuali degli importi sono prodotte
+dall'infrastruttura documentale. Analogamente, quando un template riporta un deposito cauzionale pari a
+tre mensilità, il relativo importo viene derivato soltanto durante il rendering e non diventa stato del
+Contratto o del database. L'IBAN, invece, è un dato opzionale della Persona e viene risolto dal placeholder
+`proprietario.iban` in base al ruolo assunto nel Contratto.
 
 Il testo dei template è trattato come testo e non come HTML arbitrario. `GeneratoreDocumentoHtmlContratto` esegue l'escaping sia dei template sia dei valori dinamici prima di produrre l'HTML, evitando che dati provenienti dal workflow vengano interpretati come markup. Le date di calendario vengono rese nel documento nel formato stabile `YYYY-MM-DD`; il formato appartiene al rendering e non modifica la rappresentazione `Date` usata da dominio e application layer.
 
 Il `Contratto` conserva direttamente la propria copia storica completa tramite `registratoIl` e `contenuto`. Non viene mantenuta una classe separata `ContrattoRegistrato`, perché non possiede un lifecycle o un comportamento autonomo che giustifichi una relazione 1:1 distinta.
 
-Nella versione 1.0 `contenuto` è HTML persistito come `TEXT`. Il contenuto viene generato lato server alla conferma definitiva e non viene ricostruito in seguito dai template o dai dati sorgente: questo ne preserva il significato storico. Un'eventuale futura esportazione PDF può essere aggiunta senza modificare questa responsabilità.
+Nella versione 1.0 `contenuto` è HTML persistito come `TEXT`. Prima della conferma il backend può restituire al browser un'anteprima HTML valorizzata, mostrata in un contesto isolato e non salvata come stato definitivo. Il contenuto storico viene invece rigenerato lato server alla conferma definitiva e non viene ricostruito in seguito dai template o dai dati sorgente: questo ne preserva il significato storico. Un'eventuale futura esportazione PDF può essere aggiunta senza modificare questa responsabilità.
 
 ## 7. Confine transazionale di UC-01
 
@@ -298,6 +326,8 @@ Non viene introdotto un ORM perché lo scope permette di mantenere espliciti SQL
 ### Frontend
 
 Il client usa HTML5, CSS e JavaScript vanilla, con `fetch()` per le chiamate HTTP/JSON. TypeScript non viene esteso al frontend nella versione 1.0, evitando una pipeline di build lato browser che i due workflow core non giustificano. Non viene introdotto un framework SPA o un template engine aggiuntivo.
+
+Per UC-01 il frontend rappresenta cinque step. I primi quattro acquisiscono e persistono progressivamente la bozza; il quinto è il riepilogo operativo e non aggiunge uno stato persistente del workflow. Gli step già raggiungibili possono essere selezionati direttamente dalla navigazione superiore, mentre non è consentito saltare verso uno step futuro non ancora validato. Nel riepilogo il client richiede al backend l'anteprima HTML tramite una route dedicata e la mostra in un `iframe` sandboxed; conferma, conservazione della bozza e annullamento restano azioni esplicite e separate.
 
 ### Database, test e quality gate
 

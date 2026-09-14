@@ -13,6 +13,7 @@ class Persona {
   luogoNascita
   dataNascita
   codiceFiscale
+  iban [0..1]
 }
 
 class Indirizzo {
@@ -53,6 +54,7 @@ class Contratto {
   dal
   al
   canoneMensile
+  /canoneAnnuale
   giornoPagamento
   registratoIl
   contenuto
@@ -96,13 +98,20 @@ TipologiaContrattuale "1" -- "1..*" Articolo : articoli predefiniti
 Contratto "1" -- "1..*" Pagamento : pagamenti
 
 note right of Persona
-  { codiceFiscale univoco }
+  { codiceFiscale univoco e strutturalmente valido }
+  { posizioni numeriche del codice fiscale:
+    ammesse anche le sostituzioni per omocodia }
+  { in UC-01, età alla data corrente in 18..150 anni }
   { se assume il ruolo di inquilino,
     DocumentoRiconoscimento presente }
+  { iban opzionale; richiesto solo dai template
+    che usano il placeholder proprietario.iban }
 end note
 
 note right of DocumentoRiconoscimento
   { tipo = carta d'identità oppure passaporto }
+  { per l'inquilino, dataRilascio <= data corrente }
+  { per l'inquilino, dataScadenza > data corrente }
 end note
 
 note bottom of DatiCatastali
@@ -118,11 +127,13 @@ note bottom of Indirizzo
 end note
 
 note right of Contratto
+  { proprietario.codiceFiscale <> inquilino.codiceFiscale }
   { giornoPagamento in 1..28 }
   { al calcolato da dal e TipologiaContrattuale.durata
     durante la definizione del periodo e poi conservato }
   { periodi relativi allo stesso Immobile non sovrapposti }
   { registratoIl valorizzato alla registrazione definitiva }
+  { /canoneAnnuale = canoneMensile * 12 }
   { contenuto = copia completa del contratto generato }
   { /stato derivato dal periodo e dalla data corrente:
     futuro, in essere oppure scaduto }

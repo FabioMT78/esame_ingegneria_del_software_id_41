@@ -23,9 +23,11 @@ type RegistraContrattoHttpService = Pick<
   | "selezionaImmobile"
   | "inserisciNuovoImmobile"
   | "cercaPersona"
+  | "cercaPersonaPerBozza"
   | "impostaProprietario"
   | "impostaInquilino"
   | "impostaDatiContrattuali"
+  | "anteprima"
   | "conferma"
   | "annulla"
 >;
@@ -62,6 +64,44 @@ class RegistraContrattoController {
       const persona = await this.service.cercaPersona(codiceFiscale);
       res.status(200).json(persona === null ? null : serializzaPersona(persona));
     });
+
+    this.router.get(
+      "/contratti/bozze/:idBozza/proprietario/:codiceFiscale",
+      async (req, res) => {
+        const idBozza = leggiIdParametro(req.params.idBozza, "idBozza");
+        const codiceFiscale = leggiStringaParametro(
+          req.params.codiceFiscale,
+          "codiceFiscale",
+        );
+        const persona = await this.service.cercaPersonaPerBozza(
+          idBozza,
+          "proprietario",
+          codiceFiscale,
+        );
+        res
+          .status(200)
+          .json(persona === null ? null : serializzaPersona(persona));
+      },
+    );
+
+    this.router.get(
+      "/contratti/bozze/:idBozza/inquilino/:codiceFiscale",
+      async (req, res) => {
+        const idBozza = leggiIdParametro(req.params.idBozza, "idBozza");
+        const codiceFiscale = leggiStringaParametro(
+          req.params.codiceFiscale,
+          "codiceFiscale",
+        );
+        const persona = await this.service.cercaPersonaPerBozza(
+          idBozza,
+          "inquilino",
+          codiceFiscale,
+        );
+        res
+          .status(200)
+          .json(persona === null ? null : serializzaPersona(persona));
+      },
+    );
 
     this.router.post(
       "/contratti/bozze/immobile-esistente",
@@ -124,6 +164,15 @@ class RegistraContrattoController {
           dati.giornoPagamento,
         );
         res.status(200).json(serializzaBozza(bozza));
+      },
+    );
+
+    this.router.get(
+      "/contratti/bozze/:idBozza/anteprima",
+      async (req, res) => {
+        const idBozza = leggiIdParametro(req.params.idBozza, "idBozza");
+        const html = await this.service.anteprima(idBozza);
+        res.status(200).type("html").send(html);
       },
     );
 

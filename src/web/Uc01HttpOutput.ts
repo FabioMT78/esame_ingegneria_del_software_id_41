@@ -77,6 +77,7 @@ function serializzaPersona(persona: Persona): Record<string, unknown> {
     luogoNascita: persona.luogoNascita,
     dataNascita: dataToHttp(persona.dataNascita),
     codiceFiscale: persona.codiceFiscale,
+    iban: persona.iban ?? null,
     residenza: serializzaIndirizzo(persona.residenza),
     documento:
       persona.documento === undefined

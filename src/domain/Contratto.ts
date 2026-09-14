@@ -47,6 +47,12 @@ class Contratto {
   }: ContrattoParams) {
     Contratto.validaGiornoPagamento(giornoPagamento);
 
+    if (proprietario.codiceFiscale === inquilino.codiceFiscale) {
+      throw new RangeError(
+        "Proprietario e inquilino devono essere persone distinte",
+      );
+    }
+
     if (al < dal) {
       throw new RangeError(
         "La data finale del contratto non può precedere la data iniziale",
@@ -67,6 +73,10 @@ class Contratto {
     this.canoneMensile = canoneMensile;
     this.giornoPagamento = giornoPagamento;
     this.registratoIl = new Date(registratoIl.getTime());
+  }
+
+  get canoneAnnuale(): number {
+    return Math.round(this.canoneMensile * 12 * 100) / 100;
   }
 
   static validaGiornoPagamento(giornoPagamento: number): void {
