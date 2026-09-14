@@ -207,7 +207,6 @@ package "domain" {
     + {static} validaGiornoPagamento(giornoPagamento : int) : void
     + {static} periodiSiSovrappongono(dal : date, al : date, altroDal : date, altroAl : date) : boolean
     + {static} calcolaDataFine(dal : date, tipologia : TipologiaContrattuale) : date
-    + statoAlla(data : date) : string
     + impostaContenuto(contenuto : string) : void
     + aggiungiPagamento(pagamento : Pagamento) : void
   }

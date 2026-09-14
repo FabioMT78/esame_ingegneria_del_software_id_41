@@ -1,0 +1,52 @@
+# Tracciabilità end-to-end — Gestionale Affitti
+
+Questo documento raccoglie la tracciabilità della versione 1.0 per i due casi d'uso core. Non sostituisce `docs/requisiti.tex`, che rimane la fonte autorevole per comportamento richiesto e acceptance criteria, né gli UML, che rimangono autorevoli per gli aspetti modellati.
+
+La catena mantenuta è:
+
+`Requisito → Acceptance Criteria → Caso d'uso → UML → Componente → Codice → Test`.
+
+## UC-01 — Registrare un contratto di locazione
+
+| Requisito | Acceptance Criteria | UML | Componenti principali | Codice principale | Test principali |
+|---|---|---|---|---|---|
+| RF-01 — procedura guidata, navigazione, recupero e cleanup delle bozze | AC-04, AC-07, AC-09 | `uml/use-case.puml`, `uml/activity-uc01.puml`, `uml/sequence-uc01.puml`, `uml/class-diagram.puml` | `RegistraContrattoService`, `BozzaContratto`, frontend UC-01 | `src/application/RegistraContrattoService.ts`, `src/application/model/BozzaContratto.ts`, `public/index.html`, `public/js/app.js` | `test/application/RegistraContrattoService.test.ts`, `test/application/RegistraContrattoServiceE2EFindings.test.ts`, `test/web/RegistraContrattoHttp.test.ts`, `test/web/StaticFrontendHttp.test.ts` |
+| RF-02 — persistenza e lifecycle di più bozze | AC-07, AC-08, AC-09 | `uml/activity-uc01.puml`, `uml/sequence-uc01.puml`, `uml/class-diagram.puml` | `RegistraContrattoService`, `BozzaContrattoRepository`, `PostgresBozzaContrattoRepository` | `src/application/RegistraContrattoService.ts`, `src/application/ports/BozzaContrattoRepository.ts`, `src/infrastructure/persistence/postgres/PostgresBozzaContrattoRepository.ts`, `src/infrastructure/persistence/postgres/BozzaContrattoJsonMapper.ts` | `test/application/RegistraContrattoService.test.ts`, `test/integration/postgres/PostgresBozzaContrattoRepository.test.ts`, `test/infrastructure/persistence/BozzaContrattoJsonMapperIban.test.ts` |
+| RF-03 — Immobile, Persona, documento e controlli anagrafici | AC-01, AC-02, AC-03, AC-04 | `uml/domain-model.puml`, `uml/activity-uc01.puml`, `uml/class-diagram.puml` | `Immobile`, `DatiCatastali`, `Persona`, `DocumentoRiconoscimento`, repository di lookup | `src/domain/Immobile.ts`, `src/domain/DatiCatastali.ts`, `src/domain/Persona.ts`, `src/domain/DocumentoRiconoscimento.ts`, `src/application/RegistraContrattoService.ts`, `src/infrastructure/persistence/postgres/PostgresImmobileRepository.ts`, `src/infrastructure/persistence/postgres/PostgresPersonaRepository.ts` | `test/domain/DatiCatastaliValidazione.test.ts`, `test/domain/Persona.test.ts`, `test/domain/PersonaValidazione.test.ts`, `test/domain/DocumentoRiconoscimentoValidazione.test.ts`, `test/application/RegistraContrattoServicePersone.test.ts`, `test/integration/postgres/PostgresLookupRepositories.test.ts` |
+| RF-04 — dati contrattuali, durata, articoli, anteprima e documento | AC-05, AC-07 | `uml/domain-model.puml`, `uml/sequence-uc01.puml`, `uml/class-diagram.puml` | `Contratto`, `TipologiaContrattuale`, `Articolo`, `GeneratoreDocumentoContratto` | `src/domain/Contratto.ts`, `src/domain/TipologiaContrattuale.ts`, `src/domain/Articolo.ts`, `src/infrastructure/document/GeneratoreDocumentoHtmlContratto.ts`, `src/infrastructure/document/ImportoInLettere.ts` | `test/domain/ContrattoCanoneAnnuale.test.ts`, `test/infrastructure/document/GeneratoreDocumentoHtmlContratto.test.ts`, `test/infrastructure/document/ImportoInLettere.test.ts`, `test/infrastructure/document/TemplateContrattuali.test.ts`, `test/web/RegistraContrattoAnteprimaHttp.test.ts` |
+| RF-05 — assenza di sovrapposizioni tra periodi dello stesso Immobile | AC-02, AC-06 | `uml/domain-model.puml`, `uml/sequence-uc01.puml`, `uml/class-diagram.puml` | `Contratto`, `ContrattoRepository`, `RegistraContrattoService` | `src/domain/Contratto.ts`, `src/application/ports/ContrattoRepository.ts`, `src/infrastructure/persistence/postgres/PostgresContrattoRepository.ts`, `src/application/RegistraContrattoService.ts` | `test/domain/Contratto.test.ts`, `test/application/RegistraContrattoServiceConferma.test.ts`, `test/integration/postgres/PostgresContrattoRepository.test.ts` |
+| RF-06 — conferma definitiva, contenuto storico, primo Pagamento e atomicità | AC-07, AC-08, AC-09 | `uml/sequence-uc01.puml`, `uml/activity-uc01.puml`, `uml/class-diagram.puml` | `RegistraContrattoService`, `RegistrazioneContrattoPort`, `PostgresRegistrazioneContratto`, `Pagamento` | `src/application/RegistraContrattoService.ts`, `src/application/ports/RegistrazioneContrattoPort.ts`, `src/infrastructure/persistence/postgres/PostgresRegistrazioneContratto.ts`, `src/domain/Pagamento.ts` | `test/application/RegistraContrattoServiceConferma.test.ts`, `test/application/RegistraContrattoServiceE2EFindings.test.ts`, `test/integration/postgres/PostgresRegistrazioneContratto.test.ts`, `test/integration/postgres/SchemaPostgres.test.ts` |
+
+## UC-02 — Registrare il pagamento di un canone
+
+| Requisito | Acceptance Criteria | UML | Componenti principali | Codice principale | Test principali |
+|---|---|---|---|---|---|
+| RF-07 — selezione univoca dell'Immobile e individuazione dell'Inquilino | AC-10 | `uml/use-case.puml`, `uml/sequence-uc02.puml`, `uml/class-diagram.puml` | `RegistraPagamentoService`, `RegistraPagamentoController`, frontend UC-02 | `src/application/RegistraPagamentoService.ts`, `src/web/RegistraPagamentoController.ts`, `src/web/Uc02HttpOutput.ts`, `public/pagamenti.html`, `public/js/pagamenti.js` | `test/application/RegistraPagamentoService.test.ts`, `test/web/RegistraPagamentoHttp.test.ts`, `test/web/StaticFrontendHttp.test.ts`, `test/integration/uc02/RegistraPagamentoEndToEnd.test.ts` |
+| RF-08 — individuazione automatica della mensilità non pagata più vecchia, esclusione di pagate e future, blocco se assente | AC-11, AC-12 | `uml/domain-model.puml`, `uml/sequence-uc02.puml`, `uml/class-diagram.puml` | `RegistraPagamentoService`, `ContrattoRepository`, `PagamentoDaRegistrare` | `src/application/RegistraPagamentoService.ts`, `src/application/model/PagamentoDaRegistrare.ts`, `src/application/ports/ContrattoRepository.ts`, `src/infrastructure/persistence/postgres/PostgresContrattoRepository.ts` | `test/application/RegistraPagamentoService.test.ts`, `test/integration/postgres/PostgresContrattoRepository.test.ts`, `test/integration/uc02/RegistraPagamentoEndToEnd.test.ts` |
+| RF-09 — importo automatico, pro-rata di confine, competenza, data server e pagamento tardivo | AC-13, AC-14 | `uml/domain-model.puml`, `uml/class-diagram.puml`, `uml/sequence-uc02.puml` | `Contratto`, `Pagamento`, `RegistraPagamentoService`, `DataCorrenteProvider` | `src/domain/Contratto.ts`, `src/domain/Pagamento.ts`, `src/application/RegistraPagamentoService.ts`, `src/application/ports/DataCorrenteProvider.ts`, `src/infrastructure/time/DataCorrenteSistemaProvider.ts` | `test/domain/Contratto.test.ts`, `test/domain/Pagamento.test.ts`, `test/application/RegistraPagamentoService.test.ts`, `test/integration/uc02/RegistraPagamentoEndToEnd.test.ts` |
+| RF-10 — Pagato, conferma esplicita, Annulla senza persistenza | AC-15 | `uml/sequence-uc02.puml`, `uml/class-diagram.puml` | frontend UC-02, `RegistraPagamentoController`, `RegistraPagamentoService`, `PagamentoRepository` | `public/pagamenti.html`, `public/js/pagamenti.js`, `src/web/RegistraPagamentoController.ts`, `src/application/RegistraPagamentoService.ts`, `src/application/ports/PagamentoRepository.ts`, `src/infrastructure/persistence/postgres/PostgresPagamentoRepository.ts` | `test/application/RegistraPagamentoService.test.ts`, `test/web/RegistraPagamentoHttp.test.ts`, `test/integration/postgres/PostgresPagamentoRepository.test.ts`, `test/integration/uc02/RegistraPagamentoEndToEnd.test.ts` |
+
+## Requisiti non funzionali
+
+| Requisito | Evidenza principale |
+|---|---|
+| RNF-01 — recuperabilità delle bozze | `BozzaContrattoRepository`, `PostgresBozzaContrattoRepository`, `RegistraContrattoService.avvia()` e relativi test applicativi/integrativi |
+| RNF-03 — validazione e trattamento sicuro degli input | validazione HTML, `Uc01HttpInput.ts`, `Uc02HttpInput.ts`, query parametrizzate `pg`, escaping nel `GeneratoreDocumentoHtmlContratto` e test HTTP/documentali |
+| RNF-04 — errori senza stato parziale o falso successo | `HttpErrorHandler.ts`, transazione `PostgresRegistrazioneContratto`, propagazione degli errori di `PagamentoRepository`, test di rollback/conflitto/preview obsoleta |
+| RNF-05 — stato percepibile delle operazioni | `public/js/app.js` e `public/js/pagamenti.js`, che mostrano caricamento, successo ed errore durante le chiamate asincrone |
+
+La precedente numerazione non contiene RNF-02: il vincolo prestazionale numerico è stato rimosso dalla versione 1.0 perché non era accompagnato da condizioni nominali e ambiente di misura riproducibili. La scelta evita di presentare come verificabile un requisito privo di un criterio di misura stabile.
+
+## Vincoli trasversali di UC-02
+
+`DataCorrenteProvider` rende la data server autorevole e sostituibile nei test. La preview `PagamentoDaRegistrare` è un application model di sola visualizzazione: alla conferma `RegistraPagamentoService` ricarica i dati persistiti, individua nuovamente la competenza registrabile e ricalcola l'importo prima di creare il `Pagamento`.
+
+`PagamentoRepository` è una porta orientata alla sola scrittura richiesta da UC-02. I Pagamenti storici vengono invece ricostruiti insieme al `Contratto` da `ContrattoRepository`; in questo modo il caso d'uso non possiede due percorsi concorrenti per leggere lo stesso stato.
+
+Il vincolo PostgreSQL `UNIQUE (contratto_id, anno_competenza, mese_competenza)` costituisce una protezione secondaria della persistenza. Non sostituisce la rivalidazione applicativa, che impedisce anche di confermare una preview diventata obsoleta o di saltare una competenza precedente.
+
+## Scenario end-to-end di UC-02
+
+`test/integration/uc02/RegistraPagamentoEndToEnd.test.ts` attraversa il confine HTTP, il Service applicativo, le implementazioni PostgreSQL delle porte e lo schema reale di test. Lo scenario positivo parte da un Contratto con la prima competenza già pagata, ottiene la preview della competenza successiva, conferma e verifica il nuovo record persistito con data server e importo autorevole.
+
+Lo scenario di errore prepara una preview e modifica lo stato persistito prima della conferma. La conferma deve quindi restituire conflitto, senza creare duplicati né registrare una competenza diversa da quella esplicitamente confermata.
