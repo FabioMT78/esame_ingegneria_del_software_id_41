@@ -19,6 +19,9 @@ describe("asset statici frontend", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toContain("text/html");
     expect(body).toContain("Registrazione contratto di locazione");
+    expect(body).toContain('id="registra-pagamento"');
+    expect(body).toContain('action="/pagamenti.html"');
+    expect(body).toContain("Registra pagamento");
     expect(body).toContain('id="step1-panel"');
     expect(body).toContain('id="step2-panel"');
     expect(body).toContain('id="step3-panel"');
