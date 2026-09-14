@@ -158,7 +158,7 @@ class RegistraContrattoService {
     }
 
     this.validaPersona(persona);
-    await this.verificaPersonaNuovaNonRegistrata(persona);
+    await this.verificaIdentitaPersona(persona);
 
     if (bozza.inquilino?.codiceFiscale === persona.codiceFiscale) {
       throw new ConflittoApplicativo(
@@ -183,7 +183,7 @@ class RegistraContrattoService {
     }
 
     this.validaPersona(persona);
-    await this.verificaPersonaNuovaNonRegistrata(persona);
+    await this.verificaIdentitaPersona(persona);
 
     if (bozza.proprietario.codiceFiscale === persona.codiceFiscale) {
       throw new ConflittoApplicativo(
@@ -307,7 +307,13 @@ class RegistraContrattoService {
 
     try {
       await this.bozzaRepository.elimina(idBozza);
-    } catch {
+    } catch (errore) {
+      const dettaglio =
+        errore instanceof Error ? errore.message : String(errore);
+
+      console.warn(
+        `[UC-01] Registrazione completata; cleanup bozza ${idBozza} fallito: ${dettaglio}`,
+      );
       // La registrazione definitiva è già conclusa.
       // La bozza residua verrà riconosciuta al successivo avvio.
     }
@@ -395,21 +401,27 @@ class RegistraContrattoService {
     );
   }
 
-  private async verificaPersonaNuovaNonRegistrata(
+  private async verificaIdentitaPersona(
     persona: Persona,
   ): Promise<void> {
-    if (persona.id !== undefined) {
-      return;
-    }
-
     const esistente =
       await this.personaRepository.trovaPerCodiceFiscale(
         persona.codiceFiscale,
       );
 
-    if (esistente !== null) {
+    if (persona.id === undefined) {
+      if (esistente !== null) {
+        throw new ConflittoApplicativo(
+          "Il codice fiscale appartiene a una persona già registrata. Utilizzare la ricerca per recuperarla",
+        );
+      }
+
+      return;
+    }
+
+    if (esistente?.id !== persona.id) {
       throw new ConflittoApplicativo(
-        "Il codice fiscale appartiene a una persona già registrata. Utilizzare la ricerca per recuperarla",
+        "Il codice fiscale di una persona già registrata non può essere modificato",
       );
     }
   }

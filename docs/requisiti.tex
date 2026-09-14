@@ -68,6 +68,8 @@ Sono fuori scope:
     \item manutenzione, annunci e prenotazione degli immobili;
     \item registrazione e gestione dei depositi cauzionali, che nella versione 1.0 si considerano già versati alla decorrenza del contratto;
     \item autenticazione e autorizzazione degli utenti;
+    \item verifica anagrafica esterna o ricostruzione di nome, cognome, data e luogo di nascita
+          a partire dal codice fiscale;
     \item utilizzo pubblico o multiutente del sistema.
 \end{itemize}
 
@@ -86,6 +88,8 @@ autorizzazione restano fuori scope.
           quando disponibili e non sono obbligatori.
       \item Ogni immobile è caratterizzato da dati catastali comprendenti codice
             comunale, foglio, particella, subalterno, categoria, consistenza e rendita.
+            Foglio, particella, subalterno, consistenza e rendita non possono assumere
+            valori inferiori a zero.
       \item L'immobile è identificato catastalmente dalla combinazione di codice comunale,
             foglio, particella e subalterno. Categoria, consistenza e rendita costituiscono
             caratteristiche catastali dell'immobile ma non partecipano alla sua identificazione.
@@ -222,6 +226,8 @@ già registrato, presentandolo tramite il nome assegnato, oppure di inserirne un
 La selezione deve riferirsi univocamente all'immobile registrato anche quando più immobili
 hanno lo stesso nome.
 Per un nuovo immobile il sistema deve acquisire l'indirizzo e i dati catastali.
+I valori numerici foglio, particella, subalterno, consistenza e rendita dei dati catastali
+devono essere maggiori o uguali a zero.
 L'indirizzo deve comprendere almeno provincia, comune e indirizzo; nazione, CAP, numero civico,
 scala e interno devono poter essere acquisiti quando disponibili senza essere obbligatori.
 L'immobile deve essere riconosciuto catastalmente tramite la combinazione di codice comunale,
@@ -248,8 +254,10 @@ di completare lo step. Per la Persona che assume il ruolo di proprietario il sis
 inoltre consentire di acquisire un IBAN opzionale a livello anagrafico; quando il template della
 tipologia selezionata contiene il relativo segnaposto, l'IBAN deve essere disponibile già per
 completare lo step dei dati contrattuali e accedere al riepilogo. Nell'ambito di UC-01 il codice fiscale della persona già registrata non
-è modificabile. In caso contrario il sistema deve consentire di acquisire i dati di una nuova
-persona: nome, cognome, luogo di nascita, data di nascita, codice fiscale, provincia, comune
+è modificabile: un codice fiscale differente identifica, per il sistema, una nuova Persona.
+La versione 1.0 non verifica la coerenza anagrafica fra codice fiscale e nome, cognome, data o
+luogo di nascita. Per una nuova Persona il sistema deve consentire di acquisire nome, cognome,
+luogo di nascita, data di nascita, codice fiscale, provincia, comune
 e indirizzo della residenza; nazione, CAP, numero civico, scala e interno devono poter essere
 acquisiti quando disponibili senza essere obbligatori.
 Per la persona che assume il ruolo di inquilino il sistema deve inoltre acquisire o consentire
@@ -385,10 +393,7 @@ Il client deve applicare controlli di ammissibilità coerenti con il tipo di cia
 segnalando prima dell'invio caratteri o sequenze non consentiti. Tali controlli non sostituiscono
 la validazione lato server: ogni input deve essere nuovamente validato e trattato in modo sicuro
 prima di essere visualizzato o utilizzato nelle operazioni di persistenza, con particolare
-attenzione a vulnerabilità di tipo XSS e injection. Se la validazione lato server rileva un input
-riconducibile a un possibile tentativo di attacco, la richiesta deve essere rifiutata e deve essere
-registrato un evento di sicurezza contenente i metadati tecnici disponibili della richiesta e il
-valore rilevato in forma sanitizzata. &
+attenzione a vulnerabilità di tipo XSS e injection. &
 Sicurezza \\
 
 \req{RNF-04} &
@@ -429,6 +434,11 @@ coincide con quella di un immobile già registrato,
 \textbf{Dato} che il proprietario inserisce un nuovo immobile con l'interno specificato,
 \textbf{quando} l'indirizzo completo coincide con quello di un immobile già registrato,
 \textbf{allora} il sistema deve rifiutare l'inserimento.
+
+\textbf{Dato} che il proprietario inserisce i dati catastali di un nuovo immobile,
+\textbf{quando} foglio, particella, subalterno, consistenza o rendita assumono un valore
+inferiore a zero,
+\textbf{allora} il sistema deve rifiutare il dato e impedire il completamento dello step.
 
 \paragraph{AC-02 -- immobile con contratti già registrati}
 \textbf{Dato} un immobile per il quale esiste già uno o più contratti registrati,

@@ -20,6 +20,7 @@ import TipologiaContrattuale from "../../src/domain/TipologiaContrattuale";
 class BozzaRepositoryFake implements BozzaContrattoRepository {
   salvataggi = 0;
   eliminazioni = 0;
+  erroreEliminazione: Error | null = null;
 
   constructor(readonly bozza: BozzaContratto) {}
 
@@ -44,6 +45,10 @@ class BozzaRepositoryFake implements BozzaContrattoRepository {
 
   async elimina(_idBozza: number): Promise<void> {
     this.eliminazioni += 1;
+
+    if (this.erroreEliminazione !== null) {
+      throw this.erroreEliminazione;
+    }
   }
 }
 
@@ -271,6 +276,27 @@ describe("RegistraContrattoService - correzioni emerse dall'E2E", () => {
     expect(scenario.bozze.salvataggi).toBe(0);
   });
 
+  test("rifiuta la modifica del codice fiscale associato a una Persona persistita", async () => {
+    const bozza = new BozzaContratto({
+      idBozza: 1,
+      stepCompletato: 1,
+      immobile: creaImmobile(),
+    });
+    const scenario = creaScenario(bozza);
+    scenario.persone.persona = creaPersona("RSSMRA80A10H501U", { id: 99 });
+
+    await expect(
+      scenario.service.impostaProprietario(
+        1,
+        creaPersona("VRDLGI90B20H501X", { id: 99 }),
+      ),
+    ).rejects.toThrow(
+      "Il codice fiscale di una persona già registrata non può essere modificato",
+    );
+
+    expect(scenario.bozze.salvataggi).toBe(0);
+  });
+
   test("rifiuta un documento con data di rilascio futura", async () => {
     const bozza = new BozzaContratto({
       idBozza: 1,
@@ -321,6 +347,43 @@ describe("RegistraContrattoService - correzioni emerse dall'E2E", () => {
     );
 
     expect(scenario.bozze.salvataggi).toBe(0);
+  });
+
+  test("registra il fallimento del cleanup senza invalidare il contratto già registrato", async () => {
+    const tipologia = creaTipologia(false);
+    const dal = new Date("2026-10-01T00:00:00.000Z");
+    const bozza = new BozzaContratto({
+      idBozza: 1,
+      stepCompletato: 4,
+      immobile: creaImmobile(),
+      proprietario: creaPersona("RSSMRA80A10H501U"),
+      inquilino: creaPersona("VRDLGI90B20H501X", {
+        documento: creaDocumento(),
+      }),
+      tipologia,
+      nomeDescrizione: "Contratto test",
+      dal,
+      al: Contratto.calcolaDataFine(dal, tipologia),
+      canoneMensile: 900,
+      giornoPagamento: 15,
+    });
+    const scenario = creaScenario(bozza);
+    scenario.bozze.erroreEliminazione = new Error("cleanup non disponibile");
+    const warnSpy = jest
+      .spyOn(console, "warn")
+      .mockImplementation(() => undefined);
+
+    try {
+      await expect(scenario.service.conferma(1)).resolves.toBeUndefined();
+
+      expect(scenario.registrazione.chiamate).toBe(1);
+      expect(scenario.bozze.eliminazioni).toBe(1);
+      expect(warnSpy).toHaveBeenCalledWith(
+        "[UC-01] Registrazione completata; cleanup bozza 1 fallito: cleanup non disponibile",
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   test("genera l'anteprima dal contratto transitorio senza registrare dati definitivi", async () => {

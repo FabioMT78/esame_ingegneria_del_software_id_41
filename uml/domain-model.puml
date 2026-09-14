@@ -99,6 +99,10 @@ Contratto "1" -- "1..*" Pagamento : pagamenti
 
 note right of Persona
   { codiceFiscale univoco e strutturalmente valido }
+  { in UC-01 il codiceFiscale di una Persona
+    già registrata non è modificabile }
+  { la coerenza semantica fra codice fiscale
+    e dati anagrafici è fuori scope }
   { posizioni numeriche del codice fiscale:
     ammesse anche le sostituzioni per omocodia }
   { in UC-01, età alla data corrente in 18..150 anni }
@@ -117,6 +121,8 @@ end note
 note bottom of DatiCatastali
   { codiceComunale + foglio + particella +
     subalterno identificano univocamente l'Immobile }
+  { foglio, particella, subalterno,
+    consistenza e rendita >= 0 }
 end note
 
 note bottom of Indirizzo

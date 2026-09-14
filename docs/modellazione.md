@@ -61,6 +61,10 @@ previste per l'omocodia, senza introdurre una verifica anagrafica esterna dell'e
 attribuzione del codice. I dati anagrafici richiesti comprendono nome, cognome, luogo e data
 di nascita, codice fiscale e residenza. In UC-01 la data di nascita deve corrispondere,
 rispetto alla data corrente del server, a un'età compresa tra 18 e 150 anni inclusi.
+Per una Persona già registrata il codice fiscale è immutabile nell'ambito di UC-01: un codice
+fiscale differente identifica una nuova Persona. La versione 1.0 non verifica invece la coerenza
+semantica fra codice fiscale e nome, cognome, data o luogo di nascita, perché tale controllo
+richiederebbe regole anagrafiche ulteriori o fonti esterne e rimane fuori scope.
 `Persona` può inoltre contenere un IBAN opzionale. L'IBAN appartiene alla Persona e non al Contratto:
 quando un template lo utilizza, il generatore legge l'IBAN della Persona che nel Contratto assume il
 ruolo di proprietario.
@@ -98,7 +102,7 @@ Quando l'interno è specificato per un Immobile, l'indirizzo completo non può d
 - consistenza;
 - rendita.
 
-La combinazione `codice comunale + foglio + particella + subalterno` identifica univocamente l'Immobile. `categoria`, `consistenza` e `rendita` descrivono caratteristiche catastali ma non partecipano all'identificazione.
+La combinazione `codice comunale + foglio + particella + subalterno` identifica univocamente l'Immobile. `categoria`, `consistenza` e `rendita` descrivono caratteristiche catastali ma non partecipano all'identificazione. I valori numerici `foglio`, `particella`, `subalterno`, `consistenza` e `rendita` non possono essere negativi.
 
 ### 3.3 Documento di riconoscimento
 
@@ -226,9 +230,10 @@ La bozza non rappresenta un Contratto incompleto e non contiene il documento sto
 
 Il Domain Model rende espliciti i vincoli necessari a comprenderne struttura e significato:
 
-- il codice fiscale identifica una Persona registrata ed è sottoposto al controllo strutturale previsto;
+- il codice fiscale identifica una Persona registrata, è sottoposto al controllo strutturale previsto e non è modificabile in UC-01 per una Persona già persistita;
 - in UC-01 la data di nascita deve corrispondere a un'età compresa tra 18 e 150 anni rispetto alla data corrente del server;
 - proprietario e inquilino dello stesso Contratto devono avere codici fiscali differenti;
+- foglio, particella, subalterno, consistenza e rendita dei DatiCatastali devono essere maggiori o uguali a zero;
 - una Persona che assume il ruolo di inquilino deve disporre del DocumentoRiconoscimento richiesto;
 - il DocumentoRiconoscimento dell'inquilino deve avere data di rilascio non successiva alla data corrente del server e data di scadenza successiva alla stessa data corrente;
 - la combinazione catastale identifica univocamente un Immobile;
