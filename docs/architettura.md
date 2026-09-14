@@ -136,9 +136,11 @@ Coordina la procedura guidata, il recupero dei dati necessari, la gestione delle
 
 Più bozze possono coesistere nella versione 1.0. Ogni operazione che modifica, conferma o annulla una procedura già iniziata identifica esplicitamente la relativa bozza, evitando che un'operazione su un contratto in preparazione modifichi lo stato temporaneo di un altro. All'avvio il Service individua le bozze riprendibili ed elimina soltanto quelle riconosciute come residue di una registrazione già completata.
 
-Il `Contratto` viene costruito soltanto alla conferma finale. Persistenza, generazione HTML, data corrente e regole di dominio sono delegate ai rispettivi collaboratori; il Service non contiene query, serializzazione, rendering concreto o formule economiche duplicate.
+Dopo il completamento dei quattro step di acquisizione, il Service può costruire un `Contratto` transitorio dalla bozza completa per produrre l'anteprima del riepilogo. L'operazione `anteprima(idBozza)` rivalida i dati dipendenti dalla data corrente e invoca lo stesso `GeneratoreDocumentoContratto` usato dalla conferma, ma non imposta contenuto storico, non crea Pagamenti e non esegue scritture definitive. Alla conferma il `Contratto` viene costruito nuovamente dai dati correnti della bozza, viene eseguito il controllo di sovrapposizione e il documento viene rigenerato prima della registrazione definitiva. In questo modo l'anteprima non diventa fonte autorevole e non può divergere per una logica di rendering separata.
 
-Una Persona già registrata può essere trattata nella procedura come working copy dei dati modificabili, mentre `id` e `codiceFiscale` restano invariati. Un Immobile già registrato viene selezionato ma non modificato da UC-01.
+Persistenza, generazione HTML, data corrente e regole di dominio sono delegate ai rispettivi collaboratori; il Service non contiene query, serializzazione, rendering concreto o formule economiche duplicate.
+
+Una Persona già registrata può essere trattata nella procedura come working copy dei dati modificabili, mentre `id` e `codiceFiscale` restano invariati. L'inserimento diretto di una nuova Persona salta soltanto la ricerca preliminare: il Service verifica comunque che il codice fiscale non appartenga già a una Persona definitiva. Un Immobile già registrato viene selezionato ma non modificato da UC-01.
 
 ### `RegistraPagamentoService`
 
@@ -174,7 +176,7 @@ Le firme pubbliche e le relazioni precise sono rappresentate nel Class Diagram e
 
 ### Altre porte applicative
 
-`GeneratoreDocumentoContratto` isola la produzione del documento definitivo dal caso d'uso. Nella versione 1.0 l'implementazione concreta produce HTML a partire dal `Contratto` definitivo e dai template della tipologia.
+`GeneratoreDocumentoContratto` isola la produzione del documento HTML dal caso d'uso. Nella versione 1.0 la stessa implementazione viene usata sia per l'anteprima valorizzata del riepilogo sia per il documento definitivo: cambia il contesto applicativo, non la logica di rendering. L'anteprima opera su un `Contratto` transitorio costruito dalla bozza e non viene persistita; alla conferma il documento viene rigenerato dai dati finali rivalidati e solo quel risultato viene conservato come contenuto storico.
 
 `DataCorrenteProvider` isola la sorgente della data corrente. È condiviso dai due casi d'uso e permette al server di rimanere autorevole mantenendo i test deterministici.
 
@@ -242,7 +244,7 @@ Il testo dei template è trattato come testo e non come HTML arbitrario. `Genera
 
 Il `Contratto` conserva direttamente la propria copia storica completa tramite `registratoIl` e `contenuto`. Non viene mantenuta una classe separata `ContrattoRegistrato`, perché non possiede un lifecycle o un comportamento autonomo che giustifichi una relazione 1:1 distinta.
 
-Nella versione 1.0 `contenuto` è HTML persistito come `TEXT`. Il contenuto viene generato lato server alla conferma definitiva e non viene ricostruito in seguito dai template o dai dati sorgente: questo ne preserva il significato storico. Un'eventuale futura esportazione PDF può essere aggiunta senza modificare questa responsabilità.
+Nella versione 1.0 `contenuto` è HTML persistito come `TEXT`. Prima della conferma il backend può restituire al browser un'anteprima HTML valorizzata, mostrata in un contesto isolato e non salvata come stato definitivo. Il contenuto storico viene invece rigenerato lato server alla conferma definitiva e non viene ricostruito in seguito dai template o dai dati sorgente: questo ne preserva il significato storico. Un'eventuale futura esportazione PDF può essere aggiunta senza modificare questa responsabilità.
 
 ## 7. Confine transazionale di UC-01
 
@@ -324,6 +326,8 @@ Non viene introdotto un ORM perché lo scope permette di mantenere espliciti SQL
 ### Frontend
 
 Il client usa HTML5, CSS e JavaScript vanilla, con `fetch()` per le chiamate HTTP/JSON. TypeScript non viene esteso al frontend nella versione 1.0, evitando una pipeline di build lato browser che i due workflow core non giustificano. Non viene introdotto un framework SPA o un template engine aggiuntivo.
+
+Per UC-01 il frontend rappresenta cinque step. I primi quattro acquisiscono e persistono progressivamente la bozza; il quinto è il riepilogo operativo e non aggiunge uno stato persistente del workflow. Gli step già raggiungibili possono essere selezionati direttamente dalla navigazione superiore, mentre non è consentito saltare verso uno step futuro non ancora validato. Nel riepilogo il client richiede al backend l'anteprima HTML tramite una route dedicata e la mostra in un `iframe` sandboxed; conferma, conservazione della bozza e annullamento restano azioni esplicite e separate.
 
 ### Database, test e quality gate
 

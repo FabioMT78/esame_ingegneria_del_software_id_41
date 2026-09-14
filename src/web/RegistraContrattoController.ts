@@ -27,6 +27,7 @@ type RegistraContrattoHttpService = Pick<
   | "impostaProprietario"
   | "impostaInquilino"
   | "impostaDatiContrattuali"
+  | "anteprima"
   | "conferma"
   | "annulla"
 >;
@@ -163,6 +164,15 @@ class RegistraContrattoController {
           dati.giornoPagamento,
         );
         res.status(200).json(serializzaBozza(bozza));
+      },
+    );
+
+    this.router.get(
+      "/contratti/bozze/:idBozza/anteprima",
+      async (req, res) => {
+        const idBozza = leggiIdParametro(req.params.idBozza, "idBozza");
+        const html = await this.service.anteprima(idBozza);
+        res.status(200).type("html").send(html);
       },
     );
 

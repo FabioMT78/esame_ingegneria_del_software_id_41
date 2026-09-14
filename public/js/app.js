@@ -1,5 +1,6 @@
 import {
   annullaBozza,
+  caricaAnteprima,
   caricaBozze,
   caricaImmobili,
   caricaTipologie,
@@ -43,7 +44,6 @@ function inizializzaElementi() {
   elementi.status = richiesto("status");
   elementi.proceduraToolbar = richiesto("procedura-toolbar");
   elementi.tornaRiepilogo = richiesto("torna-riepilogo");
-  elementi.annullaBozza = richiesto("annulla-bozza");
   elementi.avvioPanel = richiesto("avvio-panel");
   elementi.bozzeList = richiesto("bozze-list");
   elementi.nuovoContratto = richiesto("nuovo-contratto");
@@ -53,7 +53,6 @@ function inizializzaElementi() {
   elementi.step3Panel = richiesto("step3-panel");
   elementi.step4Panel = richiesto("step4-panel");
   elementi.step5Panel = richiesto("step5-panel");
-  elementi.step6Panel = richiesto("step6-panel");
 
   elementi.formEsistente = richiesto("form-immobile-esistente");
   elementi.formNuovo = richiesto("form-immobile-nuovo");
@@ -70,22 +69,22 @@ function inizializzaElementi() {
   elementi.contrattoGiornoPagamento = richiesto(
     "contratto-giorno-pagamento",
   );
-  elementi.tipologiaArticoli = richiesto("tipologia-articoli");
-  elementi.tipologiaArticoliList = richiesto("tipologia-articoli-list");
   elementi.datiContrattualiIndietro = richiesto(
     "dati-contrattuali-indietro",
   );
 
+  elementi.riepilogoOperativo = richiesto("riepilogo-operativo");
   elementi.riepilogoContenuto = richiesto("riepilogo-contenuto");
   elementi.riepilogoIndietro = richiesto("riepilogo-indietro");
-  elementi.vaiConferma = richiesto("vai-conferma");
-
-  elementi.confermaContent = richiesto("conferma-content");
-  elementi.confermaDettaglio = richiesto("conferma-dettaglio");
-  elementi.confermaIndietro = richiesto("conferma-indietro");
-  elementi.confermaContratto = richiesto("conferma-contratto");
-  elementi.confermaSuccesso = richiesto("conferma-successo");
-  elementi.confermaSuccessoTesto = richiesto("conferma-successo-testo");
+  elementi.salvaBozza = richiesto("salva-bozza");
+  elementi.riepilogoAnnulla = richiesto("riepilogo-annulla");
+  elementi.riepilogoConferma = richiesto("riepilogo-conferma");
+  elementi.anteprimaStato = richiesto("anteprima-stato");
+  elementi.riepilogoAnteprima = richiesto("riepilogo-anteprima");
+  elementi.riepilogoSuccesso = richiesto("riepilogo-successo");
+  elementi.riepilogoSuccessoTesto = richiesto(
+    "riepilogo-successo-testo",
+  );
   elementi.nuovaProceduraDopoConferma = richiesto(
     "nuova-procedura-dopo-conferma",
   );
@@ -113,6 +112,8 @@ function impostaOccupato(occupato, messaggio = "Operazione in corso…") {
   if (occupato) {
     mostraStato(messaggio, "loading");
   }
+
+  aggiornaStepper();
 }
 
 function idBozzaCorrente() {
@@ -123,6 +124,18 @@ function idBozzaCorrente() {
   }
 
   return idBozza;
+}
+
+function aggiornaBozzaInElenco(bozza) {
+  const indice = stato.bozze.findIndex(
+    (esistente) => esistente.idBozza === bozza.idBozza,
+  );
+
+  if (indice >= 0) {
+    stato.bozze[indice] = bozza;
+  } else {
+    stato.bozze.push(bozza);
+  }
 }
 
 function descrizioneImmobile(immobile) {
@@ -177,20 +190,46 @@ function formattaEuro(valore) {
   }).format(valore);
 }
 
+function massimoStepNavigabile() {
+  const completato = stato.bozzaCorrente?.stepCompletato ?? 0;
+
+  if (completato >= 4) {
+    return 5;
+  }
+
+  return Math.max(1, completato + 1);
+}
+
+function puoNavigareStep(step) {
+  if (stato.bozzaCorrente === null || stato.bozzaCorrente === undefined) {
+    return step === 1 && stato.stepVisualizzato === 1;
+  }
+
+  return step <= massimoStepNavigabile();
+}
+
 function aggiornaStepper() {
   const completati = stato.proceduraConclusa
-    ? 6
+    ? 5
     : (stato.bozzaCorrente?.stepCompletato ?? 0);
 
   elementi.stepper.querySelectorAll("[data-step]").forEach((voce) => {
     const numero = Number(voce.dataset.step);
+    const navigabile =
+      puoNavigareStep(numero) &&
+      !stato.proceduraConclusa &&
+      !stato.occupato;
+
     voce.classList.toggle("completed", numero <= completati);
     voce.classList.toggle("active", numero === stato.stepVisualizzato);
+    voce.classList.toggle("navigable", navigabile);
+    voce.setAttribute("aria-disabled", navigabile ? "false" : "true");
+    voce.tabIndex = navigabile ? 0 : -1;
   });
 }
 
 function aggiornaBadge() {
-  [1, 2, 3, 4, 5, 6].forEach((step) => {
+  [1, 2, 3, 4, 5].forEach((step) => {
     const badge = richiesto(`bozza-badge-step${step}`);
     const idBozza = stato.bozzaCorrente?.idBozza;
 
@@ -205,16 +244,15 @@ function aggiornaBadge() {
 }
 
 function aggiornaAzioniProcedura() {
-  const haBozza =
+  const mostraRitorno =
     Number.isInteger(stato.bozzaCorrente?.idBozza) &&
+    (stato.bozzaCorrente?.stepCompletato ?? 0) >= 4 &&
+    stato.ritornoAlRiepilogo &&
+    stato.stepVisualizzato >= 1 &&
+    stato.stepVisualizzato <= 4 &&
     !stato.proceduraConclusa;
 
-  elementi.proceduraToolbar.hidden = !haBozza;
-  elementi.tornaRiepilogo.hidden =
-    !haBozza ||
-    !stato.ritornoAlRiepilogo ||
-    stato.stepVisualizzato < 1 ||
-    stato.stepVisualizzato > 4;
+  elementi.proceduraToolbar.hidden = !mostraRitorno;
 }
 
 function nascondiPannelli() {
@@ -224,7 +262,15 @@ function nascondiPannelli() {
   elementi.step3Panel.hidden = true;
   elementi.step4Panel.hidden = true;
   elementi.step5Panel.hidden = true;
-  elementi.step6Panel.hidden = true;
+}
+
+function mostraAvvio() {
+  stato.stepVisualizzato = 1;
+  nascondiPannelli();
+  renderBozze();
+  elementi.avvioPanel.hidden = false;
+  aggiornaStepper();
+  aggiornaAzioniProcedura();
 }
 
 function renderBozze() {
@@ -238,22 +284,37 @@ function renderBozze() {
     const titolo = document.createElement("strong");
     titolo.textContent = `Bozza #${bozza.idBozza}`;
     const step = document.createElement("p");
-    step.textContent = `Step completato: ${bozza.stepCompletato} di 6`;
+    step.textContent =
+      bozza.stepCompletato >= 4
+        ? "Pronta per il riepilogo"
+        : `Dati completati: step ${bozza.stepCompletato} di 4`;
     const dettaglio = document.createElement("p");
     dettaglio.className = "muted";
     dettaglio.textContent = descrizioneBozza(bozza);
 
     testo.append(titolo, step, dettaglio);
 
-    const azione = document.createElement("button");
-    azione.type = "button";
-    azione.className = "button secondary";
-    azione.textContent = "Riprendi";
-    azione.addEventListener("click", () => {
+    const azioni = document.createElement("div");
+    azioni.className = "draft-actions";
+
+    const riprendi = document.createElement("button");
+    riprendi.type = "button";
+    riprendi.className = "button secondary";
+    riprendi.textContent = "Riprendi";
+    riprendi.addEventListener("click", () => {
       selezionaBozza(bozza);
     });
 
-    contenitore.append(testo, azione);
+    const annulla = document.createElement("button");
+    annulla.type = "button";
+    annulla.className = "button danger";
+    annulla.textContent = "Annulla";
+    annulla.addEventListener("click", () => {
+      void annullaBozzaPerId(bozza.idBozza);
+    });
+
+    azioni.append(riprendi, annulla);
+    contenitore.append(testo, azioni);
     elementi.bozzeList.append(contenitore);
   });
 }
@@ -325,57 +386,6 @@ function tipologiaSelezionata() {
   );
 }
 
-function renderArticoliTipologia(tipologia) {
-  elementi.tipologiaArticoliList.replaceChildren();
-
-  if (tipologia === null || tipologia.articoli.length === 0) {
-    elementi.tipologiaArticoli.hidden = true;
-    return;
-  }
-
-  const gruppi = new Map();
-
-  [...tipologia.articoli]
-    .sort(
-      (a, b) =>
-        a.numArticolo - b.numArticolo ||
-        a.numParte - b.numParte,
-    )
-    .forEach((articolo) => {
-      const chiave = String(articolo.numArticolo);
-      const esistenti = gruppi.get(chiave) ?? [];
-      esistenti.push(articolo);
-      gruppi.set(chiave, esistenti);
-    });
-
-  gruppi.forEach((parti, numero) => {
-    const articolo = document.createElement("article");
-    articolo.className = "template-article";
-
-    const titolo = document.createElement("h4");
-    titolo.textContent = `Articolo ${numero} — ${parti[0].titolo}`;
-    articolo.append(titolo);
-
-    if (parti[0].sottotitolo) {
-      const sottotitolo = document.createElement("p");
-      sottotitolo.className = "muted";
-      sottotitolo.textContent = parti[0].sottotitolo;
-      articolo.append(sottotitolo);
-    }
-
-    parti.forEach((parte) => {
-      const testo = document.createElement("p");
-      testo.className = "template-text";
-      testo.textContent = parte.descrizione;
-      articolo.append(testo);
-    });
-
-    elementi.tipologiaArticoliList.append(articolo);
-  });
-
-  elementi.tipologiaArticoli.hidden = false;
-}
-
 function tipologiaRichiedeIbanProprietario(tipologia) {
   return tipologia.articoli.some((articolo) =>
     /\{\{\s*proprietario\.iban\s*\}\}/.test(articolo.descrizione),
@@ -390,22 +400,19 @@ function aggiornaDettaglioTipologia() {
       tipologieDisponibili().length === 0
         ? "Le tipologie devono essere presenti nel database prima di completare lo step."
         : "";
-    renderArticoliTipologia(null);
     return;
   }
 
-  const richiedeIban = tipologiaRichiedeIbanProprietario(tipologia);
   const ibanMancante =
-    richiedeIban && !stato.bozzaCorrente?.proprietario?.iban;
+    tipologiaRichiedeIbanProprietario(tipologia) &&
+    !stato.bozzaCorrente?.proprietario?.iban;
 
   elementi.tipologiaDettaglio.textContent =
     `Periodo iniziale: ${tipologia.durata} anni. ` +
     `Rinnovo previsto dalla tipologia: ${tipologia.rinnovo} anni.` +
     (ibanMancante
-      ? " Il template selezionato richiede l'IBAN del proprietario: torna allo Step 2 per inserirlo."
+      ? " Il template selezionato richiede l'IBAN del proprietario: completa il dato nello Step 2."
       : "");
-
-  renderArticoliTipologia(tipologia);
 }
 
 function svuotaFormNuovo() {
@@ -413,8 +420,7 @@ function svuotaFormNuovo() {
 }
 
 function assegnaValore(id, valore) {
-  const elemento = richiesto(id);
-  elemento.value = valore ?? "";
+  richiesto(id).value = valore ?? "";
 }
 
 function compilaFormNuovo(immobile) {
@@ -483,8 +489,7 @@ function preparaStep4() {
   elementi.contrattoDal.value = bozza?.dal ?? "";
   elementi.contrattoAl.value = bozza?.al ?? "";
   elementi.contrattoCanone.value = bozza?.canoneMensile ?? "";
-  elementi.contrattoGiornoPagamento.value =
-    bozza?.giornoPagamento ?? "";
+  elementi.contrattoGiornoPagamento.value = bozza?.giornoPagamento ?? "";
 
   renderTipologie();
 
@@ -588,7 +593,7 @@ function renderRiepilogo() {
         "Documento",
         documento === null || documento === undefined
           ? "—"
-          : `${documento.tipo} ${documento.numero} — scadenza ${documento.dataScadenza}`,
+          : `${documento.tipo} ${documento.numero} — rilascio ${documento.dataRilascio} — scadenza ${documento.dataScadenza}`,
       ],
     ]),
     creaSezioneRiepilogo("Dati contrattuali", 4, [
@@ -609,26 +614,97 @@ function renderRiepilogo() {
   );
 }
 
-function renderConferma() {
-  const bozza = stato.bozzaCorrente;
+function testoConInterruzioni(elemento) {
+  const parti = [];
 
-  if (bozza === null || bozza === undefined) {
-    throw new Error("Bozza non disponibile per la conferma");
+  elemento.childNodes.forEach((nodo) => {
+    if (nodo.nodeType === Node.TEXT_NODE) {
+      parti.push(nodo.textContent ?? "");
+      return;
+    }
+
+    if (!(nodo instanceof HTMLElement)) {
+      return;
+    }
+
+    if (nodo.tagName === "BR") {
+      parti.push("\n");
+      return;
+    }
+
+    parti.push(testoConInterruzioni(nodo));
+  });
+
+  return parti.join("");
+}
+
+function renderAnteprimaArticoli(html) {
+  const documento = new DOMParser().parseFromString(html, "text/html");
+  const articoli = [...documento.querySelectorAll("article[data-num-articolo]")];
+
+  if (articoli.length === 0) {
+    throw new Error("L'anteprima non contiene articoli contrattuali");
   }
 
-  elementi.confermaContent.hidden = false;
-  elementi.confermaSuccesso.hidden = true;
-  elementi.confermaDettaglio.textContent =
-    `${bozza.nomeDescrizione ?? "Contratto"} — ` +
-    `${bozza.immobile?.nome ?? "Immobile"} — ` +
-    `dal ${bozza.dal ?? "—"} al ${bozza.al ?? "—"} — ` +
-    `canone ${formattaEuro(bozza.canoneMensile)}.`;
+  const frammento = document.createDocumentFragment();
+
+  articoli.forEach((articoloSorgente) => {
+    const articolo = document.createElement("article");
+    articolo.className = "template-article";
+
+    const titoloSorgente = articoloSorgente.querySelector("h2");
+    const titolo = document.createElement("h4");
+    titolo.textContent =
+      titoloSorgente?.textContent?.trim() ?? "Articolo contrattuale";
+    articolo.append(titolo);
+
+    articoloSorgente.querySelectorAll("h3, p").forEach((elementoSorgente) => {
+      const testo = testoConInterruzioni(elementoSorgente).trim();
+
+      if (testo === "") {
+        return;
+      }
+
+      const paragrafo = document.createElement("p");
+      paragrafo.className =
+        elementoSorgente.tagName === "H3" ? "muted" : "template-text";
+      paragrafo.textContent = testo;
+      articolo.append(paragrafo);
+    });
+
+    frammento.append(articolo);
+  });
+
+  elementi.riepilogoAnteprima.replaceChildren(frammento);
+}
+
+async function caricaAnteprimaRiepilogo() {
+  elementi.riepilogoAnteprima.hidden = true;
+  elementi.riepilogoAnteprima.replaceChildren();
+  elementi.anteprimaStato.hidden = false;
+  elementi.anteprimaStato.textContent = "Caricamento anteprima…";
+
+  try {
+    const html = await caricaAnteprima(idBozzaCorrente());
+    renderAnteprimaArticoli(html);
+    elementi.riepilogoAnteprima.hidden = false;
+    elementi.anteprimaStato.hidden = true;
+  } catch (errore) {
+    elementi.riepilogoAnteprima.replaceChildren();
+    elementi.anteprimaStato.hidden = false;
+    elementi.anteprimaStato.textContent =
+      errore instanceof Error
+        ? errore.message
+        : "Impossibile generare l'anteprima del contratto";
+  }
 }
 
 function mostraStep(step) {
   nascondiPannelli();
   stato.stepVisualizzato = step;
   aggiornaBadge();
+  elementi.riepilogoSuccesso.hidden = true;
+  elementi.riepilogoOperativo.hidden = false;
 
   if (step === 1) {
     preparaStep1();
@@ -645,9 +721,7 @@ function mostraStep(step) {
   } else if (step === 5) {
     renderRiepilogo();
     elementi.step5Panel.hidden = false;
-  } else if (step === 6) {
-    renderConferma();
-    elementi.step6Panel.hidden = false;
+    void caricaAnteprimaRiepilogo();
   }
 
   aggiornaStepper();
@@ -709,9 +783,40 @@ function modificaStep(step) {
 }
 
 function tornaAlRiepilogo() {
+  const riepilogoDisponibile =
+    Number.isInteger(stato.bozzaCorrente?.idBozza) &&
+    (stato.bozzaCorrente?.stepCompletato ?? 0) >= 4;
+
+  if (!riepilogoDisponibile) {
+    stato.ritornoAlRiepilogo = false;
+    aggiornaAzioniProcedura();
+    mostraStato(
+      "Il riepilogo sarà disponibile dopo il completamento dei dati contrattuali.",
+      "error",
+    );
+    return;
+  }
+
   stato.ritornoAlRiepilogo = false;
   nascondiStato();
   mostraStep(5);
+}
+
+function navigaDaStepper(step) {
+  if (
+    !puoNavigareStep(step) ||
+    stato.proceduraConclusa ||
+    stato.occupato
+  ) {
+    return;
+  }
+
+  if (stato.stepVisualizzato === 5 && step < 5) {
+    stato.ritornoAlRiepilogo = true;
+  }
+
+  nascondiStato();
+  mostraStep(step);
 }
 
 function leggiTestoForm(formData, campo) {
@@ -801,11 +906,9 @@ async function salvaEsistente(evento) {
     impostaOccupato(true, "Salvataggio dell'immobile in corso…");
     const bozza = await salvaImmobileEsistente(immobileId, idBozza);
     stato.bozzaCorrente = bozza;
+    aggiornaBozzaInElenco(bozza);
     proseguiDopoSalvataggio(2);
-    mostraStato(
-      `Step 1 salvato nella bozza #${bozza.idBozza}.`,
-      "success",
-    );
+    mostraStato(`Step 1 salvato nella bozza #${bozza.idBozza}.`, "success");
   } catch (errore) {
     mostraStato(
       errore instanceof Error ? errore.message : "Errore durante il salvataggio",
@@ -830,11 +933,9 @@ async function salvaNuovo(evento) {
     impostaOccupato(true, "Validazione e salvataggio dell'immobile in corso…");
     const bozza = await salvaNuovoImmobile(immobile, idBozza);
     stato.bozzaCorrente = bozza;
+    aggiornaBozzaInElenco(bozza);
     proseguiDopoSalvataggio(2);
-    mostraStato(
-      `Step 1 salvato nella bozza #${bozza.idBozza}.`,
-      "success",
-    );
+    mostraStato(`Step 1 salvato nella bozza #${bozza.idBozza}.`, "success");
   } catch (errore) {
     mostraStato(
       errore instanceof Error ? errore.message : "Errore durante il salvataggio",
@@ -851,11 +952,7 @@ async function cercaPersonaConFeedback(codiceFiscale, ruolo) {
 
   try {
     impostaOccupato(true, `Ricerca ${descrizione} in corso…`);
-    const persona = await cercaPersona(
-      idBozzaCorrente(),
-      ruolo,
-      codiceFiscale,
-    );
+    const persona = await cercaPersona(idBozzaCorrente(), ruolo, codiceFiscale);
     nascondiStato();
     return persona;
   } catch (errore) {
@@ -874,11 +971,9 @@ async function salvaProprietarioCorrente(persona) {
     impostaOccupato(true, "Salvataggio del proprietario in corso…");
     const bozza = await salvaProprietario(idBozzaCorrente(), persona);
     stato.bozzaCorrente = bozza;
+    aggiornaBozzaInElenco(bozza);
     proseguiDopoSalvataggio(3);
-    mostraStato(
-      `Step 2 salvato nella bozza #${bozza.idBozza}.`,
-      "success",
-    );
+    mostraStato(`Step 2 salvato nella bozza #${bozza.idBozza}.`, "success");
   } catch (errore) {
     mostraStato(
       errore instanceof Error ? errore.message : "Errore durante il salvataggio",
@@ -895,11 +990,9 @@ async function salvaInquilinoCorrente(persona) {
     impostaOccupato(true, "Salvataggio dell'inquilino in corso…");
     const bozza = await salvaInquilino(idBozzaCorrente(), persona);
     stato.bozzaCorrente = bozza;
+    aggiornaBozzaInElenco(bozza);
     proseguiDopoSalvataggio(4);
-    mostraStato(
-      `Step 3 salvato nella bozza #${bozza.idBozza}.`,
-      "success",
-    );
+    mostraStato(`Step 3 salvato nella bozza #${bozza.idBozza}.`, "success");
   } catch (errore) {
     mostraStato(
       errore instanceof Error ? errore.message : "Errore durante il salvataggio",
@@ -918,13 +1011,13 @@ async function salvaDatiContrattualiCorrenti(evento) {
     return;
   }
 
+  const dati = creaDatiContrattualiDaForm();
+
   try {
     impostaOccupato(true, "Salvataggio dei dati contrattuali in corso…");
-    const bozza = await salvaDatiContrattuali(
-      idBozzaCorrente(),
-      creaDatiContrattualiDaForm(),
-    );
+    const bozza = await salvaDatiContrattuali(idBozzaCorrente(), dati);
     stato.bozzaCorrente = bozza;
+    aggiornaBozzaInElenco(bozza);
     stato.ritornoAlRiepilogo = false;
     mostraStep(5);
     mostraStato(
@@ -941,9 +1034,7 @@ async function salvaDatiContrattualiCorrenti(evento) {
   }
 }
 
-async function annullaBozzaCorrente() {
-  const idBozza = idBozzaCorrente();
-
+async function annullaBozzaPerId(idBozza) {
   if (
     !window.confirm(
       "Annullare questa bozza? I dati non ancora registrati definitivamente verranno eliminati.",
@@ -959,18 +1050,17 @@ async function annullaBozzaCorrente() {
     stato.bozze = stato.bozze.filter(
       (bozza) => bozza.idBozza !== idBozza,
     );
-    stato.bozzaCorrente = null;
+
+    if (stato.bozzaCorrente?.idBozza === idBozza) {
+      stato.bozzaCorrente = null;
+    }
+
     stato.ritornoAlRiepilogo = false;
     stato.proceduraConclusa = false;
 
     if (stato.bozze.length > 0) {
-      stato.stepVisualizzato = 1;
-      renderBozze();
-      nascondiPannelli();
-      elementi.avvioPanel.hidden = false;
+      mostraAvvio();
       mostraStato("Bozza annullata.", "success");
-      aggiornaStepper();
-      aggiornaAzioniProcedura();
     } else {
       nuovaProcedura();
       mostraStato("Bozza annullata.", "success");
@@ -983,6 +1073,18 @@ async function annullaBozzaCorrente() {
   } finally {
     impostaOccupato(false);
   }
+}
+
+function salvaBozzaEdEsci() {
+  if (stato.bozzaCorrente !== null && stato.bozzaCorrente !== undefined) {
+    aggiornaBozzaInElenco(stato.bozzaCorrente);
+  }
+
+  stato.bozzaCorrente = null;
+  stato.ritornoAlRiepilogo = false;
+  stato.proceduraConclusa = false;
+  mostraAvvio();
+  mostraStato("Bozza salvata. Puoi riprenderla in seguito.", "success");
 }
 
 async function confermaBozzaCorrente() {
@@ -999,11 +1101,11 @@ async function confermaBozzaCorrente() {
     stato.bozzaCorrente = null;
     stato.ritornoAlRiepilogo = false;
     stato.proceduraConclusa = true;
-    stato.stepVisualizzato = 6;
+    stato.stepVisualizzato = 5;
 
-    elementi.confermaContent.hidden = true;
-    elementi.confermaSuccesso.hidden = false;
-    elementi.confermaSuccessoTesto.textContent =
+    elementi.riepilogoOperativo.hidden = true;
+    elementi.riepilogoSuccesso.hidden = false;
+    elementi.riepilogoSuccessoTesto.textContent =
       `${bozza?.nomeDescrizione ?? "Il contratto"} è stato registrato definitivamente.`;
 
     aggiornaBadge();
@@ -1056,10 +1158,21 @@ function invalidaDataFinaleVisualizzata() {
 
 function registraEventi() {
   elementi.nuovoContratto.addEventListener("click", nuovaProcedura);
-  elementi.annullaBozza.addEventListener("click", () => {
-    void annullaBozzaCorrente();
-  });
   elementi.tornaRiepilogo.addEventListener("click", tornaAlRiepilogo);
+
+  elementi.stepper.querySelectorAll("[data-step]").forEach((voce) => {
+    const naviga = () => {
+      navigaDaStepper(Number(voce.dataset.step));
+    };
+
+    voce.addEventListener("click", naviga);
+    voce.addEventListener("keydown", (evento) => {
+      if (evento.key === "Enter" || evento.key === " ") {
+        evento.preventDefault();
+        naviga();
+      }
+    });
+  });
 
   document
     .querySelectorAll('input[name="modalita-immobile"]')
@@ -1098,19 +1211,15 @@ function registraEventi() {
     nascondiStato();
     mostraStep(4);
   });
-  elementi.vaiConferma.addEventListener("click", () => {
-    nascondiStato();
-    mostraStep(6);
+  elementi.salvaBozza.addEventListener("click", salvaBozzaEdEsci);
+  elementi.riepilogoAnnulla.addEventListener("click", () => {
+    void annullaBozzaPerId(idBozzaCorrente());
   });
-  elementi.confermaIndietro.addEventListener("click", () => {
-    nascondiStato();
-    mostraStep(5);
-  });
-  elementi.confermaContratto.addEventListener("click", () => {
+  elementi.riepilogoConferma.addEventListener("click", () => {
     void confermaBozzaCorrente();
   });
   elementi.nuovaProceduraDopoConferma.addEventListener("click", () => {
-    window.location.reload();
+    nuovaProcedura();
   });
 }
 
@@ -1137,14 +1246,11 @@ async function avvia() {
     renderImmobili();
 
     if (bozze.length > 0) {
-      renderBozze();
-      nascondiPannelli();
-      elementi.avvioPanel.hidden = false;
+      mostraAvvio();
       mostraStato(
         `${bozze.length} ${bozze.length === 1 ? "bozza recuperabile" : "bozze recuperabili"}.`,
         "success",
       );
-      aggiornaAzioniProcedura();
     } else {
       nuovaProcedura();
     }

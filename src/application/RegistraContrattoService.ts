@@ -158,6 +158,7 @@ class RegistraContrattoService {
     }
 
     this.validaPersona(persona);
+    await this.verificaPersonaNuovaNonRegistrata(persona);
 
     if (bozza.inquilino?.codiceFiscale === persona.codiceFiscale) {
       throw new ConflittoApplicativo(
@@ -182,6 +183,7 @@ class RegistraContrattoService {
     }
 
     this.validaPersona(persona);
+    await this.verificaPersonaNuovaNonRegistrata(persona);
 
     if (bozza.proprietario.codiceFiscale === persona.codiceFiscale) {
       throw new ConflittoApplicativo(
@@ -195,9 +197,9 @@ class RegistraContrattoService {
       );
     }
 
-    persona.documento.validaScadenzaAlla(
-      this.dataCorrenteProvider.oggi(),
-    );
+    const oggi = this.dataCorrenteProvider.oggi();
+    persona.documento.validaRilascioAlla(oggi);
+    persona.documento.validaScadenzaAlla(oggi);
 
     bozza.inquilino = persona;
     bozza.stepCompletato = Math.max(bozza.stepCompletato, 3);
@@ -234,6 +236,15 @@ class RegistraContrattoService {
       throw new RisorsaNonTrovata("Tipologia contrattuale non trovata");
     }
 
+    if (
+      this.tipologiaRichiedeIbanProprietario(tipologia) &&
+      bozza.proprietario?.iban === undefined
+    ) {
+      throw new ErroreValidazione(
+        "La tipologia selezionata richiede l'IBAN del proprietario. Compilare il dato nello Step 2",
+      );
+    }
+
     bozza.nomeDescrizione = nomeDescrizione;
     bozza.tipologia = tipologia;
     bozza.dal = new Date(dal.getTime());
@@ -245,9 +256,69 @@ class RegistraContrattoService {
     return this.bozzaRepository.salva(bozza);
   }
 
+  async anteprima(idBozza: number): Promise<string> {
+    const bozza = await this.recuperaBozza(idBozza);
+    const contratto = this.preparaContrattoDaBozza(bozza);
+    return this.generatoreDocumento.genera(contratto);
+  }
+
   async conferma(idBozza: number): Promise<void> {
     const bozza = await this.recuperaBozza(idBozza);
+    const contratto = this.preparaContrattoDaBozza(bozza);
 
+    const immobilePersistito =
+      await this.trovaImmobilePersistito(contratto.immobile);
+
+    if (
+      immobilePersistito?.id !== undefined &&
+      (await this.contrattoRepository.esisteSovrapposizione(
+        immobilePersistito.id,
+        contratto.dal,
+        contratto.al,
+      ))
+    ) {
+      throw new ConflittoApplicativo(
+        "Il periodo del contratto si sovrappone a un contratto esistente",
+      );
+    }
+
+    contratto.impostaContenuto(
+      this.generatoreDocumento.genera(contratto),
+    );
+
+    const annoCompetenza = contratto.dal.getUTCFullYear();
+    const meseCompetenza = contratto.dal.getUTCMonth() + 1;
+
+    contratto.aggiungiPagamento(
+      new Pagamento({
+        annoCompetenza,
+        meseCompetenza,
+        dataPagamento: contratto.dal,
+        importo: contratto.calcolaImportoCompetenza(
+          annoCompetenza,
+          meseCompetenza,
+        ),
+      }),
+    );
+
+    await this.registrazioneContrattoPort.registraDefinitivamente(
+      contratto,
+    );
+
+    try {
+      await this.bozzaRepository.elimina(idBozza);
+    } catch {
+      // La registrazione definitiva è già conclusa.
+      // La bozza residua verrà riconosciuta al successivo avvio.
+    }
+  }
+
+  async annulla(idBozza: number): Promise<void> {
+    await this.recuperaBozza(idBozza);
+    await this.bozzaRepository.elimina(idBozza);
+  }
+
+  private preparaContrattoDaBozza(bozza: BozzaContratto): Contratto {
     const {
       immobile,
       proprietario,
@@ -280,6 +351,7 @@ class RegistraContrattoService {
     const oggi = this.dataCorrenteProvider.oggi();
     Persona.validaDataNascita(proprietario.dataNascita, oggi);
     Persona.validaDataNascita(inquilino.dataNascita, oggi);
+    inquilino.documento.validaRilascioAlla(oggi);
     inquilino.documento.validaScadenzaAlla(oggi);
 
     if (proprietario.codiceFiscale === inquilino.codiceFiscale) {
@@ -288,25 +360,18 @@ class RegistraContrattoService {
       );
     }
 
-    Contratto.validaGiornoPagamento(giornoPagamento);
-
-    const immobilePersistito =
-      await this.trovaImmobilePersistito(immobile);
-
     if (
-      immobilePersistito?.id !== undefined &&
-      (await this.contrattoRepository.esisteSovrapposizione(
-        immobilePersistito.id,
-        dal,
-        al,
-      ))
+      this.tipologiaRichiedeIbanProprietario(tipologia) &&
+      proprietario.iban === undefined
     ) {
-      throw new ConflittoApplicativo(
-        "Il periodo del contratto si sovrappone a un contratto esistente",
+      throw new ErroreValidazione(
+        "La tipologia selezionata richiede l'IBAN del proprietario. Compilare il dato nello Step 2",
       );
     }
 
-    const contratto = new Contratto({
+    Contratto.validaGiornoPagamento(giornoPagamento);
+
+    return new Contratto({
       nomeDescrizione,
       immobile,
       proprietario,
@@ -318,41 +383,35 @@ class RegistraContrattoService {
       giornoPagamento,
       registratoIl: oggi,
     });
-
-    contratto.impostaContenuto(
-      this.generatoreDocumento.genera(contratto),
-    );
-
-    const annoCompetenza = dal.getUTCFullYear();
-    const meseCompetenza = dal.getUTCMonth() + 1;
-
-    contratto.aggiungiPagamento(
-      new Pagamento({
-        annoCompetenza,
-        meseCompetenza,
-        dataPagamento: dal,
-        importo: contratto.calcolaImportoCompetenza(
-          annoCompetenza,
-          meseCompetenza,
-        ),
-      }),
-    );
-
-    await this.registrazioneContrattoPort.registraDefinitivamente(
-      contratto,
-    );
-
-    try {
-      await this.bozzaRepository.elimina(idBozza);
-    } catch {
-      // La registrazione definitiva è già conclusa.
-      // La bozza residua verrà riconosciuta al successivo avvio.
-    }
   }
 
-  async annulla(idBozza: number): Promise<void> {
-    await this.recuperaBozza(idBozza);
-    await this.bozzaRepository.elimina(idBozza);
+  private tipologiaRichiedeIbanProprietario(
+    tipologia: TipologiaContrattuale,
+  ): boolean {
+    return tipologia.articoli.some((articolo) =>
+      /\{\{\s*proprietario\.iban\s*\}\}/.test(
+        articolo.descrizione,
+      ),
+    );
+  }
+
+  private async verificaPersonaNuovaNonRegistrata(
+    persona: Persona,
+  ): Promise<void> {
+    if (persona.id !== undefined) {
+      return;
+    }
+
+    const esistente =
+      await this.personaRepository.trovaPerCodiceFiscale(
+        persona.codiceFiscale,
+      );
+
+    if (esistente !== null) {
+      throw new ConflittoApplicativo(
+        "Il codice fiscale appartiene a una persona già registrata. Utilizzare la ricerca per recuperarla",
+      );
+    }
   }
 
   private async salvaImmobileInBozza(

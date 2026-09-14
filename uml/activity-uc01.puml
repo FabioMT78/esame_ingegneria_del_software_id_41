@@ -1,335 +1,190 @@
 @startuml
 title UC-01 — Registrare un contratto di locazione
 
-' Activity Diagram della procedura guidata di registrazione del contratto.
-' Riferimenti principali: RF-01..RF-06, AC-01..AC-09.
-
 |Sistema|
 start
-:Avvia procedura di registrazione;
-:Recupera tutte le bozze non concluse;
-
-if (Esistono bozze?) then (sì)
-  :Confronta progressivamente ogni bozza\ncon i contratti già registrati;
-  note right
-    Per una bozza completa il confronto usa:
-    dati catastali dell'Immobile,
-    codice fiscale dell'Inquilino,
-    periodo dal/al.
-  end note
-  :Elimina le eventuali bozze residue\ndi registrazioni già completate;
-else (no)
-endif
+:Recupera le bozze non concluse;
+:Elimina le eventuali bozze residue\ndi registrazioni già completate;
 
 if (Restano bozze riprendibili?) then (sì)
   |Proprietario|
-  :Visualizza le bozze disponibili;
-  :Sceglie una bozza da riprendere\noppure Nuovo contratto;
-
-  if (Riprende una bozza?) then (sì)
+  :Visualizza le bozze con azioni\nRiprendi e Annulla, più Nuovo contratto;
+  if (Annulla una bozza dall'elenco?) then (sì)
     |Sistema|
-    :Carica la bozza selezionata tramite idBozza;
-    :Riprende dal primo step non completato;
-    note right
-      Gli step già validati risultano precompilati.
-      Le operazioni successive agiscono soltanto
-      sulla bozza identificata da idBozza.
-    end note
+    :Elimina soltanto la bozza selezionata;
+    |Proprietario|
+    :Resta nella schermata iniziale UC-01;
   else (no)
-    |Sistema|
-    :Avvia una nuova procedura senza idBozza;
+    if (Riprende una bozza?) then (sì)
+      |Sistema|
+      :Carica la bozza selezionata;
+      :Determina il primo step non completato\no il riepilogo se i primi quattro sono completi;
+    else (no)
+      :Avvia una nuova procedura senza idBozza;
+    endif
   endif
 else (no)
   :Avvia una nuova procedura senza idBozza;
 endif
 
-note right
-  La procedura può essere annullata in qualunque
-  momento prima della conferma definitiva.
-  L'annullamento elimina soltanto la bozza corrente.
-end note
-
 ' =========================================================
 ' STEP 1 — IMMOBILE
 ' =========================================================
-
 repeat
   |Proprietario|
-  :Step 1 — Seleziona un immobile esistente\no inserisce un nuovo immobile;
-
+  :Step 1 — Seleziona Immobile esistente\no inserisce nuovo Immobile;
   |Sistema|
-  if (Immobile selezionato?) then (sì)
-    :Recupera l'immobile selezionato;
-
-    if (Immobile trovato?) then (sì)
-      :Verifica che non esista un'altra\nbozza attiva per lo stesso Immobile;
-
-      if (Altra bozza presente?) then (sì)
-        :Segnala la bozza già esistente;
-      else (no)
-        :Accetta l'immobile selezionato;
-      endif
-    else (no)
-      :Segnala immobile non disponibile;
-    endif
-
+  :Valida disponibilità, dati catastali\ne duplicati applicabili;
+  if (Step 1 valido?) then (sì)
+    :Crea o aggiorna la bozza;
   else (no)
-    :Valida i dati del nuovo immobile;
-
-    if (Dati validi?) then (sì)
-      :Verifica duplicazione catastale;
-
-      if (Combinazione catastale già presente?) then (sì)
-        :Segnala duplicato catastale;
-      else (no)
-        if (Interno specificato?) then (sì)
-          :Verifica duplicazione dell'indirizzo completo;
-
-          if (Indirizzo completo già presente?) then (sì)
-            :Segnala duplicato di indirizzo;
-          else (no)
-            :Accetta il nuovo immobile nella procedura;
-          endif
-        else (no)
-          :Accetta il nuovo immobile nella procedura;
-        endif
-      endif
-    else (no)
-      :Segnala gli errori di validazione;
-    endif
+    :Mostra errore;
   endif
-
 repeat while (Step 1 valido?) is (no) not (sì)
-
-:Crea una nuova bozza o aggiorna la bozza corrente\ncon i dati dell'immobile;
-:Assegna idBozza se la bozza è nuova;
-note right
-  Un nuovo Immobile resta nei dati della bozza
-  e non viene ancora salvato permanentemente.
-  Per un Immobile già registrato è ammessa
-  al massimo una bozza attiva.
-end note
-
-if (Proprietario annulla?) then (sì)
-  :Elimina la bozza corrente tramite idBozza;
-  :Non salva permanentemente i dati acquisiti o modificati;
-  stop
-else (no)
-endif
 
 ' =========================================================
 ' STEP 2 — PROPRIETARIO
 ' =========================================================
-
 repeat
   |Proprietario|
-  :Step 2 — Inserisce il codice fiscale\ndel proprietario;
-
-  |Sistema|
-  :Valida e normalizza la struttura del codice fiscale;
-  :Cerca la Persona nella bozza corrente\ne, se assente, nei dati definitivi;
-
-  if (Persona già registrata?) then (sì)
-    :Recupera e mostra una working copy;
-    |Proprietario|
-    :Verifica ed eventualmente modifica\ndati anagrafici e residenza;
-  else (no)
+  :Step 2 — Cerca per codice fiscale\noppure sceglie Nuovo proprietario;
+  if (Ricerca?) then (sì)
     |Sistema|
-    :Richiede dati anagrafici e residenza;
+    :Recupera working copy dalla bozza\no dai dati definitivi;
     |Proprietario|
-    :Inserisce i dati della nuova Persona;
+    :Verifica / modifica i dati consentiti;
+  else (nuovo)
+    :Inserisce direttamente codice fiscale,\ndati anagrafici, residenza e IBAN se disponibile;
   endif
-
   |Sistema|
-  :Valida i dati della Persona e l'età 18..150 anni;
-  if (Dati validi?) then (sì)
-    :Accetta la Persona nel ruolo di proprietario;
+  :Valida CF, età e distinzione dei ruoli;
+  if (Persona inviata come nuova?) then (sì)
+    :Verifica che il CF non appartenga\ngià a una Persona registrata;
   else (no)
-    :Segnala gli errori di validazione;
+  endif
+  if (Dati validi?) then (sì)
+    :Salva il proprietario nella bozza;
+  else (no)
+    :Mostra errore;
   endif
 repeat while (Step 2 valido?) is (no) not (sì)
-
-:Aggiorna la bozza idBozza con la working copy\ndel proprietario;
-
-if (Proprietario annulla?) then (sì)
-  :Elimina la bozza corrente tramite idBozza;
-  :Non salva permanentemente i dati acquisiti o modificati;
-  stop
-else (no)
-endif
 
 ' =========================================================
 ' STEP 3 — INQUILINO
 ' =========================================================
-
 repeat
   |Proprietario|
-  :Step 3 — Inserisce il codice fiscale\ndell'inquilino;
-
-  |Sistema|
-  :Valida e normalizza la struttura del codice fiscale;
-  if (Codice fiscale uguale al proprietario?) then (sì)
-    :Segnala il conflitto fra i due ruoli;
-  else (no)
-    :Cerca la Persona nella bozza corrente\ne, se assente, nei dati definitivi;
-  endif
-
-  if (Persona già registrata?) then (sì)
-    :Recupera dati, residenza e documento disponibili;
-    :Mostra la working copy precompilata;
-    |Proprietario|
-    :Verifica ed eventualmente modifica\ndati anagrafici, residenza e documento;
-  else (no)
+  :Step 3 — Cerca per codice fiscale\noppure sceglie Nuovo inquilino;
+  if (Ricerca?) then (sì)
     |Sistema|
-    :Richiede dati anagrafici e residenza;
+    :Recupera working copy e documento disponibile;
     |Proprietario|
-    :Inserisce i dati della nuova Persona;
+    :Verifica / modifica dati e documento;
+  else (nuovo)
+    :Inserisce direttamente dati Persona e documento;
   endif
-
   |Sistema|
-  :Valida i dati della Persona e l'età 18..150 anni;
-  if (Dati della Persona validi?) then (sì)
-    if (Documento di riconoscimento presente e valido?) then (sì)
-      :Accetta la Persona nel ruolo di inquilino;
-    else (no)
-      :Richiede o consente di correggere il documento;
-      |Proprietario|
-      :Inserisce o modifica i dati del documento;
-      |Sistema|
-      :Valida il documento;
-    endif
+  :Valida CF, età e distinzione dei ruoli;
+  :Valida dataRilascio <= oggiServer;
+  :Valida dataScadenza > oggiServer;
+  if (Persona inviata come nuova?) then (sì)
+    :Verifica che il CF non appartenga\ngià a una Persona registrata;
   else (no)
-    :Segnala gli errori dei dati della Persona;
+  endif
+  if (Dati validi?) then (sì)
+    :Salva l'inquilino nella bozza;
+  else (no)
+    :Mostra errore;
   endif
 repeat while (Step 3 valido?) is (no) not (sì)
-
-:Aggiorna la bozza idBozza con la working copy\ndell'inquilino e del documento;
-
-if (Proprietario annulla?) then (sì)
-  :Elimina la bozza corrente tramite idBozza;
-  :Non salva permanentemente i dati acquisiti o modificati;
-  stop
-else (no)
-endif
 
 ' =========================================================
 ' STEP 4 — DATI CONTRATTUALI
 ' =========================================================
-
 repeat
   |Proprietario|
-  :Step 4 — Seleziona la tipologia e inserisce\nnome/descrizione, data dal, canone mensile\ne giorno di pagamento;
-
+  :Step 4 — Inserisce nome/descrizione, tipologia,\ndal, canone mensile e giorno di pagamento;
   |Sistema|
-  :Valida i dati contrattuali;
-
-  if (Dati validi?) then (sì)
-    :Carica tipologia e articoli predefiniti;
-    :Calcola al usando dal e durata iniziale;
-    :Memorizza dal e al nella bozza corrente;
-    :Rende disponibili gli articoli predefiniti;
+  :Carica la tipologia con i suoi articoli;
+  if (Template richiede IBAN proprietario\ne IBAN assente?) then (sì)
+    :Blocca lo step e richiede la correzione allo Step 2;
   else (no)
-    :Segnala gli errori di validazione;
+    :Valida i dati contrattuali;
+    :Calcola al da dal e durata iniziale;
+    :Salva tipologia e dati nella bozza;
   endif
 repeat while (Step 4 valido?) is (no) not (sì)
 
-:Aggiorna la bozza idBozza\ncon i dati contrattuali e la tipologia;
-
-if (Proprietario annulla?) then (sì)
-  :Elimina la bozza corrente tramite idBozza;
-  :Non salva permanentemente i dati acquisiti o modificati;
-  stop
-else (no)
-endif
-
 ' =========================================================
 ' STEP 5 — RIEPILOGO
-' STEP 6 — CONFERMA
 ' =========================================================
-
 repeat
   |Sistema|
-  :Step 5 — Mostra il riepilogo del contratto;
-
+  :Step 5 — Rivalida la bozza completa;
+  :Crea un Contratto transitorio;
+  :Genera con lo stesso generatore l'HTML valorizzato;
+  :Non registra dati definitivi;
   |Proprietario|
-  :Verifica i dati;
+  :Visualizza riepilogo e articoli valorizzati;
 
-  while (Vuole modificare i dati?) is (sì)
-    :Seleziona uno degli step 1-4 e modifica i dati;
+  while (Vuole modificare uno step completato?) is (sì)
+    :Seleziona direttamente Step 1..4 dalla navigazione;
+    :Modifica i dati;
     |Sistema|
-    :Rivalida i dati modificati;
-    if (Modifica valida?) then (sì)
-      :Ricalcola al se cambiano dal o tipologia;
-      :Aggiorna la sola bozza idBozza;
-    else (no)
-      :Segnala gli errori di validazione;
-    endif
-    :Mostra il riepilogo aggiornato;
+    :Rivalida e salva la sola bozza;
+    :Rigenera l'anteprima;
     |Proprietario|
-    :Verifica i dati aggiornati;
+    :Torna al riepilogo aggiornato;
   endwhile (no)
 
-  if (Proprietario annulla?) then (sì)
+  if (Sceglie Salva bozza ed esci?) then (sì)
     |Sistema|
-    :Elimina la sola bozza idBozza;
-    :Non salva permanentemente i dati acquisiti o modificati;
+    :Mantiene la bozza già salvata progressivamente;
+    |Proprietario|
+    :Torna alla schermata iniziale UC-01;
     stop
   else (no)
   endif
 
-  |Proprietario|
-  :Step 6 — Conferma esplicitamente\nla registrazione;
+  if (Sceglie Annulla bozza?) then (sì)
+    |Sistema|
+    :Elimina soltanto la bozza corrente;
+    :Non rende permanenti i dati temporanei;
+    |Proprietario|
+    :Torna alla schermata iniziale UC-01;
+    stop
+  else (Conferma e registra)
+  endif
 
   |Sistema|
-  :Recupera la bozza idBozza;
-  :Verifica tramite il repository se esiste\nuna sovrapposizione per Immobile + dal/al;
+  :Ricarica e rivalida la bozza con la data corrente;
+  :Ricostruisce il Contratto dai dati finali;
+  :Verifica la sovrapposizione del periodo;
 
   if (Periodo sovrapposto?) then (sì)
-    :Impedisce la registrazione definitiva;
-    :Mostra l'errore di sovrapposizione;
-    :Mantiene disponibile la bozza idBozza;
+    :Mostra errore e mantiene la bozza;
+    :Registrazione non completata;
   else (no)
-    :Periodo disponibile;
+    :Rigenera il documento HTML definitivo;
+    :Imposta contenuto storico e registratoIl;
+    :Crea il Pagamento della prima mensilità;
+    :Registra definitivamente in una transazione;
+
+    if (Registrazione riuscita?) then (sì)
+      :Commit dei dati definitivi;
+      :Tenta il cleanup della sola bozza corrente;
+      note right
+        Un errore di cleanup non invalida
+        il Contratto già registrato.
+      end note
+      :Comunica registrazione completata;
+    else (no)
+      :Rollback della registrazione definitiva;
+      :Mantiene la bozza disponibile;
+      :Comunica l'errore;
+    endif
   endif
-repeat while (Periodo sovrapposto?) is (sì) not (no)
-
-' =========================================================
-' REGISTRAZIONE DEFINITIVA
-' =========================================================
-
-:Acquisisce la data corrente autorevole;
-:Rivalida età delle Parti e codici fiscali differenti;
-:Crea il Contratto dai dati finali validati,\ninclusi dal e al già determinati;
-:Genera il documento HTML completo\ncomponendo template e dati finali;
-:Assegna contenuto storico e registratoIl;
-:Crea il Pagamento della prima mensilità;
-
-:Salva in modo coerente la registrazione definitiva,\ncompresi eventuali nuovi oggetti e modifiche validate;
-
-if (Salvataggio definitivo riuscito?) then (sì)
-  :Commit dei dati definitivi;
-  :Tenta di eliminare la sola bozza idBozza;
-
-  if (Eliminazione bozza riuscita?) then (sì)
-    :Comunica registrazione completata;
-    stop
-  else (no)
-    :Registra l'errore di cleanup;
-    note right
-      Il Contratto resta validamente registrato.
-      La bozza corrente resta residua e verrà
-      riconosciuta al successivo avvio.
-      Le altre bozze non sono coinvolte.
-    end note
-    :Comunica registrazione completata;
-    stop
-  endif
-else (no)
-  :Rollback della registrazione definitiva;
-  :Non lascia dati definitivi salvati parzialmente;
-  :Mantiene disponibile la bozza idBozza;
-  :Comunica l'errore di registrazione;
-  stop
-endif
+repeat while (Registrazione completata?) is (no) not (sì)
+stop
 
 @enduml

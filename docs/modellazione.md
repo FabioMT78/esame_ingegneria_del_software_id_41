@@ -113,8 +113,9 @@ Gli attributi concettuali sono:
 - numero del documento.
 
 Una `Persona` può avere `0..1` DocumentoRiconoscimento e ogni DocumentoRiconoscimento appartiene a una sola Persona. Quando una Persona assume il ruolo di inquilino in un Contratto, il documento deve essere presente.
-Per essere utilizzabile in UC-01, la data di scadenza del documento dell'inquilino deve
-essere strettamente successiva alla data corrente fornita dal server.
+Per essere utilizzabile in UC-01, la data di rilascio del documento non può essere successiva
+alla data corrente fornita dal server e la data di scadenza deve essere strettamente successiva
+alla stessa data corrente.
 
 La versione 1.0 non gestisce storico o pluralità di documenti per la stessa Persona.
 
@@ -217,9 +218,9 @@ Alla registrazione definitiva del Contratto viene creato il Pagamento della prim
 
 Nella versione 1.0 più bozze possono coesistere anche se il sistema è mono-utente: la pluralità serve a sospendere e riprendere preparazioni relative a contratti diversi, non a distinguere utenti. Ogni bozza persistita è identificata tramite `idBozza`, identificatore tecnico del workflow applicativo e non identificatore di dominio. Per uno stesso Immobile già registrato è ammessa al massimo una bozza attiva.
 
-Nuovi Immobili, nuove Persone, eventuali modifiche validate a Persone esistenti e dati del DocumentoRiconoscimento rimangono nella relativa bozza fino alla conferma definitiva. L'annullamento della procedura elimina soltanto la bozza selezionata e non rende permanenti tali dati.
+Nuovi Immobili, nuove Persone, eventuali modifiche validate a Persone esistenti e dati del DocumentoRiconoscimento rimangono nella relativa bozza fino alla conferma definitiva. L'annullamento della procedura elimina soltanto la bozza selezionata e non rende permanenti tali dati. Per una nuova Persona l'interfaccia può avviare direttamente l'inserimento senza una ricerca preliminare; questa variante di interazione non introduce un nuovo concetto nel modello e il codice fiscale continua a identificare univocamente la Persona, per cui un codice già registrato non può produrre una seconda Persona.
 
-La bozza non rappresenta un Contratto incompleto e non contiene il documento storico o Pagamenti definitivi. Il suo lifecycle e il comportamento di recupero sono rappresentati nei diagrammi dinamici; le decisioni architetturali relative alla sua persistenza appartengono a `docs/architettura.md`.
+La bozza non rappresenta un Contratto incompleto e non contiene il documento storico o Pagamenti definitivi. Dopo i quattro step di acquisizione validati, il quinto step di riepilogo è una vista operativa sullo stato della bozza: non incrementa `stepCompletato`, perché non introduce nuovi dati persistenti. Dal riepilogo il proprietario può confermare la registrazione, conservare la bozza per una ripresa successiva oppure annullarla. Il suo lifecycle e il comportamento di recupero sono rappresentati nei diagrammi dinamici; le decisioni architetturali relative alla sua persistenza appartengono a `docs/architettura.md`.
 
 ## 4. Vincoli concettuali principali
 
@@ -229,7 +230,7 @@ Il Domain Model rende espliciti i vincoli necessari a comprenderne struttura e s
 - in UC-01 la data di nascita deve corrispondere a un'età compresa tra 18 e 150 anni rispetto alla data corrente del server;
 - proprietario e inquilino dello stesso Contratto devono avere codici fiscali differenti;
 - una Persona che assume il ruolo di inquilino deve disporre del DocumentoRiconoscimento richiesto;
-- il DocumentoRiconoscimento dell'inquilino deve avere data di scadenza successiva alla data corrente del server;
+- il DocumentoRiconoscimento dell'inquilino deve avere data di rilascio non successiva alla data corrente del server e data di scadenza successiva alla stessa data corrente;
 - la combinazione catastale identifica univocamente un Immobile;
 - il giorno di pagamento è compreso tra 1 e 28;
 - la data `al` viene calcolata da `dal` e dalla durata iniziale della TipologiaContrattuale durante la definizione del periodo e viene poi conservata nel Contratto;
@@ -272,13 +273,18 @@ I diagrammi dinamici usano partecipanti logici per descrivere collaborazioni e f
 
 Il diagramma mette in evidenza in particolare:
 
-- recupero dell'insieme delle bozze, eliminazione delle eventuali bozze residue e scelta fra ripresa di una bozza e nuova procedura;
+- recupero dell'insieme delle bozze, eliminazione delle eventuali bozze residue e scelta fra ripresa, annullamento di una specifica bozza e nuova procedura;
 - identificazione esplicita della bozza corrente nelle operazioni successive allo step Immobile;
+- ricerca di una Persona esistente oppure inserimento diretto di una nuova Persona, mantenendo il codice fiscale come identità univoca;
 - aggiornamento della sola bozza selezionata dopo gli step validi, senza persistenza definitiva anticipata dei nuovi dati o delle modifiche;
-- calcolo e memorizzazione di `al` nella bozza alla validazione dei dati contrattuali;
+- validazione temporale del DocumentoRiconoscimento rispetto alla data corrente del server;
+- calcolo e memorizzazione di `al` nella bozza alla validazione dei dati contrattuali e controllo dell'IBAN quando richiesto dal template;
+- generazione dell'anteprima valorizzata nel riepilogo tramite lo stesso `GeneratoreDocumentoContratto` usato alla conferma, senza persistenza definitiva;
+- navigazione diretta verso gli step già completati per eventuali modifiche;
+- azioni di salvataggio della bozza, annullamento o conferma concentrate nel riepilogo;
 - controllo mirato della sovrapposizione prima della registrazione, senza richiedere il caricamento di tutti i Contratti dell'Immobile per tale verifica;
-- costruzione del Contratto soltanto alla conferma finale usando il periodo `dal`--`al` già determinato;
-- generazione del contenuto storico a partire dai template e dai dati finali;
+- costruzione del Contratto transitorio per l'anteprima e ricostruzione/rivalidazione del Contratto alla conferma finale usando il periodo `dal`--`al` già determinato;
+- rigenerazione del contenuto storico a partire dai template e dai dati finali;
 - creazione del primo Pagamento;
 - registrazione definitiva come operazione logica coerente e atomica;
 - cleanup della sola bozza corrente successivo al successo, senza invalidare il Contratto in caso di errore di cancellazione;
@@ -293,13 +299,15 @@ Il confronto usato per riconoscere una bozza residua utilizza, quando tutti disp
 Il diagramma evidenzia:
 
 - recupero delle bozze non concluse e rimozione delle eventuali residue;
-- scelta fra una bozza riprendibile e una nuova procedura;
-- avanzamento attraverso i sei step;
+- scelta fra una bozza riprendibile, l'annullamento di una specifica bozza e una nuova procedura;
+- avanzamento attraverso cinque step, di cui i primi quattro acquisiscono dati e il quinto presenta il riepilogo;
+- navigazione diretta verso gli step già completati;
 - cicli di validazione e correzione prima dell'avanzamento;
-- distinzione tra selezione di dati esistenti e acquisizione di nuovi dati;
+- distinzione tra ricerca di dati esistenti e inserimento diretto di nuovi dati;
 - aggiornamento progressivo della sola bozza corrente;
-- possibilità di annullamento prima della conferma;
-- ritorno alla modifica in presenza di sovrapposizione;
+- anteprima valorizzata degli articoli nel riepilogo senza registrazione definitiva;
+- scelta nel riepilogo fra conservazione della bozza, annullamento e conferma;
+- ritorno alla modifica in presenza di errori o sovrapposizione;
 - registrazione definitiva soltanto dopo conferma valida;
 - cleanup della sola bozza interessata dopo il completamento positivo.
 

@@ -33,6 +33,23 @@ async function richiestaJson(url, options = {}) {
   return response.json();
 }
 
+
+async function richiestaTesto(url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      Accept: "text/html",
+      ...options.headers,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(await leggiErrore(response));
+  }
+
+  return response.text();
+}
+
 function caricaBozze() {
   return richiestaJson("/api/contratti/bozze");
 }
@@ -105,6 +122,12 @@ function salvaDatiContrattuali(idBozza, dati) {
   );
 }
 
+function caricaAnteprima(idBozza) {
+  return richiestaTesto(
+    `/api/contratti/bozze/${idBozza}/anteprima`,
+  );
+}
+
 function confermaContratto(idBozza) {
   return richiestaJson(
     `/api/contratti/bozze/${idBozza}/conferma`,
@@ -121,6 +144,7 @@ function annullaBozza(idBozza) {
 
 export {
   annullaBozza,
+  caricaAnteprima,
   caricaBozze,
   caricaImmobili,
   caricaTipologie,

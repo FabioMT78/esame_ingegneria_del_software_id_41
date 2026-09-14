@@ -12,7 +12,7 @@ describe("asset statici frontend UC-01", () => {
     await server.chiudi();
   });
 
-  test("serve la pagina principale con tutti i sei step di UC-01", async () => {
+  test("serve la pagina principale con i cinque step di UC-01", async () => {
     const response = await fetch(`${server.baseUrl}/`);
     const body = await response.text();
 
@@ -24,9 +24,24 @@ describe("asset statici frontend UC-01", () => {
     expect(body).toContain('id="step3-panel"');
     expect(body).toContain('id="step4-panel"');
     expect(body).toContain('id="step5-panel"');
-    expect(body).toContain('id="step6-panel"');
-    expect(body).toContain('id="annulla-bozza"');
-    expect(body).toContain('id="conferma-contratto"');
+    expect(body).not.toContain('id="step6-panel"');
+    expect(body).toContain('id="proprietario-nuovo"');
+    expect(body).toContain('id="inquilino-nuovo"');
+    expect(body).toContain('id="riepilogo-conferma"');
+    expect(body).toContain('id="salva-bozza"');
+    expect(body).toContain('id="riepilogo-annulla"');
+    expect(body).toContain('id="riepilogo-anteprima"');
+    expect(body).toContain('aria-label="Anteprima degli articoli contrattuali"');
+    expect(body).not.toContain('<iframe');
+  });
+
+  test("mantiene realmente nascosti gli elementi marcati hidden", async () => {
+    const response = await fetch(`${server.baseUrl}/css/app.css`);
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain("[hidden]");
+    expect(body).toContain("display: none !important;");
   });
 
   test.each([

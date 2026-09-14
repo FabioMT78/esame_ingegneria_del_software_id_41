@@ -23,18 +23,14 @@
         <li data-step="3"><span>3</span>Inquilino</li>
         <li data-step="4"><span>4</span>Dati contrattuali</li>
         <li data-step="5"><span>5</span>Riepilogo</li>
-        <li data-step="6"><span>6</span>Conferma</li>
       </ol>
     </nav>
 
     <div id="status" class="status" role="status" aria-live="polite" hidden></div>
 
     <div id="procedura-toolbar" class="procedure-toolbar" hidden>
-      <button id="torna-riepilogo" class="button secondary" type="button" hidden>
+      <button id="torna-riepilogo" class="button secondary" type="button">
         Torna al riepilogo
-      </button>
-      <button id="annulla-bozza" class="button danger" type="button">
-        Annulla bozza
       </button>
     </div>
 
@@ -57,7 +53,7 @@
     <section id="step1-panel" class="card" aria-labelledby="step1-title" hidden>
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Step 1 di 6</p>
+          <p class="eyebrow">Step 1 di 5</p>
           <h2 id="step1-title">Immobile</h2>
         </div>
         <div id="bozza-badge-step1" class="badge" hidden></div>
@@ -183,14 +179,14 @@
     <section id="step2-panel" class="card" aria-labelledby="step2-title" hidden>
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Step 2 di 6</p>
+          <p class="eyebrow">Step 2 di 5</p>
           <h2 id="step2-title">Proprietario</h2>
         </div>
         <div id="bozza-badge-step2" class="badge" hidden></div>
       </div>
 
       <p class="muted">
-        Cerca il proprietario tramite codice fiscale. Se non è registrato, completa i dati richiesti.
+        Cerca il proprietario tramite codice fiscale oppure inseriscine direttamente uno nuovo.
       </p>
 
       <form id="proprietario-form-ricerca" class="lookup-form">
@@ -209,7 +205,12 @@
             required
           >
         </div>
-        <button class="button secondary" type="submit">Cerca</button>
+        <div class="lookup-actions">
+          <button class="button secondary" type="submit">Cerca</button>
+          <button id="proprietario-nuovo" class="button secondary" type="button">
+            Nuovo proprietario
+          </button>
+        </div>
       </form>
 
       <p id="proprietario-esito-ricerca" class="inline-message" hidden></p>
@@ -228,7 +229,19 @@
             </div>
             <div class="field">
               <label for="proprietario-codice-fiscale">Codice fiscale</label>
-              <input id="proprietario-codice-fiscale" name="codiceFiscale" type="text" readonly>
+              <input
+                id="proprietario-codice-fiscale"
+                name="codiceFiscale"
+                type="text"
+                maxlength="16"
+                pattern="[A-Za-z]{6}[0-9LMNPQRSTUVlmnpqrstuv]{2}[A-Za-z][0-9LMNPQRSTUVlmnpqrstuv]{2}[A-Za-z][0-9LMNPQRSTUVlmnpqrstuv]{3}[A-Za-z]"
+                title="Inserire un codice fiscale di 16 caratteri nel formato previsto"
+                autocomplete="off"
+                autocapitalize="characters"
+                spellcheck="false"
+                required
+                readonly
+              >
             </div>
             <div class="field">
               <label for="proprietario-luogo-nascita">Luogo di nascita</label>
@@ -305,14 +318,14 @@
     <section id="step3-panel" class="card" aria-labelledby="step3-title" hidden>
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Step 3 di 6</p>
+          <p class="eyebrow">Step 3 di 5</p>
           <h2 id="step3-title">Inquilino</h2>
         </div>
         <div id="bozza-badge-step3" class="badge" hidden></div>
       </div>
 
       <p class="muted">
-        Cerca l'inquilino tramite codice fiscale. Il documento di riconoscimento è obbligatorio.
+        Cerca l'inquilino tramite codice fiscale oppure inseriscine direttamente uno nuovo. Il documento di riconoscimento è obbligatorio.
       </p>
 
       <form id="inquilino-form-ricerca" class="lookup-form">
@@ -331,7 +344,12 @@
             required
           >
         </div>
-        <button class="button secondary" type="submit">Cerca</button>
+        <div class="lookup-actions">
+          <button class="button secondary" type="submit">Cerca</button>
+          <button id="inquilino-nuovo" class="button secondary" type="button">
+            Nuovo inquilino
+          </button>
+        </div>
       </form>
 
       <p id="inquilino-esito-ricerca" class="inline-message" hidden></p>
@@ -350,7 +368,19 @@
             </div>
             <div class="field">
               <label for="inquilino-codice-fiscale">Codice fiscale</label>
-              <input id="inquilino-codice-fiscale" name="codiceFiscale" type="text" readonly>
+              <input
+                id="inquilino-codice-fiscale"
+                name="codiceFiscale"
+                type="text"
+                maxlength="16"
+                pattern="[A-Za-z]{6}[0-9LMNPQRSTUVlmnpqrstuv]{2}[A-Za-z][0-9LMNPQRSTUVlmnpqrstuv]{2}[A-Za-z][0-9LMNPQRSTUVlmnpqrstuv]{3}[A-Za-z]"
+                title="Inserire un codice fiscale di 16 caratteri nel formato previsto"
+                autocomplete="off"
+                autocapitalize="characters"
+                spellcheck="false"
+                required
+                readonly
+              >
             </div>
             <div class="field">
               <label for="inquilino-luogo-nascita">Luogo di nascita</label>
@@ -446,7 +476,7 @@
     <section id="step4-panel" class="card" aria-labelledby="step4-title" hidden>
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Step 4 di 6</p>
+          <p class="eyebrow">Step 4 di 5</p>
           <h2 id="step4-title">Dati contrattuali</h2>
         </div>
         <div id="bozza-badge-step4" class="badge" hidden></div>
@@ -506,14 +536,6 @@
           </div>
         </div>
 
-        <section id="tipologia-articoli" class="template-section" aria-labelledby="tipologia-articoli-title" hidden>
-          <h3 id="tipologia-articoli-title">Articoli template disponibili</h3>
-          <p class="muted">
-            Il documento definitivo sarà generato soltanto alla conferma usando i dati finali validati.
-          </p>
-          <div id="tipologia-articoli-list" class="template-list"></div>
-        </section>
-
         <div class="actions split">
           <button id="dati-contrattuali-indietro" class="button secondary" type="button">
             Indietro
@@ -526,59 +548,55 @@
     <section id="step5-panel" class="card" aria-labelledby="step5-title" hidden>
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Step 5 di 6</p>
+          <p class="eyebrow">Step 5 di 5</p>
           <h2 id="step5-title">Riepilogo</h2>
         </div>
         <div id="bozza-badge-step5" class="badge" hidden></div>
       </div>
 
-      <p class="muted">
-        Verifica i dati prima della conferma. Puoi tornare a qualunque sezione per modificarla.
-      </p>
+      <div id="riepilogo-operativo">
+        <p class="muted">
+          Verifica i dati e l'anteprima degli articoli valorizzati. Puoi modificare gli step già completati prima della registrazione definitiva.
+        </p>
 
-      <div id="riepilogo-contenuto" class="summary-grid"></div>
+        <div id="riepilogo-contenuto" class="summary-grid"></div>
 
-      <div class="actions split">
-        <button id="riepilogo-indietro" class="button secondary" type="button">
-          Indietro
-        </button>
-        <button id="vai-conferma" class="button primary" type="button">
-          Continua alla conferma
-        </button>
-      </div>
-    </section>
+        <section class="document-preview" aria-labelledby="anteprima-title">
+          <div class="summary-heading">
+            <h3 id="anteprima-title">Anteprima articoli contrattuali</h3>
+          </div>
+          <p id="anteprima-stato" class="muted">Caricamento anteprima…</p>
+          <div
+            id="riepilogo-anteprima"
+            class="template-list"
+            aria-label="Anteprima degli articoli contrattuali"
+            hidden
+          ></div>
+        </section>
 
-    <section id="step6-panel" class="card" aria-labelledby="step6-title" hidden>
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">Step 6 di 6</p>
-          <h2 id="step6-title">Conferma</h2>
-        </div>
-        <div id="bozza-badge-step6" class="badge" hidden></div>
-      </div>
-
-      <div id="conferma-content">
-        <div class="confirmation-box">
-          <p id="conferma-dettaglio"></p>
-          <p>
-            La conferma registra definitivamente il contratto, rende permanenti i dati della bozza,
-            genera la copia storica del documento e registra la prima mensilità.
-          </p>
-        </div>
-
-        <div class="actions split">
-          <button id="conferma-indietro" class="button secondary" type="button">
-            Torna al riepilogo
-          </button>
-          <button id="conferma-contratto" class="button primary" type="button">
-            Conferma e registra
-          </button>
+        <div class="actions split summary-actions">
+          <div>
+            <button id="riepilogo-indietro" class="button secondary" type="button">
+              Indietro
+            </button>
+            <button id="salva-bozza" class="button secondary" type="button">
+              Salva bozza ed esci
+            </button>
+          </div>
+          <div>
+            <button id="riepilogo-annulla" class="button danger" type="button">
+              Annulla bozza
+            </button>
+            <button id="riepilogo-conferma" class="button primary" type="button">
+              Conferma e registra
+            </button>
+          </div>
         </div>
       </div>
 
-      <div id="conferma-successo" class="success-panel" hidden>
+      <div id="riepilogo-successo" class="success-panel" hidden>
         <h3>Contratto registrato</h3>
-        <p id="conferma-successo-testo"></p>
+        <p id="riepilogo-successo-testo"></p>
         <button id="nuova-procedura-dopo-conferma" class="button primary" type="button">
           Registra un altro contratto
         </button>

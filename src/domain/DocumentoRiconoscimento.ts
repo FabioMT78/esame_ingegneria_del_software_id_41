@@ -34,6 +34,21 @@ class DocumentoRiconoscimento {
     this.numero = numero;
   }
 
+  validaRilascioAlla(oggi: Date): void {
+    if (Number.isNaN(oggi.getTime())) {
+      throw new RangeError("Data corrente non valida");
+    }
+
+    if (
+      Number.isNaN(this.dataRilascio.getTime()) ||
+      this.dataRilascio > oggi
+    ) {
+      throw new RangeError(
+        "La data di rilascio del documento non può essere successiva alla data corrente",
+      );
+    }
+  }
+
   validaScadenzaAlla(oggi: Date): void {
     if (Number.isNaN(oggi.getTime())) {
       throw new RangeError("Data corrente non valida");

@@ -19,6 +19,7 @@ package "application" {
     + impostaProprietario(idBozza : int, persona : Persona): Promise<BozzaContratto>
     + impostaInquilino(idBozza : int, persona : Persona): Promise<BozzaContratto>
     + impostaDatiContrattuali(idBozza : int, nomeDescrizione : string, tipologiaId : int, dal : date, canoneMensile : decimal, giornoPagamento : int): Promise<BozzaContratto>
+    + anteprima(idBozza : int): Promise<string>
     + conferma(idBozza : int): Promise<void>
     + annulla(idBozza : int): Promise<void>
   }
@@ -124,6 +125,7 @@ package "domain" {
     - luogoNascita : string
     - dataNascita : date
     - codiceFiscale : string
+    - iban : string [0..1]
     + {static} normalizzaCodiceFiscale(codiceFiscale : string) : string
     + {static} validaDataNascita(dataNascita : date, oggi : date) : void
     + aggiornaDatiAnagrafici(nome : string, cognome : string, luogoNascita : string, dataNascita : date) : void
@@ -150,6 +152,7 @@ package "domain" {
     - dataRilascio : date
     - dataScadenza : date
     - numero : string
+    + validaRilascioAlla(oggi : date) : void
     + validaScadenzaAlla(oggi : date) : void
   }
 
@@ -278,6 +281,14 @@ RegistraContrattoService ..> RegistrazioneContrattoPort
 RegistraContrattoService ..> GeneratoreDocumentoContratto
 RegistraContrattoService ..> DataCorrenteProvider
 
+note right of RegistraContrattoService
+  L'anteprima costruisce un Contratto transitorio
+  dalla bozza completa e usa lo stesso generatore
+  della conferma senza produrre scritture definitive.
+  Alla conferma il Contratto viene ricostruito e
+  il documento viene rigenerato dai dati rivalidati.
+end note
+
 RegistraPagamentoService ..> ImmobileRepository
 RegistraPagamentoService ..> ContrattoRepository
 RegistraPagamentoService ..> PagamentoRepository
@@ -305,6 +316,7 @@ GeneratoreDocumentoContratto ..> Contratto
 note right of RegistraContrattoController
   Confine HTTP di UC-01: traduce JSON in input applicativi,
   invoca il Service e serializza le risposte.
+  Espone anche l'anteprima HTML della bozza completa.
   Le date di calendario attraversano HTTP come YYYY-MM-DD.
   Non contiene regole di dominio o query SQL.
 end note
@@ -341,9 +353,10 @@ end note
 
 note right of DocumentoRiconoscimento
   In UC-01 il documento usato dall'inquilino
-  deve avere dataScadenza strettamente successiva
-  alla data corrente fornita dal DataCorrenteProvider.
-  La validazione viene ripetuta alla conferma definitiva.
+  deve avere dataRilascio non successiva e
+  dataScadenza strettamente successiva alla data
+  corrente fornita dal DataCorrenteProvider.
+  La validazione viene ripetuta per anteprima e conferma.
 end note
 
 note right of Indirizzo

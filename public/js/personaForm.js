@@ -24,7 +24,6 @@ function valoreOpzionale(formData, campo) {
 
 function valoreRichiesto(formData, campo) {
   const valore = formData.get(campo);
-
   return typeof valore === "string" ? valore.trim() : "";
 }
 
@@ -74,10 +73,16 @@ function applicaLimitiDataNascita(elemento) {
   elemento.max = dataIsoLocale(sottraiAnniConLimite(oggi, 18));
 }
 
-function applicaLimiteScadenzaDocumento(elemento) {
-  const domani = new Date();
-  domani.setDate(domani.getDate() + 1);
-  elemento.min = dataIsoLocale(domani);
+function applicaLimitiDocumento(dataRilascio, dataScadenza) {
+  const oggi = new Date();
+  const domani = new Date(
+    oggi.getFullYear(),
+    oggi.getMonth(),
+    oggi.getDate() + 1,
+  );
+
+  dataRilascio.max = dataIsoLocale(oggi);
+  dataScadenza.min = dataIsoLocale(domani);
 }
 
 function creaGestorePersona({
@@ -91,6 +96,7 @@ function creaGestorePersona({
   const elementi = {
     formRicerca: richiesto(`${prefix}-form-ricerca`),
     cfRicerca: richiesto(`${prefix}-cf-ricerca`),
+    nuovo: richiesto(`${prefix}-nuovo`),
     esitoRicerca: richiesto(`${prefix}-esito-ricerca`),
     formDati: richiesto(`${prefix}-form-dati`),
     cfDati: richiesto(`${prefix}-codice-fiscale`),
@@ -102,7 +108,8 @@ function creaGestorePersona({
   applicaLimitiDataNascita(elementi.dataNascita);
 
   if (richiedeDocumento) {
-    applicaLimiteScadenzaDocumento(
+    applicaLimitiDocumento(
+      richiesto(`${prefix}-documento-rilascio`),
       richiesto(`${prefix}-documento-scadenza`),
     );
   }
@@ -110,6 +117,11 @@ function creaGestorePersona({
   elementi.cfRicerca.addEventListener("input", () => {
     elementi.cfRicerca.value = elementi.cfRicerca.value.toUpperCase();
     elementi.cfRicerca.setCustomValidity("");
+  });
+
+  elementi.cfDati.addEventListener("input", () => {
+    elementi.cfDati.value = elementi.cfDati.value.toUpperCase();
+    elementi.cfDati.setCustomValidity("");
   });
 
   let personaBase = null;
@@ -132,9 +144,14 @@ function creaGestorePersona({
     elementi.esitoRicerca.hidden = true;
   }
 
+  function impostaCfModificabile(modificabile) {
+    elementi.cfDati.readOnly = !modificabile;
+  }
+
   function svuotaDati() {
     elementi.formDati.reset();
     elementi.cfDati.value = "";
+    elementi.cfDati.setCustomValidity("");
   }
 
   function compilaPersona(persona) {
@@ -171,6 +188,7 @@ function creaGestorePersona({
   function mostraPersona(persona, codiceFiscale) {
     personaBase = persona;
     svuotaDati();
+    impostaCfModificabile(false);
 
     if (persona === null) {
       elementi.cfDati.value = codiceFiscale;
@@ -187,6 +205,18 @@ function creaGestorePersona({
     elementi.formDati.hidden = false;
   }
 
+  function preparaNuovaPersona() {
+    personaBase = null;
+    elementi.formRicerca.reset();
+    svuotaDati();
+    impostaCfModificabile(true);
+    mostraEsito(
+      "Nuova persona: inserisci il codice fiscale e completa i dati richiesti.",
+    );
+    elementi.formDati.hidden = false;
+    elementi.cfDati.focus();
+  }
+
   function caricaDaBozza(persona) {
     nascondiEsito();
 
@@ -194,6 +224,7 @@ function creaGestorePersona({
       personaBase = null;
       elementi.formRicerca.reset();
       svuotaDati();
+      impostaCfModificabile(false);
       elementi.formDati.hidden = true;
       return;
     }
@@ -201,6 +232,7 @@ function creaGestorePersona({
     personaBase = persona;
     elementi.cfRicerca.value = persona.codiceFiscale;
     compilaPersona(persona);
+    impostaCfModificabile(false);
     elementi.formDati.hidden = false;
     mostraEsito("Dati recuperati dalla bozza.");
   }
@@ -281,10 +313,17 @@ function creaGestorePersona({
     }
   });
 
+  elementi.nuovo.addEventListener("click", preparaNuovaPersona);
+
   elementi.formDati.addEventListener("submit", async (evento) => {
     evento.preventDefault();
 
-    if (!elementi.formDati.reportValidity()) {
+    const codiceFiscale = validaCodiceFiscale(elementi.cfDati);
+
+    if (
+      codiceFiscale === null ||
+      !elementi.formDati.reportValidity()
+    ) {
       return;
     }
 
@@ -298,6 +337,7 @@ function creaGestorePersona({
   elementi.cambiaCf.addEventListener("click", () => {
     personaBase = null;
     svuotaDati();
+    impostaCfModificabile(false);
     elementi.formDati.hidden = true;
     nascondiEsito();
     elementi.cfRicerca.focus();
