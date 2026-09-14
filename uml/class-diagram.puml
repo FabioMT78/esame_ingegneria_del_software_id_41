@@ -224,6 +224,9 @@ package "infrastructure" {
     class PostgresPersonaRepository <<repository>>
     class PostgresTipologiaContrattualeRepository <<repository>>
     class PostgresContrattoRepository <<repository>>
+    class PostgresPagamentoRepository <<repository>> {
+      + salva(contrattoId : int, pagamento : Pagamento): Promise<void>
+    }
     class PostgresRegistrazioneContratto <<transactional adapter>> {
       + registraDefinitivamente(contratto : Contratto): Promise<void>
     }
@@ -299,12 +302,14 @@ PostgresImmobileRepository ..|> ImmobileRepository
 PostgresPersonaRepository ..|> PersonaRepository
 PostgresTipologiaContrattualeRepository ..|> TipologiaContrattualeRepository
 PostgresContrattoRepository ..|> ContrattoRepository
+PostgresPagamentoRepository ..|> PagamentoRepository
 PostgresRegistrazioneContratto ..|> RegistrazioneContrattoPort
 GeneratoreDocumentoHtmlContratto ..|> GeneratoreDocumentoContratto
 DataCorrenteSistemaProvider ..|> DataCorrenteProvider
 
 PostgresBozzaContrattoRepository ..> BozzaContrattoJsonMapper
 PostgresContrattoRepository ..> PostgresValueMapper
+PostgresPagamentoRepository ..> PostgresValueMapper
 PostgresImmobileRepository ..> PostgresValueMapper
 PostgresPersonaRepository ..> PostgresValueMapper
 PostgresRegistrazioneContratto ..> PostgresValueMapper
