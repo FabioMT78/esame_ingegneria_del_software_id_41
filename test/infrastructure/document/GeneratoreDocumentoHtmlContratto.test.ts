@@ -147,7 +147,6 @@ describe("GeneratoreDocumentoHtmlContratto", () => {
     expect(html).not.toContain("<Milano>");
   });
 
-
   test("renderizza valori derivati, importi in lettere e IBAN del proprietario", () => {
     const generatore = new GeneratoreDocumentoHtmlContratto();
     const contratto = creaContratto([
@@ -205,9 +204,18 @@ describe("GeneratoreDocumentoHtmlContratto", () => {
     );
   });
 
-  test("rifiuta una tipologia senza articoli", () => {
+  test("rifiuta una tipologia che risulta priva di articoli al momento della generazione", () => {
     const generatore = new GeneratoreDocumentoHtmlContratto();
-    const contratto = creaContratto([]);
+    const contratto = creaContratto([
+      new Articolo({
+        numArticolo: 1,
+        numParte: 0,
+        titolo: "Articolo test",
+        descrizione: "Testo",
+      }),
+    ]);
+
+    contratto.tipologia.articoli.length = 0;
 
     expect(() => generatore.genera(contratto)).toThrow(
       "La tipologia contrattuale non contiene articoli da generare",

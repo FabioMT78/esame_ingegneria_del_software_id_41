@@ -45,6 +45,7 @@ class Contratto {
     giornoPagamento,
     registratoIl,
   }: ContrattoParams) {
+    Contratto.validaCanoneMensile(canoneMensile);
     Contratto.validaGiornoPagamento(giornoPagamento);
 
     if (proprietario.codiceFiscale === inquilino.codiceFiscale) {
@@ -77,6 +78,12 @@ class Contratto {
 
   get canoneAnnuale(): number {
     return Math.round(this.canoneMensile * 12 * 100) / 100;
+  }
+
+  static validaCanoneMensile(canoneMensile: number): void {
+    if (!Number.isFinite(canoneMensile) || canoneMensile <= 0) {
+      throw new RangeError("Il canone mensile deve essere maggiore di zero");
+    }
   }
 
   static validaGiornoPagamento(giornoPagamento: number): void {

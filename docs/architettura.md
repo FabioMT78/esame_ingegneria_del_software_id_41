@@ -87,7 +87,7 @@ Non dipende da HTTP, SQL, `pg`, PostgreSQL o Docker.
 
 Contiene gli oggetti e le regole stabili del dominio degli affitti.
 
-Le regole economiche e temporali delle competenze, i vincoli sul periodo contrattuale, le invarianti dei pagamenti e lo stato temporale del Contratto sono responsabilità del dominio. `Articolo` rappresenta esclusivamente il template contrattuale e non viene copiato nel Contratto registrato.
+Le regole economiche e temporali delle competenze, i vincoli sul periodo contrattuale e le invarianti dei pagamenti sono responsabilità del dominio. `Articolo` rappresenta esclusivamente il template contrattuale e non viene copiato nel Contratto registrato.
 
 Il domain non conosce UI, database, SQL, framework o formati di persistenza.
 
@@ -101,8 +101,7 @@ Contiene i dettagli tecnici sostituibili:
 - pool e connessioni `pg`;
 - gestione tecnica delle transazioni;
 - generazione concreta del documento HTML;
-- sorgente concreta della data corrente;
-- logging e altri dettagli tecnici quando necessari.
+- sorgente concreta della data corrente.
 
 Non contiene workflow dei casi d'uso né regole economiche o contrattuali.
 
@@ -131,13 +130,13 @@ Il composition root è confinato in `src/web/compositionRoot.ts`: è il punto in
 
 #### Problema
 
-I controlli specifici dei singoli campi non sono sufficienti a esprimere da soli una responsabilità trasversale di sicurezza dell'ingresso HTTP. La versione 1.0 deve inoltre fornire un'evidenza semplice e verificabile del trattamento server-side di input riconducibili a tentativi comuni di XSS o SQL injection, anche quando i controlli del client vengono aggirati.
+La sicurezza applicativa completa non rientra nello scope funzionale della versione 1.0. Il confine HTTP deve comunque rimanere autorevole sulla validazione dei dati ricevuti e non può affidarsi ai controlli del browser. Oltre alle protezioni contestuali già necessarie per persistenza e rendering, è stato introdotto un controllo server-side aggiuntivo e circoscritto per riconoscere alcuni pattern comuni riconducibili a XSS o SQL injection.
 
 #### Scelta
 
 Le richieste dirette alle route `/api` attraversano `SicurezzaInputHttpMiddleware` dopo il parsing JSON e prima dei controller. Il middleware conosce Express e delega l'analisi a `SicurezzaInputService`, che non dipende dal framework HTTP e attraversa ricorsivamente path, query string e body JSON alla ricerca di un insieme iniziale e intenzionalmente limitato di pattern sospetti.
 
-La versione 1.0 riconosce dieci famiglie dimostrative di pattern, suddivise tra XSS e SQL injection. Quando viene rilevata una corrispondenza, la richiesta viene rifiutata con errore HTTP 400 e viene prodotto un log tecnico che riporta metodo, origine del valore, categoria e pattern rilevato. Il valore destinato al log viene limitato in lunghezza e reso sicuro rispetto ai caratteri di markup.
+La versione 1.0 riconosce dieci famiglie dimostrative di pattern, suddivise tra XSS e SQL injection. Quando viene rilevata una corrispondenza, la richiesta viene rifiutata con errore HTTP 400 e viene prodotto un log tecnico che riporta metodo, origine del valore, categoria e pattern rilevato. Il valore destinato al log viene limitato in lunghezza e reso sicuro rispetto ai caratteri di markup. Il controllo è esclusivamente server-side: eventuali validazioni del browser rimangono controlli di usabilità e non sono considerate una barriera di sicurezza.
 
 Il controllo trasversale non sostituisce le altre difese:
 
@@ -252,7 +251,7 @@ Per un Immobile già registrato può esistere al massimo una bozza attiva, così
 
 La data `al` viene determinata automaticamente dalla regola di dominio a partire da `dal` e dalla durata iniziale della `TipologiaContrattuale` quando i dati contrattuali vengono validati. Da quel momento il periodo `dal`--`al` fa parte dello stato della bozza e, alla registrazione, dello stato storico del `Contratto`.
 
-Entrambe le date vengono conservate nella persistenza relazionale. Pur essendo `al` un valore calcolato all'origine, conservarlo evita di ricostruire il periodo da dati configurabili della tipologia durante le letture e rende dirette le ricerche per intervallo o scadenza. Lo stato temporale futuro / in essere / scaduto resta invece derivato dal periodo e dalla data corrente e non viene persistito come flag.
+Entrambe le date vengono conservate nella persistenza relazionale. Pur essendo `al` un valore calcolato all'origine, conservarlo evita di ricostruire il periodo da dati configurabili della tipologia durante le letture e rende dirette le ricerche per intervallo o scadenza.
 
 La regola secondo cui due periodi relativi allo stesso Immobile non possono sovrapporsi resta nel dominio. Per verificare la registrabilità di un nuovo periodo, l'application layer richiede al `ContrattoRepository` una ricerca mirata di esistenza sulla tripla Immobile, `dal`, `al`, anziché caricare tutti i Contratti dell'Immobile e filtrarli in memoria. Non viene introdotto un vincolo PostgreSQL avanzato specifico per gli intervalli: nello scope mono-utente della versione 1.0 la query mirata mantiene la soluzione semplice e la regola esplicita nel dominio. Il trade-off accettato è che un eventuale scenario futuro con scritture realmente concorrenti richiederebbe rivalutare anche la protezione a livello di persistenza.
 
@@ -403,7 +402,6 @@ src/
       postgres/
     document/
     time/
-    logging/
 
 public/
   css/

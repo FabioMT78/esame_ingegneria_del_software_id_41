@@ -7,6 +7,7 @@ import type ContrattoRepository from "../../src/application/ports/ContrattoRepos
 import type DataCorrenteProvider from "../../src/application/ports/DataCorrenteProvider";
 import type ImmobileRepository from "../../src/application/ports/ImmobileRepository";
 import type PagamentoRepository from "../../src/application/ports/PagamentoRepository";
+import Articolo from "../../src/domain/Articolo";
 import Contratto from "../../src/domain/Contratto";
 import DatiCatastali from "../../src/domain/DatiCatastali";
 import Immobile from "../../src/domain/Immobile";
@@ -79,7 +80,15 @@ const tipologia = new TipologiaContrattuale({
   denominazione: "Canone concordato",
   durata: 3,
   rinnovo: 2,
-  articoli: [],
+  articoli: [
+    new Articolo({
+      id: 1,
+      numArticolo: 1,
+      numParte: 0,
+      titolo: "Articolo test",
+      descrizione: "Testo",
+    }),
+  ],
 });
 
 const proprietario = creaPersona(1, "RSSMRA80A01H501U", "Mario", "Rossi");

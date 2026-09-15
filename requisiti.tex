@@ -127,7 +127,7 @@ autorizzazione restano fuori scope.
           completa del documento generato, ottenuta usando i dati finali validati e gli articoli template.
           Tale copia deve rimanere invariata anche in presenza di successive modifiche agli articoli
           predefiniti o ai dati sorgente utilizzati per generarla.
-    \item Il canone è mensile e il giorno di pagamento deve essere compreso tra 1 e 28.
+    \item Il canone è mensile, deve essere strettamente maggiore di zero e il giorno di pagamento deve essere compreso tra 1 e 28.
     \item Una mensilità può essere registrata come pagata a partire dal primo giorno
             del relativo mese di competenza, anche prima del giorno di pagamento
             previsto dal contratto.
@@ -274,7 +274,8 @@ del contratto. \\
 
 \req{RF-04} &
 Il sistema deve acquisire per il contratto un nome o una breve descrizione, la tipologia
-contrattuale, la data iniziale, il canone mensile e il giorno di pagamento. La tipologia
+contrattuale, la data iniziale, il canone mensile e il giorno di pagamento. Il canone mensile
+deve essere strettamente maggiore di zero. La tipologia
 contrattuale deve definire la durata del periodo iniziale, la durata del rinnovo e gli articoli
 predefiniti applicabili. Il sistema deve calcolare automaticamente la data finale del periodo
 iniziale utilizzando la durata della tipologia selezionata. Gli articoli predefiniti non devono
@@ -509,8 +510,8 @@ successivo finché non vengono corretti.
 \textbf{quando} i dati contrattuali vengono validati,
 \textbf{allora} il sistema deve calcolare automaticamente la data \texttt{al} usando
 la durata del periodo iniziale della tipologia, mantenere disponibile il valore di rinnovo
-senza applicarlo al periodo gestito nella versione 1.0 e accettare un giorno di pagamento
-compreso tra 1 e 28. Gli articoli non devono essere mostrati nello step dei dati contrattuali;
+senza applicarlo al periodo gestito nella versione 1.0, accettare un canone mensile
+strettamente maggiore di zero e un giorno di pagamento compreso tra 1 e 28. Gli articoli non devono essere mostrati nello step dei dati contrattuali;
 quando il proprietario raggiunge il riepilogo il sistema deve produrre un'anteprima valorizzata
 degli articoli usando i dati della bozza. Il documento completo e storico del contratto deve
 essere generato nuovamente soltanto alla conferma definitiva usando i dati finali validati.

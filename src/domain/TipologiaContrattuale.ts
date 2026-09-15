@@ -22,6 +22,12 @@ class TipologiaContrattuale {
     rinnovo,
     articoli,
   }: TipologiaContrattualeParams) {
+    if (articoli.length === 0) {
+      throw new RangeError(
+        "La tipologia contrattuale deve definire almeno un articolo",
+      );
+    }
+
     if (id !== undefined) {
       this.id = id;
     }

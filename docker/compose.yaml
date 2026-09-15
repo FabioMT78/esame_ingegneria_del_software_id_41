@@ -1,3 +1,5 @@
+name: gestionale-affitti
+
 services:
   app:
     image: node:24.21.0-alpine3.24

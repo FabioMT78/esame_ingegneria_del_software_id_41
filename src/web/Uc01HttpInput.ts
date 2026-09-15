@@ -1,4 +1,5 @@
 import { ErroreValidazione } from "../application/errors/ApplicationError";
+import Contratto from "../domain/Contratto";
 import DatiCatastali from "../domain/DatiCatastali";
 import DocumentoRiconoscimento from "../domain/DocumentoRiconoscimento";
 import Immobile from "../domain/Immobile";
@@ -326,12 +327,15 @@ function leggiPersonaDaBody(valore: unknown): Persona {
 
 function leggiDatiContrattuali(valore: unknown): DatiContrattualiInput {
   const dati = richiediOggetto(valore, "richiesta");
+  const canoneMensile = richiediNumero(dati, "canoneMensile");
+
+  Contratto.validaCanoneMensile(canoneMensile);
 
   return {
     nomeDescrizione: richiediStringa(dati, "nomeDescrizione"),
     tipologiaId: richiediId(dati, "tipologiaId"),
     dal: leggiDataHttp(dati.dal, "dal"),
-    canoneMensile: richiediNumero(dati, "canoneMensile"),
+    canoneMensile,
     giornoPagamento: richiediIntero(dati, "giornoPagamento"),
   };
 }
