@@ -259,7 +259,6 @@ src/
       postgres/
     document/
     time/
-    logging/
 
 public/
   css/
@@ -342,8 +341,7 @@ La documentazione viene mantenuta nello stesso repository del codice e versionat
   - `uml/activity-uc01.puml`;
   - `uml/sequence-uc02.puml`.
 
-Le sorgenti PlantUML sono la rappresentazione autorevole dei diagrammi modellati e vengono esportate in PDF per la relazione. Lo script `uml/export-pdf.sh` genera gli export in `uml/pdf/` usando il comando `plantuml` disponibile nel sistema oppure il JAR indicato dalla variabile `PLANTUML_JAR`. Dopo l'esportazione, ricompilando `docs/relazione.tex` i diagrammi vengono inclusi automaticamente nella relazione.
-I PDF LaTeX possono essere rigenerati con `docs/build-pdf.sh`, che compila `docs/requisiti.tex` e `docs/relazione.tex` tramite `latexmk`.
+Le sorgenti PlantUML sono la rappresentazione autorevole dei diagrammi modellati e vengono esportate in PDF per la relazione.
 
 ## Contributo individuale
 

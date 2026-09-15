@@ -58,7 +58,6 @@ class Contratto {
   giornoPagamento
   registratoIl
   contenuto
-  /stato
 }
 
 class TipologiaContrattuale {
@@ -134,6 +133,7 @@ end note
 
 note right of Contratto
   { proprietario.codiceFiscale <> inquilino.codiceFiscale }
+  { canoneMensile > 0 }
   { giornoPagamento in 1..28 }
   { al calcolato da dal e TipologiaContrattuale.durata
     durante la definizione del periodo e poi conservato }
@@ -141,8 +141,6 @@ note right of Contratto
   { registratoIl valorizzato alla registrazione definitiva }
   { /canoneAnnuale = canoneMensile * 12 }
   { contenuto = copia completa del contratto generato }
-  { /stato derivato dal periodo e dalla data corrente:
-    futuro, in essere oppure scaduto }
 end note
 
 note bottom of TipologiaContrattuale

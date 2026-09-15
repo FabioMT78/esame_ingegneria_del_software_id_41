@@ -8,12 +8,20 @@ type TipologiaRow = {
   denominazione: string;
   durata: number;
   rinnovo: number;
-  articolo_id: number | null;
-  num_articolo: number | null;
-  num_parte: number | null;
-  titolo: string | null;
+  articolo_id: number;
+  num_articolo: number;
+  num_parte: number;
+  titolo: string;
   sottotitolo: string | null;
-  descrizione: string | null;
+  descrizione: string;
+};
+
+type TipologiaRaggruppata = {
+  id: number;
+  denominazione: string;
+  durata: number;
+  rinnovo: number;
+  articoli: Articolo[];
 };
 
 const SELECT_TIPOLOGIA = `
@@ -29,52 +37,43 @@ const SELECT_TIPOLOGIA = `
     a.sottotitolo,
     a.descrizione
   FROM tipologia_contrattuale t
-  LEFT JOIN articolo a ON a.tipologia_id = t.id
+  INNER JOIN articolo a ON a.tipologia_id = t.id
 `;
 
 function mappaTipologie(righe: TipologiaRow[]): TipologiaContrattuale[] {
-  const tipologie = new Map<number, TipologiaContrattuale>();
+  const tipologie = new Map<number, TipologiaRaggruppata>();
 
   for (const riga of righe) {
     let tipologia = tipologie.get(riga.tipologia_id);
 
     if (tipologia === undefined) {
-      tipologia = new TipologiaContrattuale({
+      tipologia = {
         id: riga.tipologia_id,
         denominazione: riga.denominazione,
         durata: riga.durata,
         rinnovo: riga.rinnovo,
         articoli: [],
-      });
+      };
       tipologie.set(riga.tipologia_id, tipologia);
     }
 
-    if (riga.articolo_id !== null) {
-      if (
-        riga.num_articolo === null ||
-        riga.num_parte === null ||
-        riga.titolo === null ||
-        riga.descrizione === null
-      ) {
-        throw new Error("Articolo persistito incompleto");
-      }
-
-      tipologia.articoli.push(
-        new Articolo({
-          id: riga.articolo_id,
-          numArticolo: riga.num_articolo,
-          numParte: riga.num_parte,
-          titolo: riga.titolo,
-          ...(riga.sottotitolo !== null
-            ? { sottotitolo: riga.sottotitolo }
-            : {}),
-          descrizione: riga.descrizione,
-        }),
-      );
-    }
+    tipologia.articoli.push(
+      new Articolo({
+        id: riga.articolo_id,
+        numArticolo: riga.num_articolo,
+        numParte: riga.num_parte,
+        titolo: riga.titolo,
+        ...(riga.sottotitolo !== null
+          ? { sottotitolo: riga.sottotitolo }
+          : {}),
+        descrizione: riga.descrizione,
+      }),
+    );
   }
 
-  return [...tipologie.values()];
+  return [...tipologie.values()].map(
+    (tipologia) => new TipologiaContrattuale(tipologia),
+  );
 }
 
 class PostgresTipologiaContrattualeRepository

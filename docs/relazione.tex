@@ -91,7 +91,7 @@ Le principali invarianti sono:
 Il sistema adotta una struttura client-server e, all'interno del backend monolitico, una separazione layered. Le responsabilità logiche sono:
 
 \begin{description}
-  \item[web/interface] ricezione delle richieste HTTP, validazione formale, serializzazione e traduzione degli errori;
+  \item[web/interface] ricezione delle richieste HTTP, controlli trasversali sull'input, validazione formale, serializzazione e traduzione degli errori;
   \item[application] orchestrazione dei casi d'uso tramite \texttt{RegistraContrattoService} e \texttt{RegistraPagamentoService};
   \item[domain] regole stabili e invarianti del dominio;
   \item[infrastructure] PostgreSQL, mapping, transazioni, generazione HTML, data corrente e dettagli tecnici.
@@ -102,6 +102,10 @@ L'application layer dipende da porte definite sui bisogni dei casi d'uso. Le imp
 Per UC-01, \texttt{RegistrazioneContrattoPort} delimita l'operazione atomica di registrazione definitiva: dati definitivi collegati, Contratto e primo Pagamento vengono scritti nella stessa transazione PostgreSQL. Il cleanup della bozza è successivo al commit, così un suo eventuale fallimento non invalida un Contratto già registrato.
 
 Per UC-02, \texttt{PagamentoRepository} è volutamente una porta di sola scrittura. I pagamenti storici vengono letti insieme al Contratto tramite \texttt{ContrattoRepository}; questa asimmetria evita due percorsi concorrenti per ricostruire lo stesso stato.
+
+Le route \texttt{/api} attraversano inoltre \texttt{SicurezzaInputHttpMiddleware} prima dei controller. Il middleware ispeziona path, query string e body delegando a \texttt{SicurezzaInputService}, indipendente da Express, la rilevazione ricorsiva di un insieme limitato di pattern sospetti riconducibili a XSS e SQL injection. Un input riconosciuto viene rifiutato con HTTP 400 e produce un log tecnico con valore reso sicuro per la registrazione.
+
+Questa rilevazione è una difesa aggiuntiva e non sostituisce le protezioni contestuali: i singoli input continuano a essere validati secondo il loro significato, le query PostgreSQL rimangono parametrizzate e il contenuto HTML viene sottoposto a escaping nel punto di rendering. Le espressioni regolari usate dal controllo trasversale sono volutamente euristiche e possono produrre falsi positivi o falsi negativi; nello scope didattico della versione 1.0 forniscono una barriera centralizzata, semplice e direttamente testabile.
 
 \begin{figure}[p]
   \centering
@@ -119,6 +123,8 @@ Per UC-02, \texttt{PagamentoRepository} è volutamente una porta di sola scrittu
 \subsection{SRP}
 
 Controller, Service, dominio e infrastruttura hanno motivi di cambiamento distinti. I Service non eseguono SQL né rendering concreto; i repository non contengono workflow; il dominio non dipende da Express o PostgreSQL.
+
+Nel boundary HTTP, \texttt{SicurezzaInputHttpMiddleware} ha la responsabilità di intercettare la richiesta e tradurre una rilevazione sospetta nel normale flusso di errore Express, mentre \texttt{SicurezzaInputService} contiene soltanto la logica di ispezione e classificazione dei pattern. La separazione evita di legare la logica di rilevazione al framework e ne consente il test unitario.
 
 \subsection{DIP}
 
@@ -194,8 +200,11 @@ Le suite coprono:
   \item generazione documentale e placeholder;
   \item repository e schema PostgreSQL;
   \item confine HTTP dei due casi d'uso;
+  \item rilevazione trasversale degli input sospetti, con test unitari del \texttt{SicurezzaInputService} e test HTTP del middleware;
   \item scenario end-to-end di UC-02 attraverso HTTP, application layer e PostgreSQL.
 \end{itemize}
+
+I test di sicurezza verificano sia payload riconducibili alle famiglie di pattern XSS/SQL injection previste, sia valori legittimi che non devono essere bloccati, oltre all'analisi ricorsiva di oggetti e array e al comportamento HTTP 400 con logging tecnico.
 
 Lo scenario end-to-end di UC-02 verifica sia il flusso positivo sia un errore significativo: una preview diventa obsoleta prima della conferma e viene rifiutata senza creare duplicati o registrare una competenza differente.
 
@@ -228,6 +237,7 @@ Le principali scelte consapevoli sono:
   \item SQL esplicito invece di ORM, perché lo scope rende gestibili query e mapping;
   \item nessun pattern GoF forzato;
   \item una porta \texttt{PagamentoRepository} orientata alla scrittura per evitare duplicazioni di lettura;
+  \item controllo trasversale degli input basato su pattern euristici come difesa aggiuntiva, senza sostituire query parametrizzate, validazione specifica ed escaping contestuale;
   \item nessun vincolo prestazionale quantitativo senza ambiente di misura riproducibile;
   \item contesto mono-utente, senza autenticazione e autorizzazione;
   \item gestione del solo periodo iniziale del Contratto, senza rinnovi operativi.

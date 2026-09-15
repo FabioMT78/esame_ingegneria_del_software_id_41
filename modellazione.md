@@ -136,7 +136,7 @@ La versione 1.0 non gestisce storico o pluralità di documenti per la stessa Per
 - data di registrazione `registratoIl`;
 - `contenuto`, copia completa del documento generato.
 
-Le date `dal` e `al` appartengono entrambe al periodo contrattuale. Due Contratti relativi allo stesso Immobile non possono avere periodi sovrapposti.
+Le date `dal` e `al` appartengono entrambe al periodo contrattuale. Il `canoneMensile` deve essere strettamente maggiore di zero. Due Contratti relativi allo stesso Immobile non possono avere periodi sovrapposti.
 
 `TipologiaContrattuale` descrive la tipologia scelta tramite:
 
@@ -234,6 +234,7 @@ Il Domain Model rende espliciti i vincoli necessari a comprenderne struttura e s
 - una Persona che assume il ruolo di inquilino deve disporre del DocumentoRiconoscimento richiesto;
 - il DocumentoRiconoscimento dell'inquilino deve avere data di rilascio non successiva alla data corrente del server e data di scadenza successiva alla stessa data corrente;
 - la combinazione catastale identifica univocamente un Immobile;
+- il canone mensile è strettamente maggiore di zero;
 - il giorno di pagamento è compreso tra 1 e 28;
 - la data `al` viene calcolata da `dal` e dalla durata iniziale della TipologiaContrattuale durante la definizione del periodo e viene poi conservata nel Contratto;
 - il rinnovo della tipologia non estende il periodo gestito nella versione 1.0;

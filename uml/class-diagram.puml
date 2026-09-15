@@ -107,6 +107,12 @@ package "application" {
 }
 
 package "web" {
+  class SicurezzaInputHttpMiddleware <<middleware>>
+
+  class SicurezzaInputService <<service>> {
+    + verifica<T>(valore : T, percorso : string) : T
+  }
+
   class RegistraContrattoController <<controller>> {
     + router : Router
   }
@@ -204,6 +210,7 @@ package "domain" {
     + siSovrapponeA(altro : Contratto) : boolean
     + calcolaImportoCompetenza(anno : int, mese : int) : decimal
     + calcolaScadenzaCompetenza(anno : int, mese : int) : date
+    + {static} validaCanoneMensile(canoneMensile : decimal) : void
     + {static} validaGiornoPagamento(giornoPagamento : int) : void
     + {static} periodiSiSovrappongono(dal : date, al : date, altroDal : date, altroAl : date) : boolean
     + {static} calcolaDataFine(dal : date, tipologia : TipologiaContrattuale) : date
@@ -268,6 +275,7 @@ BozzaContratto "1" --> "0..1" TipologiaContrattuale : tipologia
 
 RegistraContrattoController ..> RegistraContrattoService
 RegistraPagamentoController ..> RegistraPagamentoService
+SicurezzaInputHttpMiddleware ..> SicurezzaInputService
 compositionRoot ..> RegistraContrattoService
 compositionRoot ..> RegistraPagamentoService
 compositionRoot ..> PostgresBozzaContrattoRepository
@@ -329,6 +337,15 @@ note right of RegistraContrattoController
   Espone anche l'anteprima HTML della bozza completa.
   Le date di calendario attraversano HTTP come YYYY-MM-DD.
   Non contiene regole di dominio o query SQL.
+end note
+
+note right of SicurezzaInputHttpMiddleware
+  Intercetta le richieste /api prima dei controller.
+  Ispeziona path, query e body tramite SicurezzaInputService.
+  I pattern sospetti producono HTTP 400 e un log tecnico
+  con il valore reso sicuro per la registrazione.
+  La rilevazione euristica non sostituisce validazione
+  specifica, query parametrizzate o HTML escaping.
 end note
 
 note right of RegistraPagamentoController
@@ -419,8 +436,13 @@ note bottom of Articolo
   nel testo, non tramite convenzioni sui numeri degli articoli.
 end note
 
+note bottom of TipologiaContrattuale
+  { almeno 1 Articolo template }
+end note
+
 note bottom of Contratto
   { proprietario.codiceFiscale <> inquilino.codiceFiscale }
+  { canoneMensile > 0 }
   { giornoPagamento in 1..28 }
   { al calcolato da dal e tipologia.durata prima della registrazione
     e poi conservato come parte del periodo storico }
@@ -430,7 +452,6 @@ note bottom of Contratto
   Il GeneratoreDocumentoContratto produce l'HTML completo e
   il Service lo assegna prima della registrazione definitiva.
   { registrazione definitiva: contenuto presente e almeno 1 Pagamento }
-  Lo stato futuro / in essere / scaduto è derivato e non persistito.
 end note
 
 note bottom of Pagamento

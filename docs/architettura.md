@@ -61,6 +61,7 @@ Responsabilità principali:
 
 - ricevere le richieste dal client;
 - applicare controlli tecnici e formali sugli input;
+- applicare una prima rilevazione trasversale di pattern sospetti riconducibili a XSS e SQL injection prima dei controller;
 - trasformare i dati ricevuti nella forma richiesta dall'application layer;
 - invocare il caso d'uso corretto;
 - tradurre gli esiti applicativi nella risposta verso il client.
@@ -86,7 +87,7 @@ Non dipende da HTTP, SQL, `pg`, PostgreSQL o Docker.
 
 Contiene gli oggetti e le regole stabili del dominio degli affitti.
 
-Le regole economiche e temporali delle competenze, i vincoli sul periodo contrattuale, le invarianti dei pagamenti e lo stato temporale del Contratto sono responsabilità del dominio. `Articolo` rappresenta esclusivamente il template contrattuale e non viene copiato nel Contratto registrato.
+Le regole economiche e temporali delle competenze, i vincoli sul periodo contrattuale e le invarianti dei pagamenti sono responsabilità del dominio. `Articolo` rappresenta esclusivamente il template contrattuale e non viene copiato nel Contratto registrato.
 
 Il domain non conosce UI, database, SQL, framework o formati di persistenza.
 
@@ -100,8 +101,7 @@ Contiene i dettagli tecnici sostituibili:
 - pool e connessioni `pg`;
 - gestione tecnica delle transazioni;
 - generazione concreta del documento HTML;
-- sorgente concreta della data corrente;
-- logging e altri dettagli tecnici quando necessari.
+- sorgente concreta della data corrente.
 
 Non contiene workflow dei casi d'uso né regole economiche o contrattuali.
 
@@ -125,6 +125,33 @@ application ─────→ port / repository
 Il `domain` non dipende dalla persistenza. L'`application` dipende dalle astrazioni richieste dai casi d'uso; le implementazioni concrete dell'infrastruttura dipendono dagli stessi contratti applicativi.
 
 Il composition root è confinato in `src/web/compositionRoot.ts`: è il punto in cui il processo costruisce il pool PostgreSQL, le implementazioni concrete delle porte, i provider infrastrutturali, `RegistraContrattoService` e `RegistraPagamentoService`, per poi passarli al confine Express. Non contiene regole applicative; la sua responsabilità è esclusivamente assemblare il grafo delle dipendenze. `server.ts` resta invece il bootstrap del processo e gestisce ascolto HTTP e chiusura ordinata delle risorse.
+
+### Sicurezza trasversale del confine HTTP
+
+#### Problema
+
+La sicurezza applicativa completa non rientra nello scope funzionale della versione 1.0. Il confine HTTP deve comunque rimanere autorevole sulla validazione dei dati ricevuti e non può affidarsi ai controlli del browser. Oltre alle protezioni contestuali già necessarie per persistenza e rendering, è stato introdotto un controllo server-side aggiuntivo e circoscritto per riconoscere alcuni pattern comuni riconducibili a XSS o SQL injection.
+
+#### Scelta
+
+Le richieste dirette alle route `/api` attraversano `SicurezzaInputHttpMiddleware` dopo il parsing JSON e prima dei controller. Il middleware conosce Express e delega l'analisi a `SicurezzaInputService`, che non dipende dal framework HTTP e attraversa ricorsivamente path, query string e body JSON alla ricerca di un insieme iniziale e intenzionalmente limitato di pattern sospetti.
+
+La versione 1.0 riconosce dieci famiglie dimostrative di pattern, suddivise tra XSS e SQL injection. Quando viene rilevata una corrispondenza, la richiesta viene rifiutata con errore HTTP 400 e viene prodotto un log tecnico che riporta metodo, origine del valore, categoria e pattern rilevato. Il valore destinato al log viene limitato in lunghezza e reso sicuro rispetto ai caratteri di markup. Il controllo è esclusivamente server-side: eventuali validazioni del browser rimangono controlli di usabilità e non sono considerate una barriera di sicurezza.
+
+Il controllo trasversale non sostituisce le altre difese:
+
+- `Uc01HttpInput` e `Uc02HttpInput` continuano a validare forma, tipo e significato degli input richiesti dai rispettivi casi d'uso;
+- il dominio continua a proteggere le proprie invarianti e a normalizzare i valori che hanno una semantica specifica, come codice fiscale e IBAN;
+- la persistenza PostgreSQL continua a usare query parametrizzate, che impediscono ai valori ricevuti di diventare parte della sintassi SQL;
+- `GeneratoreDocumentoHtmlContratto` continua a eseguire escaping contestuale dei dati inseriti nell'HTML.
+
+#### Alternative considerate
+
+È stata scartata una sanitizzazione globale e distruttiva che rimuova indiscriminatamente apostrofi, virgolette, parentesi angolari o altre sequenze dai valori ricevuti. Tale soluzione potrebbe alterare dati legittimi e confondere la rilevazione preventiva con le protezioni necessarie nel punto effettivo di utilizzo del dato.
+
+#### Trade-off
+
+Il riconoscimento tramite espressioni regolari è volutamente euristico: non costituisce un Web Application Firewall e non pretende di coprire tutte le varianti reali di XSS o SQL injection. Il vantaggio, nello scope didattico della versione 1.0, è una barriera piccola, centralizzata e direttamente testabile. Il costo è la possibilità di falsi positivi o falsi negativi, mitigata dal fatto che le protezioni contestuali restano comunque attive.
 
 ## 4. Componenti applicativi e responsabilità
 
@@ -224,7 +251,7 @@ Per un Immobile già registrato può esistere al massimo una bozza attiva, così
 
 La data `al` viene determinata automaticamente dalla regola di dominio a partire da `dal` e dalla durata iniziale della `TipologiaContrattuale` quando i dati contrattuali vengono validati. Da quel momento il periodo `dal`--`al` fa parte dello stato della bozza e, alla registrazione, dello stato storico del `Contratto`.
 
-Entrambe le date vengono conservate nella persistenza relazionale. Pur essendo `al` un valore calcolato all'origine, conservarlo evita di ricostruire il periodo da dati configurabili della tipologia durante le letture e rende dirette le ricerche per intervallo o scadenza. Lo stato temporale futuro / in essere / scaduto resta invece derivato dal periodo e dalla data corrente e non viene persistito come flag.
+Entrambe le date vengono conservate nella persistenza relazionale. Pur essendo `al` un valore calcolato all'origine, conservarlo evita di ricostruire il periodo da dati configurabili della tipologia durante le letture e rende dirette le ricerche per intervallo o scadenza.
 
 La regola secondo cui due periodi relativi allo stesso Immobile non possono sovrapporsi resta nel dominio. Per verificare la registrabilità di un nuovo periodo, l'application layer richiede al `ContrattoRepository` una ricerca mirata di esistenza sulla tripla Immobile, `dal`, `al`, anziché caricare tutti i Contratti dell'Immobile e filtrarli in memoria. Non viene introdotto un vincolo PostgreSQL avanzato specifico per gli intervalli: nello scope mono-utente della versione 1.0 la query mirata mantiene la soluzione semplice e la regola esplicita nel dominio. Il trade-off accettato è che un eventuale scenario futuro con scritture realmente concorrenti richiederebbe rivalutare anche la protezione a livello di persistenza.
 
@@ -233,7 +260,6 @@ La regola secondo cui due periodi relativi allo stesso Immobile non possono sovr
 `Articolo` rappresenta esclusivamente il template della `TipologiaContrattuale`. La suddivisione di un articolo logico in parti ordinate permette al generatore di inserire i valori dinamici senza creare copie valorizzate degli articoli associate al Contratto.
 
 Nella versione 1.0 i punti di inserimento dei dati dinamici sono dichiarati direttamente nel testo del template tramite placeholder espliciti con forma `{{nome}}`, usando nomi qualificati come `{{contratto.canoneMensile}}`, `{{contratto.dal}}`, `{{proprietario.codiceFiscale}}`, `{{proprietario.iban}}` o `{{inquilino.documento.numero}}`. Il generatore mantiene una lista chiusa di placeholder supportati: un placeholder sconosciuto rende la generazione non valida invece di produrre silenziosamente un documento incompleto. I numeri di articolo e parte determinano esclusivamente ordine e raggruppamento e non vengono usati come convenzione implicita per decidere quale valore inserire.
-
 
 Il generatore distingue i dati autorevoli dai valori di presentazione. `Contratto.canoneAnnuale` è derivato
 dal canone mensile e non viene persistito separatamente; le forme testuali degli importi sono prodotte
@@ -287,6 +313,8 @@ Le responsabilità sono separate per motivo di cambiamento:
 - il dominio cambia quando cambiano le regole del dominio;
 - l'infrastruttura cambia quando cambiano database, mapping, generazione concreta del documento o altri dettagli tecnici.
 
+Nel boundary HTTP, `SicurezzaInputHttpMiddleware` ha la responsabilità di intercettare le richieste e tradurre una rilevazione sospetta nel normale flusso di errore Express, mentre `SicurezzaInputService` ha la sola responsabilità di ispezionare i valori e classificare i pattern riconosciuti. In questo modo la logica di rilevazione rimane testabile senza costruire una richiesta HTTP.
+
 `RegistraContrattoService` non viene suddiviso preventivamente in un Service per ogni step: i passaggi appartengono allo stesso caso d'uso. Una separazione ulteriore sarebbe giustificata soltanto da responsabilità realmente autonome emerse nel codice.
 
 ### DIP
@@ -306,6 +334,8 @@ Il generatore del documento è invece dietro una porta perché il formato di out
 ### Testabilità
 
 Le dipendenze invertite permettono di testare i Service sostituendo repository, generatore del documento e provider temporale con stub, fake o mock. Le regole del dominio possono essere testate indipendentemente dall'infrastruttura.
+
+`SicurezzaInputService` viene testato direttamente con payload sospetti e valori legittimi, inclusa l'analisi ricorsiva di oggetti e array. Un test HTTP separato verifica che il middleware intercetti query string e body prima dei controller, restituisca HTTP 400 e produca il log tecnico previsto.
 
 I test unitari di UC-01 verificano anche l'isolamento fra bozze, il cleanup selettivo, la memorizzazione del periodo calcolato e la delega della ricerca di sovrapposizione alla porta di persistenza. I test di integrazione vengono riservati ai comportamenti che dipendono realmente da PostgreSQL, come mapping, query e confine transazionale. Il dettaglio dei test presenti e il comando operativo di esecuzione appartengono al README, agli script del progetto e alla suite di test.
 
@@ -372,7 +402,6 @@ src/
       postgres/
     document/
     time/
-    logging/
 
 public/
   css/
