@@ -1,3 +1,28 @@
+
+> ***N.B.***\
+> Questo è un progetto svolto per l'esame di ***Ingegneria del Software***\
+> <small>*(7-15 settembre 2026)*</small>
+>
+> Per il progetto è stato utilizzato un approccio ***AGILE*** assieme ai principi ***SOLID***, in particolare ***SRP***, ***OCP*** e ***DIP***.
+> 
+> Pochi casi d’uso ma completi (end-to-end):
+> - *UC-01 -- Registrare un contratto di locazione;*
+> - *UC-02 -- Registrare il pagamento di un canone.*
+>
+> \
+> Il caso principale è la registrazione guidata di un contratto di locazione: l’utente inserisce immobile, proprietario, inquilino e dati contrattuali, il sistema applica le regole di dominio, genera il contenuto del contratto a partire dai template degli articoli e infine lo registra in modo consistente. Inseriti anche la registrazione dei pagamenti dei canoni.
+> 
+> *L’applicazione è organizzata separando ***interfaccia***, ***servizi*** applicativi, ***dominio*** e infrastruttura/***persistenza***.*\
+> Ho usato delle ***porte***, cioè interfacce verso ***repository*** e servizi esterni, applicando il ***DIP***: in questo modo la business logic non dipende direttamente da PostgreSQL ed è facilmente testabile.
+> 
+> Scritti ***unit test*** e ***integration test*** usando ***fake***, ***stub*** e ***mock***, e una ***CI*** che tramite *npm run verify* controlla ***TypeScript***, ***lint*** e test; ovviamente sono stati esguiti ciclicamente dei ***acceptance test***.
+> 
+> Tutto è collegato ad una documentazione chiara che comprende ***requisiti***, ***acceptance criteria*** e ***diagrammi UML***, in modo da mantenere tracciabilità tra requisito, design, codice e test.
+
+
+---
+
+
 # Gestionale Affitti
 
 Gestionale Affitti è un'applicazione web per la gestione essenziale di locazioni immobiliari ad uso abitativo.
